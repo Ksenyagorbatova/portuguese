@@ -1,0 +1,21 @@
+{
+  // Type-checks the test files (excluded from the build configs so the Convex
+  // deploy and `tsc -b` never see them). Run via `tsc -p tsconfig.test.json`
+  // as part of `npm run typecheck`. Does NOT cover Playwright CT (*.ct.tsx) —
+  // those are type-checked by the Playwright runner.
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "composite": false,
+    "noEmit": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "types": ["node", "vite/client"]
+  },
+  "include": [
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/test",
+    "convex/**/*.test.ts",
+    "vitest.config.ts"
+  ]
+}

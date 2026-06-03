@@ -19,5 +19,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "convex/_generated"]
+  "include": ["src", "convex/_generated"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/**/*.ct.tsx", "src/test"]
 }
