@@ -11,7 +11,7 @@ export function deaccent(s: string): string {
 
 export function normStr(s: string): string {
   return deaccent(s.trim())
-    .replace(/[^a-z0-9\/\s\-\.!?,]/g, "")
+    .replace(/[^a-z0-9/\s\-.!?,]/g, "")
     .replace(/\s+/g, " ");
 }
 
