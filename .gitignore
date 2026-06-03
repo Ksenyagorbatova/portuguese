@@ -1,6 +1,7 @@
 node_modules
 dist
 dist-ssr
+.vite
 
 # local env files (VITE_CONVEX_URL for dev)
 .env
