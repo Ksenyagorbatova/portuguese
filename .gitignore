@@ -1,0 +1,21 @@
+node_modules
+dist
+dist-ssr
+
+# local env files (VITE_CONVEX_URL for dev)
+.env
+.env.local
+.env.*.local
+
+# Convex generated code is COMMITTED so CI can typecheck/build without a Convex
+# connection. Regenerate via `npx convex dev` / `npx convex codegen` and commit.
+
+# TS incremental build info
+*.tsbuildinfo
+node_modules/.tmp
+
+# editor / OS
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+*.log
