@@ -9,8 +9,8 @@
     "build": "tsc -b && vite build && cp dist/index.html dist/404.html",
     "preview": "vite preview",
     "lint": "eslint .",
-    "typecheck": "tsc -b",
-    "check": "tsc -b && eslint ."
+    "typecheck": "tsc -b && tsc -p convex/tsconfig.json",
+    "check": "npm run typecheck && eslint ."
   },
   "dependencies": {
     "@auth/core": "^0.37.0",
@@ -21,6 +21,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/node": "^25.9.1",
     "@types/react": "^19.2.16",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
