@@ -21,9 +21,10 @@ export default defineConfig({
     ctViteConfig: {
       resolve: {
         alias: {
-          // SignIn uses useAuthActions(); stub it so the component mounts
-          // without a live Convex/auth provider.
+          // Components use Convex hooks; stub them so they mount in CT without a
+          // live Convex client / auth provider (stubs in src/test/mocks).
           "@convex-dev/auth/react": path.resolve(dir, "src/test/mocks/convexAuthReact.ts"),
+          "convex/react": path.resolve(dir, "src/test/mocks/convexReact.ts"),
         },
       },
     },
