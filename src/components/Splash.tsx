@@ -1,3 +1,8 @@
 export function Splash({ text = "Загрузка…" }: { text?: string }) {
-  return <div className="center-screen">{text}</div>;
+  return (
+    <div className="m-splash">
+      <div className="m-spinner" />
+      {text}
+    </div>
+  );
 }

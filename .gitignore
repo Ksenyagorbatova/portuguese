@@ -25,3 +25,4 @@ playwright/.cache
 .vscode/*
 !.vscode/extensions.json
 *.log
+.playwright-mcp

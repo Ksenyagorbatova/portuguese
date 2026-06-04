@@ -15,7 +15,7 @@ test("shows the Russian prompt and the word tiles", async ({ mount }) => {
     <SentenceBuilder sentence={sentence} isLast={false} onAnswered={() => {}} onNext={() => {}} />,
   );
   await expect(component.getByText("Доброе утро")).toBeVisible();
-  await expect(component.locator(".word-bank .wtile")).toHaveCount(2);
+  await expect(component.locator(".m-bank .m-wtile")).toHaveCount(2);
 });
 
 test("accepts the correctly built sentence", async ({ mount }) => {
@@ -32,8 +32,8 @@ test("accepts the correctly built sentence", async ({ mount }) => {
   );
 
   // Pick tiles from the bank in the right order (text is unique per tile here).
-  await component.locator(".word-bank .wtile").filter({ hasText: "Bom" }).click();
-  await component.locator(".word-bank .wtile").filter({ hasText: "dia" }).click();
+  await component.locator(".m-bank .m-wtile").filter({ hasText: "Bom" }).click();
+  await component.locator(".m-bank .m-wtile").filter({ hasText: "dia" }).click();
   await component.getByRole("button", { name: "Проверить" }).click();
 
   await expect(component.getByText("Верно!")).toBeVisible();

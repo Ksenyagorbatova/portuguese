@@ -6,7 +6,7 @@ import { SignIn } from "./SignIn";
 test.describe("SignIn with registration disabled", () => {
   test("renders the sign-in form", async ({ mount }) => {
     const component = await mount(<SignIn />);
-    await expect(component.getByText("Вход", { exact: true })).toBeVisible();
+    await expect(component.getByText("С возвращением", { exact: true })).toBeVisible();
     await expect(component.getByPlaceholder("Email")).toBeVisible();
     await expect(component.getByPlaceholder("Пароль")).toBeVisible();
     await expect(component.getByRole("button", { name: "Войти" })).toBeVisible();

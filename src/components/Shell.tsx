@@ -12,6 +12,7 @@ import { TopicsTab } from "./TopicsTab";
 import { Theory } from "./Theory";
 import { Session } from "./Session";
 import { Splash } from "./Splash";
+import type { Theme } from "../lib/useTheme";
 
 type Tab = "review" | "topics";
 type View =
@@ -19,7 +20,13 @@ type View =
   | { kind: "theory"; topicKey: string; lesson: LessonView }
   | { kind: "session"; queue: SessionItem[]; origin: SessionOrigin };
 
-export function Shell() {
+export function Shell({
+  theme,
+  onToggleTheme,
+}: {
+  theme: Theme;
+  onToggleTheme: () => void;
+}) {
   const course = useQuery(api.courseQueries.getCourse);
   const rawSrs = useQuery(api.progress.getSrsState);
   const markTheorySeen = useMutation(api.progress.markTheorySeen);
@@ -122,12 +129,21 @@ export function Shell() {
       );
   }
 
+  const viewKey =
+    view.kind === "session"
+      ? `session-${nonce}`
+      : view.kind === "theory"
+        ? `theory-${view.lesson.lessonKey}`
+        : `home-${tab}`;
+
   return (
     <>
-      <Header streak={s.streak} />
+      <Header streak={s.streak} theme={theme} onToggleTheme={onToggleTheme} />
       <ScoreRow correct={score.correct} total={score.total} due={s.dueCountAll} />
       <TabBar tab={tab} onTab={switchTab} />
-      {content}
+      <div className="m-view" key={viewKey}>
+        {content}
+      </div>
     </>
   );
 }

@@ -1,34 +1,28 @@
 import { useState } from "react";
 import type { LessonView, WordView } from "../lib/types";
 import { speak } from "../lib/speech";
+import { Icon } from "./Icon";
 
 function FlipCard({ word }: { word: WordView }) {
   const [flipped, setFlipped] = useState(false);
   return (
     <div
-      className={"flip-card" + (flipped ? " flipped" : "")}
+      className={"m-flip" + (flipped ? " flipped" : "")}
       onClick={() => {
         setFlipped((f) => !f);
         speak(word.pt);
       }}
     >
-      <div className="flip-inner">
-        <div className="flip-front">
-          <div className="fc-pt">{word.pt}</div>
-          <div className="fc-hint">🔊 нажми</div>
-        </div>
-        <div className="flip-back">
-          <div className="fc-ru">{word.ru}</div>
-          {word.note && <div className="fc-note">{word.note}</div>}
-          <div
-            className="fc-replay"
-            onClick={(e) => {
-              e.stopPropagation();
-              speak(word.pt);
-            }}
-          >
-            🔊 ещё раз
+      <div className="m-flip-in">
+        <div className="m-flip-f">
+          <div className="m-flip-pt">{word.pt}</div>
+          <div className="m-flip-cue">
+            <Icon name="volume" size={13} /> нажми
           </div>
+        </div>
+        <div className="m-flip-b">
+          <div className="m-flip-ru">{word.ru}</div>
+          {word.note && <div className="m-flip-note">{word.note}</div>}
         </div>
       </div>
     </div>
@@ -38,18 +32,23 @@ function FlipCard({ word }: { word: WordView }) {
 export function Theory({ lesson, onBegin }: { lesson: LessonView; onBegin: () => void }) {
   const t = lesson.theory;
   return (
-    <div className="card theory-card">
-      <div className="theory-label">📖 Изучаем</div>
-      <div className="theory-title">{lesson.label}</div>
-      <div className="theory-intro">{t.intro}</div>
-      <div className="theory-tip">{t.tip}</div>
-      <div className="theory-hint">
-        🔊 Нажми на карточку — услышишь произношение и увидишь перевод
+    <div className="m-card">
+      <div className="m-theory-eyebrow">
+        <Icon name="book-open" /> Изучаем
+      </div>
+      <div className="m-theory-title">{lesson.label}</div>
+      <div className="m-theory-intro">{t.intro}</div>
+      <div className="m-tip">
+        <span className="m-tip-flag">🇵🇹</span>
+        <span>{t.tip}</span>
+      </div>
+      <div className="m-hint" style={{ marginBottom: 16 }}>
+        <Icon name="volume" /> Нажми на карточку — услышишь произношение и увидишь перевод
       </div>
       {t.sections.map((sec, i) => (
-        <div className="theory-sec" key={i}>
-          <div className="sec-head">{sec.heading}</div>
-          <div className="flip-grid">
+        <div className="m-sec" key={i}>
+          <div className="m-sec-head">{sec.heading}</div>
+          <div className="m-flips">
             {lesson.words
               .filter((w) => sec.words.includes(w.pt))
               .map((w) => (
@@ -58,8 +57,8 @@ export function Theory({ lesson, onBegin }: { lesson: LessonView; onBegin: () =>
           </div>
         </div>
       ))}
-      <button className="big-btn" onClick={onBegin}>
-        Начать практику →
+      <button className="m-btn m-btn--primary m-btn--block m-btn--lg" onClick={onBegin}>
+        Начать практику <Icon name="arrow-right" size={18} />
       </button>
     </div>
   );

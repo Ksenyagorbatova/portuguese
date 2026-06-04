@@ -84,12 +84,6 @@ export function Session({
 
   const item = queue[idx];
   const isLast = idx === queue.length - 1;
-
-  const bannerParts: string[] = [];
-  if (counts.due > 0) bannerParts.push(`🔴 ${counts.due} срочных`);
-  if (counts.nw > 0) bannerParts.push(`✨ ${counts.nw} новых`);
-  if (counts.rv > 0) bannerParts.push(`🔄 ${counts.rv} повторений`);
-
   const width = Math.round((idx / queue.length) * 100);
 
   let exercise;
@@ -136,11 +130,39 @@ export function Session({
 
   return (
     <>
-      <div className="session-info">{bannerParts.join(" · ")}</div>
-      <div className="progress-bar">
-        <div className="progress-fill" style={{ width: `${width}%` }} />
+      <div className="m-session-top">
+        <div className="m-progress">
+          <div className="m-progress-fill" style={{ width: `${width}%` }} />
+        </div>
+        <span className="m-progress-count">
+          {idx + 1}/{queue.length}
+        </span>
       </div>
+      <SessionChips counts={counts} />
       {exercise}
     </>
+  );
+}
+
+function SessionChips({
+  counts,
+}: {
+  counts: { due: number; nw: number; rv: number; cr: number };
+}) {
+  const chip = (cls: string, n: number, label: string) =>
+    n > 0 ? (
+      <span className={"m-badge " + cls}>
+        <span className={"m-dot " + cls} />
+        {n} {label}
+      </span>
+    ) : null;
+  if (counts.due + counts.nw + counts.rv + counts.cr === 0) return null;
+  return (
+    <div className="m-chips">
+      {chip("due", counts.due, "срочных")}
+      {chip("new", counts.nw, "новых")}
+      {chip("rev", counts.rv, "повторений")}
+      {chip("cross", counts.cr, "сочетаний")}
+    </div>
   );
 }

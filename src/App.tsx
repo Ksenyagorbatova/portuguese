@@ -2,10 +2,12 @@ import { Authenticated, Unauthenticated, AuthLoading } from "convex/react";
 import { Shell } from "./components/Shell";
 import { SignIn } from "./components/SignIn";
 import { Splash } from "./components/Splash";
+import { useTheme } from "./lib/useTheme";
 
 export default function App() {
+  const { theme, toggle } = useTheme();
   return (
-    <div className="app">
+    <div className="m-app">
       <AuthLoading>
         <Splash />
       </AuthLoading>
@@ -13,7 +15,7 @@ export default function App() {
         <SignIn />
       </Unauthenticated>
       <Authenticated>
-        <Shell />
+        <Shell theme={theme} onToggleTheme={toggle} />
       </Authenticated>
     </div>
   );

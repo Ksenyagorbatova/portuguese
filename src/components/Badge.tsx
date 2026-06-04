@@ -1,8 +1,20 @@
 import type { BadgeTag } from "../lib/types";
 
+// Status badge: a dot-pill (no 🔴 emoji). The four review states map to the
+// status tokens (due / new / rev / cross).
+const TAG = {
+  due: { cls: "due", label: "повторить" },
+  new: { cls: "new", label: "новое" },
+  review: { cls: "rev", label: "повторение" },
+  cross: { cls: "cross", label: "сочетание" },
+} as const;
+
 export function Badge({ tag }: { tag: BadgeTag }) {
-  if (tag === "due") return <span className="badge b-due">🔴 повторить</span>;
-  if (tag === "new") return <span className="badge b-new">✨ новое</span>;
-  if (tag === "cross") return <span className="badge b-cross">🔗 сочетание</span>;
-  return <span className="badge b-rev">🔄 повторение</span>;
+  const t = TAG[tag];
+  return (
+    <span className={"m-badge " + t.cls}>
+      <span className={"m-dot " + t.cls} />
+      {t.label}
+    </span>
+  );
 }
