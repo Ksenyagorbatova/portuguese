@@ -137,7 +137,8 @@ CI ([`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)) на push в
 `seed:seedContent` + публикация на GitHub Pages. Единственный секрет —
 `CONVEX_DEPLOY_KEY` (GitHub Actions secret). Прод и dev — разные базы Convex.
 Проверки на PR ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) — отдельные
-jobs (lint, typecheck, build, backend-тесты, frontend-тесты, компонентные).
+jobs (secret-scan через gitleaks, lint, typecheck, build, backend-тесты,
+frontend-тесты, компонентные).
 
 ## Известные компромиссы
 
