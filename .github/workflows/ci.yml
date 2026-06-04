@@ -1,10 +1,10 @@
 name: CI
 
 # Quality gate for pull requests. Each check is its OWN job so it shows up as a
-# separate status on the PR: lint, type-check, build, backend tests, frontend
-# tests and component tests run independently and in parallel. Runs WITHOUT any
-# Convex connection — convex/_generated is committed, so tsc/vite/vitest have the
-# types they need.
+# separate status on the PR: secret scanning, lint, type-check, build, backend
+# tests, frontend tests and component tests run independently and in parallel.
+# Runs WITHOUT any Convex connection — convex/_generated is committed, so
+# tsc/vite/vitest have the types they need.
 #
 # Triggered ONLY on pull_request (+ manual) — a feature branch with an open PR is
 # verified once, not twice. Local pushes are already guarded by the pre-push hook.
@@ -22,6 +22,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Fail the PR if any secret (API key, token, private key, etc.) is committed.
+  # gitleaks-action is free for public/personal repos. No untrusted event input
+  # is used in any run step — the only expression is the built-in GITHUB_TOKEN.
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so the whole PR commit range is scanned
+      - name: Scan for secrets (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   lint:
     runs-on: ubuntu-latest
     steps:
