@@ -3,14 +3,25 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
   "scripts": {
     "dev": "vite",
     "dev:convex": "convex dev",
     "build": "tsc -b && vite build && cp dist/index.html dist/404.html",
     "preview": "vite preview",
     "lint": "eslint .",
-    "typecheck": "tsc -b && tsc -p convex/tsconfig.json",
-    "check": "npm run typecheck && eslint ."
+    "typecheck": "tsc -b && tsc -p convex/tsconfig.json && tsc -p tsconfig.test.json",
+    "check": "npm run typecheck && eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:backend": "vitest run --project backend",
+    "test:frontend": "vitest run --project frontend",
+    "test:ct": "playwright test -c playwright-ct.config.ts",
+    "test:all": "npm run test && npm run test:ct",
+    "verify": "npm run check && npm run test:all",
+    "prepare": "git config core.hooksPath .githooks || true"
   },
   "dependencies": {
     "@auth/core": "^0.37.0",
@@ -20,17 +31,25 @@
     "react-dom": "^19.2.7"
   },
   "devDependencies": {
+    "@edge-runtime/vm": "^5.0.0",
     "@eslint/js": "^10.0.1",
+    "@playwright/experimental-ct-react": "^1.60.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^25.9.1",
     "@types/react": "^19.2.16",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
+    "convex-test": "^0.0.53",
     "eslint": "^10.4.1",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.6.0",
+    "jsdom": "^29.1.1",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.60.1",
-    "vite": "^8.0.16"
+    "vite": "^8.0.16",
+    "vitest": "^4.1.8"
   }
 }

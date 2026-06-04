@@ -15,6 +15,11 @@ dist-ssr
 *.tsbuildinfo
 node_modules/.tmp
 
+# test artifacts (Playwright CT)
+test-results
+playwright-report
+playwright/.cache
+
 # editor / OS
 .DS_Store
 .vscode/*

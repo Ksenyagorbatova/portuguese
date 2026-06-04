@@ -5,6 +5,11 @@ import { useAuthActions } from "@convex-dev/auth/react";
 // setting their OAuth env vars (see README). Until then, Password-only.
 const OAUTH_ENABLED = false;
 
+// Public registration toggle. Keep in sync with SIGNUP_ENABLED in
+// convex/auth.ts (the server enforces it; this only hides the UI). When false,
+// the sign-up switch is hidden and only existing users can sign in.
+const SIGNUP_ENABLED = false;
+
 export function SignIn() {
   const { signIn } = useAuthActions();
   const [flow, setFlow] = useState<"signIn" | "signUp">("signIn");
@@ -72,15 +77,17 @@ export function SignIn() {
         </>
       )}
 
-      <div
-        className="auth-switch"
-        onClick={() => {
-          setError(null);
-          setFlow((f) => (f === "signIn" ? "signUp" : "signIn"));
-        }}
-      >
-        {flow === "signIn" ? "Нет аккаунта? Зарегистрироваться" : "Уже есть аккаунт? Войти"}
-      </div>
+      {SIGNUP_ENABLED && (
+        <div
+          className="auth-switch"
+          onClick={() => {
+            setError(null);
+            setFlow((f) => (f === "signIn" ? "signUp" : "signIn"));
+          }}
+        >
+          {flow === "signIn" ? "Нет аккаунта? Зарегистрироваться" : "Уже есть аккаунт? Войти"}
+        </div>
+      )}
     </div>
   );
 }
