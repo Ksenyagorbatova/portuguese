@@ -4,7 +4,7 @@ import { shuffle } from "../../lib/shuffle";
 import { sentenceMatch } from "../../lib/text";
 import { speak } from "../../lib/speech";
 import { Badge } from "../Badge";
-import { FeedbackBox, NextButton } from "../Feedback";
+import { ResultFeedback, RetryBox, NextButton } from "../Feedback";
 
 // Cross-topic sentences don't touch SRS in the original — they only affect the
 // session score. So this exercise calls onAnswered but NOT recordAnswer.
@@ -57,23 +57,22 @@ export function SentenceBuilder({
   }
 
   return (
-    <div className="card">
-      <div className="q-type">
-        Составьте предложение <Badge tag="cross" />
+    <div className="m-card">
+      <div className="m-q-head">
+        <span className="m-q-kind">Составьте предложение</span>
+        <Badge tag="cross" />
       </div>
-      <div className="q-text" style={{ fontSize: 17 }}>
-        {sentence.ru}
-      </div>
-      <div className="q-sub">Расставьте слова в правильном порядке:</div>
+      <div className="m-q-text sentence">{sentence.ru}</div>
+      <div className="m-q-prompt">Расставьте слова в правильном порядке:</div>
 
-      <div className="ans-row">
+      <div className={"m-answer" + (selected.length === 0 ? " empty" : "")}>
         {selected.length === 0 ? (
-          <span className="ans-ph">нажимай слова снизу…</span>
+          <span className="m-ans-ph">нажимай слова снизу…</span>
         ) : (
           selected.map((id, idx) => (
             <div
               key={idx}
-              className="atile"
+              className="m-atile"
               onClick={() => !resolved && setSelected((s) => s.filter((_, i) => i !== idx))}
             >
               {wordById.get(id)}
@@ -82,11 +81,11 @@ export function SentenceBuilder({
         )}
       </div>
 
-      <div className="word-bank">
+      <div className="m-bank">
         {tiles.map((t) => (
           <div
             key={t.id}
-            className={"wtile" + (used.has(t.id) ? " used" : "")}
+            className={"m-wtile" + (used.has(t.id) ? " used" : "")}
             onClick={() => !resolved && !used.has(t.id) && setSelected((s) => [...s, t.id])}
           >
             {t.w}
@@ -95,32 +94,28 @@ export function SentenceBuilder({
       </div>
 
       {!resolved && (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button className="submit-btn" onClick={check}>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button className="m-btn m-btn--primary" style={{ flex: 1 }} onClick={check}>
             Проверить
           </button>
-          <button
-            className="submit-btn"
-            style={{ background: "#888" }}
-            onClick={() => !resolved && setSelected([])}
-          >
+          <button className="m-btn m-btn--ghost" onClick={() => setSelected([])}>
             Очистить
           </button>
         </div>
       )}
 
       {!resolved && retry && (
-        <FeedbackBox kind="retry">
+        <RetryBox>
           <b>Не совсем!</b> Попробуйте ещё раз.
-        </FeedbackBox>
+        </RetryBox>
       )}
       {resolved && (
         <>
-          <FeedbackBox kind={resolved.ok ? "success" : "error"}>
-            <b>{resolved.ok ? "Верно!" : "Правильно:"}</b> {sentence.answer}
-            <br />
-            <small>{sentence.ru}</small>
-          </FeedbackBox>
+          <ResultFeedback ok={resolved.ok}>
+            <b>{resolved.ok ? "Верно!" : "Правильно:"}</b>{" "}
+            <span className="m-fb-pt">{sentence.answer}</span>
+            <div className="m-fb-sub">{sentence.ru}</div>
+          </ResultFeedback>
           <NextButton isLast={isLast} onClick={onNext} />
         </>
       )}

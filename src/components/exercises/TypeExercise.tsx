@@ -6,7 +6,8 @@ import { variantsMatch } from "../../lib/text";
 import { nextDueLabel, intervalLabel } from "../../lib/srs";
 import { speak } from "../../lib/speech";
 import { Badge } from "../Badge";
-import { FeedbackBox, NextButton } from "../Feedback";
+import { Icon } from "../Icon";
+import { WordFeedback, RetryBox, NextButton } from "../Feedback";
 
 type Resolved = { ok: boolean; dueLabel: string };
 
@@ -55,63 +56,58 @@ export function TypeExercise({
     }
   }
 
-  const borderColor = resolved ? (resolved.ok ? "#5a9a22" : "#c03030") : undefined;
+  const inputClass = "m-input" + (resolved ? (resolved.ok ? " ok" : " err") : "");
 
   return (
-    <div className="card">
-      <div className="q-type">
-        Напишите по-португальски <Badge tag={tag} />
+    <div className="m-card">
+      <div className="m-q-head">
+        <span className="m-q-kind">Напишите по-португальски</span>
+        <Badge tag={tag} />
       </div>
-      <div className="q-text">{word.ru}</div>
-      {word.note && <div className="q-note">{word.note}</div>}
+      <div className="m-q-text">{word.ru}</div>
+      {word.note && <div className="m-q-note">{word.note}</div>}
       {tag !== "new" && (
-        <div className="eb-info">
-          ⏱ следующий повтор: {nextDueLabel(card)} · интервал: {intervalLabel(card)}
+        <div className="m-q-srs">
+          <Icon name="clock" /> следующий повтор: {nextDueLabel(card)} · интервал:{" "}
+          {intervalLabel(card)}
         </div>
       )}
-      <div className="q-sub">Введите перевод:</div>
-      <div className="hint-line">ℹ️ Акценты необязательны — "ate logo" = "até logo"</div>
-      <input
-        ref={inputRef}
-        className="type-in"
-        value={value}
-        disabled={resolved !== null}
-        autoFocus
-        autoComplete="off"
-        placeholder="Ваш ответ…"
-        style={borderColor ? { borderColor } : undefined}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") check();
-        }}
-      />
+      <div className="m-q-prompt">Введите перевод:</div>
+      <div className="m-field">
+        <input
+          ref={inputRef}
+          className={inputClass}
+          value={value}
+          disabled={resolved !== null}
+          autoFocus
+          autoComplete="off"
+          placeholder="Ваш ответ…"
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") check();
+          }}
+        />
+      </div>
+      <div className="m-hint">
+        <Icon name="info" /> Акценты необязательны — «ate logo» = «até logo»
+      </div>
       {!resolved && (
-        <button className="submit-btn" onClick={check}>
+        <button
+          className="m-btn m-btn--primary m-btn--block"
+          style={{ marginTop: 14 }}
+          onClick={check}
+        >
           Проверить
         </button>
       )}
       {!resolved && retry && (
-        <FeedbackBox kind="retry">
+        <RetryBox>
           <b>Не совсем!</b> Ещё одна попытка.
-        </FeedbackBox>
+        </RetryBox>
       )}
       {resolved && (
         <>
-          <FeedbackBox kind={resolved.ok ? "success" : "error"}>
-            <b>{resolved.ok ? "Верно!" : "Правильно:"}</b>{" "}
-            <span>
-              {word.pt} = {word.ru}
-              {word.note && (
-                <>
-                  <br />
-                  <small>💡 {word.note}</small>
-                </>
-              )}
-            </span>
-            <div className="eb-info" style={{ marginTop: 5 }}>
-              ⏱ {resolved.dueLabel}
-            </div>
-          </FeedbackBox>
+          <WordFeedback ok={resolved.ok} word={word} dueLabel={resolved.dueLabel} />
           <NextButton isLast={isLast} onClick={onNext} />
         </>
       )}

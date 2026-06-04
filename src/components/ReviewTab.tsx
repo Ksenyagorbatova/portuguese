@@ -1,4 +1,6 @@
 import type { Course, SrsState } from "../lib/types";
+import { Icon } from "./Icon";
+import { ProgressRing } from "./ProgressRing";
 
 export function ReviewTab({
   course,
@@ -22,52 +24,88 @@ export function ReviewTab({
     0,
   );
   const due = srs.dueCountAll;
+  const pct = seenCount > 0 ? Math.round((learnedCount / seenCount) * 100) : 0;
 
-  const banner =
-    seenCount === 0 ? (
-      <div className="eb-banner">
-        👈 Сначала открой любую тему и изучи теорию — тогда слова появятся здесь для повторения.
+  let banner;
+  if (seenCount === 0) {
+    banner = (
+      <div className="m-banner info">
+        <Icon name="book-open" />
+        <span>Открой любую тему и изучи теорию — слова появятся здесь для повторения.</span>
       </div>
-    ) : due > 0 ? (
-      <div className="eb-banner">
-        🔴 <b>{due} слов</b> пора повторить по методу Эббингауза!
-      </div>
-    ) : learnedCount > 0 ? (
-      <div className="eb-banner ok">✅ Все повторения сделаны вовремя. Отлично!</div>
-    ) : (
-      <div className="eb-banner">Слова из пройденных тем готовы к тренировке.</div>
     );
+  } else if (due > 0) {
+    banner = (
+      <div className="m-banner due">
+        <Icon name="circle-alert" />
+        <span>
+          <b>{due} слов</b> пора повторить по методу Эббингауза
+        </span>
+      </div>
+    );
+  } else if (learnedCount > 0) {
+    banner = (
+      <div className="m-banner ok">
+        <Icon name="circle-check" />
+        <span>Все повторения сделаны вовремя. Отлично!</span>
+      </div>
+    );
+  } else {
+    banner = (
+      <div className="m-banner info">
+        <Icon name="sparkles" />
+        <span>Слова из пройденных тем готовы к тренировке.</span>
+      </div>
+    );
+  }
 
   return (
-    <div className="review-hero">
-      <div className="review-stats">
-        <div className="rs-item">
-          <span className="rs-n">{seenCount}</span>
-          <span className="rs-l">изучено слов</span>
-        </div>
-        <div className="rs-sep" />
-        <div className="rs-item">
-          <span className="rs-n">{learnedCount}</span>
-          <span className="rs-l">усвоено</span>
-        </div>
-        <div className="rs-sep" />
-        <div className="rs-item" style={due > 0 ? { color: "#c03030" } : undefined}>
-          <span className="rs-n">{due || "✓"}</span>
-          <span className="rs-l">к повтору</span>
+    <div className="m-hero">
+      <div className="m-hero-top">
+        <ProgressRing pct={pct} size={96} stroke={9}>
+          <div className="m-ring-pct">{pct}%</div>
+          <div className="m-ring-cap">усвоено</div>
+        </ProgressRing>
+        <div className="m-hero-cols">
+          <div className="m-hero-row">
+            <span className="m-dot accent" />
+            <span className="m-hero-num">{seenCount}</span>
+            <span className="m-hero-cap">изучено слов</span>
+          </div>
+          <div className="m-hero-row">
+            <span className="m-dot accent" />
+            <span className="m-hero-num">{learnedCount}</span>
+            <span className="m-hero-cap">усвоено</span>
+          </div>
+          <div className="m-hero-row">
+            <span className={"m-dot " + (due > 0 ? "due" : "accent")} />
+            <span className="m-hero-num" style={due > 0 ? { color: "var(--due-ink)" } : undefined}>
+              {due || "✓"}
+            </span>
+            <span className="m-hero-cap">к повтору</span>
+          </div>
         </div>
       </div>
       {banner}
       <button
-        className="big-btn"
+        className="m-btn m-btn--primary m-btn--block m-btn--lg"
+        style={{ marginTop: 20 }}
         disabled={seenCount === 0}
-        style={seenCount === 0 ? { opacity: 0.45, cursor: "default" } : undefined}
         onClick={onStart}
       >
-        {due > 0
-          ? `🔁 Повторить (${due} слов)`
-          : seenCount > 0
-            ? "🔁 Тренировать все слова"
-            : "📚 Сначала изучи тему"}
+        {due > 0 ? (
+          <>
+            <Icon name="repeat" size={18} /> Повторить ({due} слов)
+          </>
+        ) : seenCount > 0 ? (
+          <>
+            <Icon name="repeat" size={18} /> Тренировать все слова
+          </>
+        ) : (
+          <>
+            <Icon name="book-open" size={18} /> Сначала изучи тему
+          </>
+        )}
       </button>
     </div>
   );

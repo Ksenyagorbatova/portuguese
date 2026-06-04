@@ -5,7 +5,7 @@ test("marks the active tab and reports tab switches", async ({ mount }) => {
   const picks: string[] = [];
   const component = await mount(<TabBar tab="review" onTab={(t) => picks.push(t)} />);
 
-  await expect(component.getByRole("button", { name: /Повторение/ })).toHaveClass(/active/);
-  await component.getByRole("button", { name: /По темам/ }).click();
+  await expect(component.getByRole("button", { name: /Повторение/ })).toHaveClass(/\bon\b/);
+  await component.getByRole("button", { name: /Темы/ }).click();
   expect(picks).toEqual(["topics"]);
 });

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Course, LessonView, SrsState, Stat, TopicView } from "../lib/types";
+import { Icon } from "./Icon";
 
 const EMPTY: Stat = { total: 0, seen: 0, learned: 0, due: 0 };
 
@@ -18,18 +19,33 @@ function LessonRow({
   const seen = srs.seenTheory.includes(lesson.lessonKey);
   const lpct = ls.total > 0 ? Math.round((ls.learned / ls.total) * 100) : 0;
   return (
-    <div className="lesson-row" onClick={() => onOpen(topicKey, lesson)}>
-      <div className="lr-left">
-        <div className="lr-name">{lesson.label}</div>
-        <div className="lr-meta">
-          {ls.learned}/{ls.total} слов · {seen ? `${lpct}%` : "📖 новая"}
+    <div className="m-lesson" onClick={() => onOpen(topicKey, lesson)}>
+      <div style={{ minWidth: 0 }}>
+        <div className="m-lesson-name">{lesson.label}</div>
+        <div className="m-lesson-meta">
+          {ls.learned}/{ls.total} слов
+          {seen ? (
+            <span>· {lpct}%</span>
+          ) : (
+            <span className="m-pill-new">
+              <Icon name="book-open" size={11} /> новая
+            </span>
+          )}
         </div>
       </div>
       {ls.due > 0 ? (
-        <span className="lr-due">🔴 {ls.due}</span>
+        <span className="m-chip-due">
+          <span className="m-dot" /> {ls.due}
+        </span>
       ) : ls.learned === ls.total && ls.total > 0 ? (
-        <span className="lr-done">✓</span>
-      ) : null}
+        <span className="m-lesson-done">
+          <Icon name="circle-check" />
+        </span>
+      ) : (
+        <span className="m-chev">
+          <Icon name="chevron-right" />
+        </span>
+      )}
     </div>
   );
 }
@@ -38,31 +54,41 @@ function TopicBlock({
   topic,
   srs,
   onOpenLesson,
+  defaultOpen,
 }: {
   topic: TopicView;
   srs: SrsState;
   onOpenLesson: (topicKey: string, lesson: LessonView) => void;
+  defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(!!defaultOpen);
   const ts = srs.topicStats[topic.topicKey] ?? EMPTY;
   const pct = ts.total > 0 ? Math.round((ts.learned / ts.total) * 100) : 0;
   return (
-    <div className="topic-block">
-      <div className="topic-head" onClick={() => setOpen((o) => !o)}>
-        <span className="t-icon">{topic.icon}</span>
-        <div className="t-info">
-          <div className="t-name">{topic.label}</div>
-          <div className="t-bar-wrap">
-            <div className="t-bar" style={{ width: pct + "%" }} />
+    <div className={"m-topic" + (open ? " open" : "")}>
+      <div className="m-topic-head" onClick={() => setOpen((o) => !o)}>
+        <div className="m-topic-ico">{topic.icon}</div>
+        <div className="m-topic-info">
+          <div className="m-topic-name">{topic.label}</div>
+          <div className="m-bar">
+            <div className="m-bar-fill" style={{ width: pct + "%" }} />
           </div>
         </div>
-        <div className="t-meta">
-          {ts.due > 0 ? <span style={{ color: "#c03030" }}>🔴{ts.due}</span> : `${pct}%`}
+        <div className="m-topic-right">
+          {ts.due > 0 ? (
+            <span className="m-chip-due">
+              <span className="m-dot" /> {ts.due}
+            </span>
+          ) : (
+            <span className="m-topic-pct">{pct}%</span>
+          )}
+          <span className="m-chev">
+            <Icon name="chevron-right" />
+          </span>
         </div>
-        <span className="t-arrow">{open ? "⌄" : "›"}</span>
       </div>
       {open && (
-        <div className="topic-lessons">
+        <div className="m-lessons">
           {topic.lessons.map((l) => (
             <LessonRow
               key={l.lessonKey}
@@ -88,9 +114,15 @@ export function TopicsTab({
   onOpenLesson: (topicKey: string, lesson: LessonView) => void;
 }) {
   return (
-    <div className="topics-list">
-      {course.topics.map((t) => (
-        <TopicBlock key={t.topicKey} topic={t} srs={srs} onOpenLesson={onOpenLesson} />
+    <div className="m-topics">
+      {course.topics.map((t, i) => (
+        <TopicBlock
+          key={t.topicKey}
+          topic={t}
+          srs={srs}
+          onOpenLesson={onOpenLesson}
+          defaultOpen={i === 0}
+        />
       ))}
     </div>
   );

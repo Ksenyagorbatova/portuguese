@@ -1,3 +1,5 @@
+import { Icon } from "./Icon";
+
 export function Complete({
   correct,
   total,
@@ -18,39 +20,36 @@ export function Complete({
   const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
   const emoji = pct >= 80 ? "🎉" : pct >= 50 ? "👍" : "💪";
   return (
-    <div className="card" style={{ textAlign: "center", padding: "2rem 1.5rem" }}>
-      <div style={{ fontSize: 38, marginBottom: ".6rem" }}>{emoji}</div>
-      <div style={{ fontSize: 20, fontWeight: 700, color: "#111", marginBottom: ".4rem" }}>
-        Сессия завершена!
-      </div>
-      <div style={{ fontSize: 14, color: "#555", marginBottom: ".3rem" }}>
-        Верно: {correct} из {total} ({pct}%)
+    <div className="m-card m-complete">
+      <div className="m-complete-emoji">{emoji}</div>
+      <div className="m-complete-title">Сессия завершена!</div>
+      <div className="m-complete-score">
+        Верно: <b>{correct}</b> из <b>{total}</b> ({pct}%)
       </div>
       {dueCountAll > 0 ? (
-        <div style={{ fontSize: 13, color: "#c03030", marginBottom: "1rem" }}>
-          🔴 Ещё {dueCountAll} слов ждут повторения по Эббингаузу
+        <div className="m-complete-note due">
+          <Icon name="circle-alert" /> Ещё {dueCountAll} слов ждут повторения
         </div>
       ) : (
-        <div style={{ fontSize: 13, color: "#1d9e75", marginBottom: "1rem" }}>
-          ✅ Все повторения сделаны!
+        <div className="m-complete-note ok">
+          <Icon name="circle-check" /> Все повторения сделаны!
         </div>
       )}
-      <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
-        <button className="submit-btn" onClick={onRestart}>
-          Ещё раз
+      <div className="m-complete-actions">
+        <button className="m-btn m-btn--primary m-btn--block m-btn--lg" onClick={onRestart}>
+          <Icon name="rotate-ccw" size={18} /> Ещё раз
         </button>
         {nextLesson && (
           <button
-            className="next-btn"
-            style={{ width: "auto" }}
+            className="m-btn m-btn--tinted m-btn--block"
             onClick={() => onPickLesson(nextLesson.topicKey, nextLesson.lessonKey)}
           >
-            → {nextLesson.label}
+            {nextLesson.label} <Icon name="arrow-right" size={18} />
           </button>
         )}
         {dueCountAll > 0 && (
-          <button className="next-btn" style={{ width: "auto" }} onClick={onGoReview}>
-            🔁 К повторению
+          <button className="m-btn m-btn--ghost m-btn--block" onClick={onGoReview}>
+            <Icon name="repeat" size={18} /> К повторению
           </button>
         )}
       </div>

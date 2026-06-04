@@ -7,9 +7,12 @@ import { getWrong } from "../../lib/wrongOptions";
 import { nextDueLabel, intervalLabel } from "../../lib/srs";
 import { speak } from "../../lib/speech";
 import { Badge } from "../Badge";
-import { FeedbackBox, NextButton } from "../Feedback";
+import { Icon } from "../Icon";
+import { WordFeedback, RetryBox, NextButton } from "../Feedback";
 
 type Resolved = { ok: boolean; dueLabel: string };
+
+const KEYS = ["A", "B", "C", "D", "E"];
 
 export function McExercise({
   word,
@@ -60,63 +63,64 @@ export function McExercise({
 
   function optClass(o: WordView): string {
     if (resolved) {
-      if (isCorrectOpt(o)) return "opt correct";
-      if (wrongPicked.has(o.pt)) return "opt wrong";
-      return "opt";
+      if (isCorrectOpt(o)) return "m-opt correct";
+      if (wrongPicked.has(o.pt)) return "m-opt wrong";
+      return "m-opt";
     }
-    return wrongPicked.has(o.pt) ? "opt wrong" : "opt";
+    return wrongPicked.has(o.pt) ? "m-opt wrong" : "m-opt";
   }
 
   const question = mode === "pt_ru" ? word.pt : word.ru;
   const prompt = mode === "pt_ru" ? "Что это значит по-русски?" : "Как это по-португальски?";
 
   return (
-    <div className="card">
-      <div className="q-type">
-        {mode === "pt_ru" ? "Выберите перевод" : "Выберите по-португальски"} <Badge tag={tag} />
+    <div className="m-card">
+      <div className="m-q-head">
+        <span className="m-q-kind">
+          {mode === "pt_ru" ? "Выберите перевод" : "Выберите по-португальски"}
+        </span>
+        <Badge tag={tag} />
       </div>
-      <div className="q-text">{question}</div>
-      {word.note && <div className="q-note">{word.note}</div>}
+      <div className="m-q-row">
+        <div className="m-q-text">{question}</div>
+        {mode === "pt_ru" && (
+          <button className="m-audio" onClick={() => speak(word.pt)} aria-label="Прослушать">
+            <Icon name="volume" />
+          </button>
+        )}
+      </div>
+      {word.note && <div className="m-q-note">{word.note}</div>}
       {tag !== "new" && (
-        <div className="eb-info">
-          ⏱ следующий повтор: {nextDueLabel(card)} · интервал: {intervalLabel(card)}
+        <div className="m-q-srs">
+          <Icon name="clock" /> следующий повтор: {nextDueLabel(card)} · интервал:{" "}
+          {intervalLabel(card)}
         </div>
       )}
-      <div className="q-sub">{prompt}</div>
-      <div className="opts-grid">
-        {options.map((o) => (
+      <div className="m-q-prompt">{prompt}</div>
+      <div className="m-opts">
+        {options.map((o, i) => (
           <button
             key={o.pt}
             className={optClass(o)}
             disabled={resolved !== null || wrongPicked.has(o.pt)}
             onClick={() => choose(o)}
           >
-            {label(o)}
+            <span className="m-opt-key">{KEYS[i]}</span>
+            <span className="m-opt-label">{label(o)}</span>
+            <span className="m-opt-mark">
+              <Icon name={isCorrectOpt(o) ? "check" : "x"} size={20} />
+            </span>
           </button>
         ))}
       </div>
       {!resolved && tries > 0 && (
-        <FeedbackBox kind="retry">
+        <RetryBox>
           <b>Не совсем!</b> Ещё одна попытка.
-        </FeedbackBox>
+        </RetryBox>
       )}
       {resolved && (
         <>
-          <FeedbackBox kind={resolved.ok ? "success" : "error"}>
-            <b>{resolved.ok ? "Верно!" : "Правильно:"}</b>{" "}
-            <span>
-              {word.pt} = {word.ru}
-              {word.note && (
-                <>
-                  <br />
-                  <small>💡 {word.note}</small>
-                </>
-              )}
-            </span>
-            <div className="eb-info" style={{ marginTop: 5 }}>
-              ⏱ {resolved.dueLabel}
-            </div>
-          </FeedbackBox>
+          <WordFeedback ok={resolved.ok} word={word} dueLabel={resolved.dueLabel} />
           <NextButton isLast={isLast} onClick={onNext} />
         </>
       )}

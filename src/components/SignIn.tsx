@@ -35,59 +35,89 @@ export function SignIn() {
   }
 
   return (
-    <div className="card" style={{ marginTop: "2rem" }}>
-      <div className="lbl-small">Português Europeu · A0–A1</div>
-      <div className="h-title" style={{ marginBottom: "1rem" }}>
-        {flow === "signIn" ? "Вход" : "Регистрация"}
+    <div className="m-signin m-view">
+      <div className="m-signin-brand">
+        <div className="m-signin-logo">pt</div>
+        <div>
+          <div className="m-signin-kicker">PORTUGUÊS EUROPEU · A0–A1</div>
+          <div className="m-signin-title">{flow === "signIn" ? "С возвращением" : "Регистрация"}</div>
+        </div>
       </div>
 
-      {error && <div className="auth-err">{error}</div>}
+      <div className="m-card">
+        {error && <div className="m-auth-err" style={{ marginBottom: 12 }}>{error}</div>}
 
-      <form onSubmit={onSubmit}>
-        <input
-          className="type-in"
-          name="email"
-          type="email"
-          placeholder="Email"
-          autoComplete="email"
-          required
-        />
-        <input
-          className="type-in"
-          name="password"
-          type="password"
-          placeholder="Пароль"
-          autoComplete={flow === "signIn" ? "current-password" : "new-password"}
-          required
-          minLength={6}
-        />
-        <button className="big-btn" type="submit" disabled={pending} style={{ marginTop: 0 }}>
-          {pending ? "…" : flow === "signIn" ? "Войти" : "Зарегистрироваться"}
-        </button>
-      </form>
-
-      {OAUTH_ENABLED && (
-        <>
-          <button className="next-btn" type="button" onClick={() => void signIn("github")}>
-            Войти через GitHub
+        <form className="m-form" onSubmit={onSubmit}>
+          <div className="m-field">
+            <input
+              className="m-input"
+              name="email"
+              type="email"
+              placeholder="Email"
+              autoComplete="email"
+              required
+            />
+          </div>
+          <div className="m-field">
+            <input
+              className="m-input"
+              name="password"
+              type="password"
+              placeholder="Пароль"
+              autoComplete={flow === "signIn" ? "current-password" : "new-password"}
+              required
+              minLength={6}
+            />
+          </div>
+          <button
+            className="m-btn m-btn--primary m-btn--block m-btn--lg"
+            type="submit"
+            disabled={pending}
+            style={{ marginTop: 4 }}
+          >
+            {pending ? "…" : flow === "signIn" ? "Войти" : "Зарегистрироваться"}
           </button>
-          <button className="next-btn" type="button" onClick={() => void signIn("google")}>
-            Войти через Google
-          </button>
-        </>
-      )}
+        </form>
 
-      {SIGNUP_ENABLED && (
-        <div
-          className="auth-switch"
-          onClick={() => {
-            setError(null);
-            setFlow((f) => (f === "signIn" ? "signUp" : "signIn"));
-          }}
-        >
-          {flow === "signIn" ? "Нет аккаунта? Зарегистрироваться" : "Уже есть аккаунт? Войти"}
-        </div>
-      )}
+        {OAUTH_ENABLED && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 12 }}>
+            <button
+              className="m-btn m-btn--ghost m-btn--block"
+              type="button"
+              onClick={() => void signIn("github")}
+            >
+              Войти через GitHub
+            </button>
+            <button
+              className="m-btn m-btn--ghost m-btn--block"
+              type="button"
+              onClick={() => void signIn("google")}
+            >
+              Войти через Google
+            </button>
+          </div>
+        )}
+
+        {SIGNUP_ENABLED && (
+          <div
+            className="m-switch"
+            onClick={() => {
+              setError(null);
+              setFlow((f) => (f === "signIn" ? "signUp" : "signIn"));
+            }}
+          >
+            {flow === "signIn" ? (
+              <span>
+                Нет аккаунта? <b>Зарегистрироваться</b>
+              </span>
+            ) : (
+              <span>
+                Уже есть аккаунт? <b>Войти</b>
+              </span>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
