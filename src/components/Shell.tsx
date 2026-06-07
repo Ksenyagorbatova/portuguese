@@ -67,6 +67,12 @@ export function Shell({
     void markTheorySeen({ lessonKey: lesson.lessonKey });
     startLesson(topicKey, lesson);
   }
+  // Open theory for viewing at any time (even after practice started), from the
+  // per-lesson "Теория" button — theory is no longer hidden once seen.
+  function openTheory(topicKey: string, lesson: LessonView) {
+    void markTheorySeen({ lessonKey: lesson.lessonKey });
+    setView({ kind: "theory", topicKey, lesson });
+  }
   function switchTab(t: Tab) {
     setTab(t);
     setView({ kind: "home" });
@@ -119,13 +125,19 @@ export function Shell({
       />
     );
   } else if (view.kind === "theory") {
-    content = <Theory lesson={view.lesson} onBegin={() => beginFromTheory(view.topicKey, view.lesson)} />;
+    content = (
+      <Theory
+        lesson={view.lesson}
+        onBegin={() => beginFromTheory(view.topicKey, view.lesson)}
+        onBack={() => switchTab("topics")}
+      />
+    );
   } else {
     content =
       tab === "review" ? (
         <ReviewTab course={c} srs={s} onStart={startReview} />
       ) : (
-        <TopicsTab course={c} srs={s} onOpenLesson={openLesson} />
+        <TopicsTab course={c} srs={s} onOpenLesson={openLesson} onOpenTheory={openTheory} />
       );
   }
 

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { CrossSentenceView } from "../../lib/types";
+import type { AnswerResult, CrossSentenceView } from "../../lib/types";
 import { shuffle } from "../../lib/shuffle";
 import { sentenceMatch } from "../../lib/text";
 import { speak } from "../../lib/speech";
@@ -16,7 +16,7 @@ export function SentenceBuilder({
 }: {
   sentence: CrossSentenceView;
   isLast: boolean;
-  onAnswered: (firstTryCorrect: boolean) => void;
+  onAnswered: (result: AnswerResult) => void;
   onNext: () => void;
 }) {
   // Tiles carry a stable id (their scrambled index) so duplicate words work.
@@ -44,14 +44,14 @@ export function SentenceBuilder({
     const first = tries === 0;
     if (ok) {
       speak(sentence.answer);
-      onAnswered(first);
+      onAnswered({ mode: "sentence", correct: true, firstTry: first });
       setResolved({ ok: true });
     } else if (tries < 1) {
       setTries(1);
       setRetry(true);
     } else {
       speak(sentence.answer);
-      onAnswered(false);
+      onAnswered({ mode: "sentence", correct: false, firstTry: false });
       setResolved({ ok: false });
     }
   }

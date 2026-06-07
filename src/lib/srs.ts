@@ -25,6 +25,7 @@ export function adaptSrs(raw: RawSrsState): SrsState {
     cards[wKey(c.lessonKey, c.pt)] = {
       interval: c.interval, ef: c.ef, due: c.due,
       seen: c.seen, correct: c.correct, lastSeen: c.lastSeen,
+      mcCorrect: c.mcCorrect, typeCorrect: c.typeCorrect,
     };
   }
   return {

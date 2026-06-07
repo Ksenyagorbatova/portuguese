@@ -3,7 +3,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { query, mutation } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
 
-// ─── SM-2 helpers (ported 1:1 from the original updateCard/isDue/isLearned) ───
+// ─── SM-2 helpers (ported from the original updateCard/isDue) ────────────────
 type CardFields = {
   interval: number;
   ef: number;
@@ -11,11 +11,27 @@ type CardFields = {
   seen: number;
   correct: number;
   lastSeen: number;
+  mcCorrect: number; // правильные выборы (MC) — этап «выбор»
+  typeCorrect: number; // правильные ручные вводы (Type) — этап «ввод»
 };
-const DEFAULT_CARD: CardFields = { interval: 0, ef: 2.5, due: 0, seen: 0, correct: 0, lastSeen: 0 };
+const DEFAULT_CARD: CardFields = {
+  interval: 0,
+  ef: 2.5,
+  due: 0,
+  seen: 0,
+  correct: 0,
+  lastSeen: 0,
+  mcCorrect: 0,
+  typeCorrect: 0,
+};
 
+// Staged-learning threshold. KEEP IN SYNC with TYPE_TARGET in src/lib/learning.ts
+// (Convex bundles separately from src/, so the constant is duplicated).
+const TYPE_TARGET = 3; // правильных ручных вводов → слово выучено
+
+// Слово выучено, только если его правильно вписали вручную TYPE_TARGET раз.
 function isLearned(c: CardFields): boolean {
-  return c.seen >= 2 && c.correct / Math.max(c.seen, 1) >= 0.6;
+  return c.typeCorrect >= TYPE_TARGET;
 }
 
 // Per-word classification tag (server-authoritative, uses the frozen Date.now()):
@@ -72,6 +88,7 @@ export const getSrsState = query({
       const card: CardFields = {
         interval: c.interval, ef: c.ef, due: c.due,
         seen: c.seen, correct: c.correct, lastSeen: c.lastSeen,
+        mcCorrect: c.mcCorrect ?? 0, typeCorrect: c.typeCorrect ?? 0,
       };
       cards.push({ lessonKey: w.lessonKey, pt: w.pt, ...card });
       ls.seen++;
@@ -127,8 +144,10 @@ export const recordAnswer = mutation({
     lessonKey: v.string(),
     pt: v.string(),
     quality: v.union(v.literal(0), v.literal(1), v.literal(2)),
+    // mode: каким упражнением отвечали — определяет, какой счётчик этапа растёт.
+    mode: v.union(v.literal("mc"), v.literal("type")),
   },
-  handler: async (ctx, { lessonKey, pt, quality }) => {
+  handler: async (ctx, { lessonKey, pt, quality, mode }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
     const now = Date.now();
@@ -144,11 +163,16 @@ export const recordAnswer = mutation({
       ? {
           interval: existing.interval, ef: existing.ef, due: existing.due,
           seen: existing.seen, correct: existing.correct, lastSeen: existing.lastSeen,
+          mcCorrect: existing.mcCorrect ?? 0, typeCorrect: existing.typeCorrect ?? 0,
         }
       : { ...DEFAULT_CARD };
 
     const seen = c.seen + 1;
-    const correct = c.correct + (quality >= 1 ? 1 : 0);
+    const right = quality >= 1;
+    const correct = c.correct + (right ? 1 : 0);
+    // Этапные счётчики растут только при верном ответе соответствующего типа.
+    const mcCorrect = c.mcCorrect + (right && mode === "mc" ? 1 : 0);
+    const typeCorrect = c.typeCorrect + (right && mode === "type" ? 1 : 0);
     const q = quality === 2 ? 5 : quality === 1 ? 3 : 1;
     const ef = Math.max(1.3, c.ef + 0.1 - (5 - q) * (0.08 + (5 - q) * 0.02));
     let interval: number;
@@ -158,7 +182,9 @@ export const recordAnswer = mutation({
     else interval = Math.round(c.interval * ef);
     const due = now + interval * 86400000;
 
-    const card: CardFields = { interval, ef, due, seen, correct, lastSeen: now };
+    const card: CardFields = {
+      interval, ef, due, seen, correct, lastSeen: now, mcCorrect, typeCorrect,
+    };
     if (existing) await ctx.db.patch(existing._id, card);
     else await ctx.db.insert("progress", { userId, lessonKey, pt, ...card });
 

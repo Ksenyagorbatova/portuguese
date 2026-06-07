@@ -12,8 +12,8 @@ test("accepts a correct typed answer (accents optional)", async ({ mount }) => {
       tag="new"
       card={undefined}
       isLast={false}
-      onAnswered={(ok) => {
-        firstTryCorrect = ok;
+      onAnswered={(r) => {
+        firstTryCorrect = r.firstTry;
       }}
       onNext={() => {}}
     />,

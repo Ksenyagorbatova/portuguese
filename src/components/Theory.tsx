@@ -29,10 +29,23 @@ function FlipCard({ word }: { word: WordView }) {
   );
 }
 
-export function Theory({ lesson, onBegin }: { lesson: LessonView; onBegin: () => void }) {
+export function Theory({
+  lesson,
+  onBegin,
+  onBack,
+}: {
+  lesson: LessonView;
+  onBegin: () => void;
+  onBack?: () => void;
+}) {
   const t = lesson.theory;
   return (
     <div className="m-card">
+      {onBack && (
+        <button className="m-theory-back" onClick={onBack}>
+          <Icon name="arrow-left" size={16} /> Назад
+        </button>
+      )}
       <div className="m-theory-eyebrow">
         <Icon name="book-open" /> Изучаем
       </div>

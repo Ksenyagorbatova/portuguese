@@ -9,6 +9,7 @@ import type {
 } from "./types";
 import { shuffle } from "./shuffle";
 import { wKey } from "./srs";
+import { NEW_PER_SESSION, SENTENCE_TOPIC_THRESHOLD } from "./learning";
 
 // Client-side session-queue builders. The server (getSrsState) supplies the
 // due/new/learned/ongoing classification via `tags`; here we shuffle, slice and
@@ -22,8 +23,31 @@ const sentenceItem = (sentence: CrossSentenceView): SessionItem => ({
   tag: "cross",
 });
 
-function eligibleSentences(course: Course, learnedPts: Set<string>): CrossSentenceView[] {
-  return course.crossSentences.filter((s) => s.required.every((r) => learnedPts.has(r)));
+// Map each word's pt → its topicKey (for the per-topic sentence gate).
+function wordTopicMap(course: Course): Map<string, string> {
+  const m = new Map<string, string>();
+  for (const t of course.topics)
+    for (const l of t.lessons) for (const w of l.words) m.set(w.pt, t.topicKey);
+  return m;
+}
+
+// A sentence appears only when (a) all its required words are learned AND
+// (b) every topic those words belong to is ≥80% learned. So combinations show
+// up once a topic is almost fully mastered — not before.
+function eligibleSentences(course: Course, srs: SrsState): CrossSentenceView[] {
+  const learned = new Set(srs.learnedPts);
+  const wordTopic = wordTopicMap(course);
+  const topicReady = (topicKey: string) => {
+    const st = srs.topicStats[topicKey];
+    return !!st && st.total > 0 && st.learned / st.total >= SENTENCE_TOPIC_THRESHOLD;
+  };
+  return course.crossSentences.filter((s) => {
+    if (!s.required.every((r) => learned.has(r))) return false;
+    const topics = new Set(
+      s.required.map((r) => wordTopic.get(r)).filter((k): k is string => !!k),
+    );
+    return [...topics].every(topicReady);
+  });
 }
 
 export function buildLessonQueue(lesson: LessonView, srs: SrsState, course: Course): SessionItem[] {
@@ -34,12 +58,15 @@ export function buildLessonQueue(lesson: LessonView, srs: SrsState, course: Cour
 
   let q: SessionItem[] = [];
   q.push(...shuffle(due).map((w) => wordItem(w, "due")));
-  q.push(...shuffle(unseen).slice(0, Math.max(0, 6 - due.length)).map((w) => wordItem(w, "new")));
+  q.push(
+    ...shuffle(unseen)
+      .slice(0, Math.max(0, NEW_PER_SESSION - due.length))
+      .map((w) => wordItem(w, "new")),
+  );
   q.push(...shuffle(ongoing).slice(0, 3).map((w) => wordItem(w, "review")));
   if (q.length === 0) q = shuffle(lesson.words).slice(0, 8).map((w) => wordItem(w, "review"));
 
-  const learned = new Set(srs.learnedPts);
-  shuffle(eligibleSentences(course, learned))
+  shuffle(eligibleSentences(course, srs))
     .slice(0, 2)
     .forEach((s, i) => {
       const pos = Math.min(4 + i * 3, q.length);
@@ -67,8 +94,7 @@ export function buildReviewQueue(course: Course, srs: SrsState): SessionItem[] {
   q.push(...shuffle(learnedWords).slice(0, 3).map((w) => wordItem(w, "review")));
   if (q.length === 0) q = shuffle(allWords).slice(0, 10).map((w) => wordItem(w, "review"));
 
-  const learned = new Set(srs.learnedPts);
-  shuffle(eligibleSentences(course, learned))
+  shuffle(eligibleSentences(course, srs))
     .slice(0, 3)
     .forEach((s, i) => {
       const pos = Math.min(3 + i * 4, q.length);

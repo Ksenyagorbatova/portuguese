@@ -67,8 +67,10 @@ npx convex run seed:seedContent   # залить/обновить контент
 в том же PR; перед push весь набор зелёный (форсит `.githooks/pre-push`). Три уровня:
 
 - **Бэкенд** — Vitest + `convex-test` (edge-runtime), файлы `convex/*.test.ts`.
-  Покрывают Convex-функции: SM-2 (`recordAnswer`), классификацию (`getSrsState`),
-  идемпотентность сида, `getCourse`, серверную блокировку регистрации.
+  Покрывают Convex-функции: SM-2 (`recordAnswer` с `mode`), этапные счётчики
+  `mcCorrect/typeCorrect` и «выучено» по `typeCorrect`, классификацию
+  (`getSrsState`), идемпотентность сида, `getCourse`, серверную блокировку
+  регистрации.
   Авторизованный контекст: `t.withIdentity({ subject: ` + "`${userId}|session`" + ` })`;
   загрузка модулей: `import.meta.glob(["./**/*.*s", "!./**/*.test.ts"])`.
 - **Фронт-юнит** — Vitest + jsdom + Testing Library, файлы `src/**/*.test.ts(x)`.
@@ -95,9 +97,32 @@ npx convex run seed:seedContent   # залить/обновить контент
   НЕ Convex `_id` (чтобы пере-сидинг не ломал прогресс). SM-2 считается на
   сервере в [`convex/progress.ts`](convex/progress.ts) (`recordAnswer`);
   классификация due/new/learned/ongoing — в `getSrsState`.
+- **Этапная модель освоения слова.** Каждое слово проходит этапы
+  **выбор (MC) → ручной ввод (Type) → выучено**. В таблице `progress` два
+  счётчика: `mcCorrect` (верные выборы) и `typeCorrect` (верные ручные вводы),
+  оба `v.optional` (старые строки читаются как 0). Пороги:
+  `MC_TARGET=3` (выбор → ввод), `TYPE_TARGET=3` (ввод → выучено).
+  `recordAnswer` принимает `mode: "mc" | "type"` и при верном ответе
+  (`quality>=1`) растит соответствующий счётчик. **`isLearned(c)` =
+  `c.typeCorrect >= TYPE_TARGET`** — выучено ТОЛЬКО через ручной ввод
+  (`TYPE_TARGET` дублируется в [`src/lib/learning.ts`](src/lib/learning.ts) —
+  держать синхронно, Convex не делит модули с `src/`). Этап и тип упражнения
+  считаются в `learning.ts` (`wordStage`, `pickExerciseType`).
 - **Клиент vs сервер.** Сервер: хранение, авторизация, SM-2, классификация,
-  статистика. Клиент ([`src/lib/queue.ts`](src/lib/queue.ts)): shuffle/slice и
-  вставка кросс-предложений (недетерминированное держим вне Convex-queries).
+  статистика. Клиент: shuffle/slice и вставка кросс-предложений
+  ([`src/lib/queue.ts`](src/lib/queue.ts)), выбор типа упражнения по этапу слова
+  и **динамическая внутрисессионная ротация** ([`src/components/Session.tsx`](src/components/Session.tsx)):
+  не выученное слово возвращается в той же сессии (через `REQUEUE_GAP`, с
+  предохранителем `SESSION_REQUEUE_CAP`), пока не дойдёт до `learned` — поэтому
+  очередь от `queue.ts` это лишь СТАРТОВЫЙ набор. Недетерминированное держим вне
+  Convex-queries.
+- **Кросс-предложения** появляются, только когда тема(ы) их слов выучены на
+  **≥80%** (`SENTENCE_TOPIC_THRESHOLD`) И все `required`-слова выучены —
+  гейт в `eligibleSentences` ([`src/lib/queue.ts`](src/lib/queue.ts)).
+- **Теория не скрывается** после прохождения: в каждом уроке кнопка «Теория»
+  ([`src/components/TopicsTab.tsx`](src/components/TopicsTab.tsx) → `openTheory` в
+  `Shell`), открывает [`Theory`](src/components/Theory.tsx) в любой момент
+  (с кнопкой «Назад»). Онбординг (теория перед первой практикой) сохранён.
 - **Важно:** `getSrsState` возвращает `cards`/`tags` МАССИВАМИ (не Record),
   т.к. `pt` содержит не-ASCII (á, ã, ç…), а Convex запрещает не-ASCII в именах
   полей объектов. Клиент собирает Record через `adaptSrs` в
@@ -119,7 +144,8 @@ npx convex run seed:seedContent   # залить/обновить контент
 convex/         схема, content.ts (сид-данные), seed.ts, courseQueries.ts,
                 progress.ts (SRS), auth.ts/auth.config.ts/http.ts
                 *.test.ts — backend-тесты (convex-test)
-src/lib/        types, queue, srs (+adaptSrs), text, shuffle, wrongOptions, speech
+src/lib/        types, queue, srs (+adaptSrs), learning (этапы/ротация/пороги),
+                text, shuffle, wrongOptions, speech
                 *.test.ts — unit-тесты (Vitest)
 src/components/ Shell (оркестратор) → Header/ScoreRow/TabBar → ReviewTab/TopicsTab/
                 Theory → Session → exercises/{Mc,Type,SentenceBuilder} → Feedback/Complete
@@ -144,4 +170,8 @@ frontend-тесты, компонентные).
 
 - Нет офлайна (Convex требует сети; до первой загрузки — экран загрузки).
 - Streak растёт при первом ответе за день (логика в `recordAnswer`).
-- Проверка ответа — на клиенте; сервер доверяет присланному `quality`.
+- Проверка ответа — на клиенте; сервер доверяет присланному `quality` и `mode`.
+- «Выучено» считается по `typeCorrect` — миграции старых строк нет, у ранее
+  «выученных» слов классификация пересчитается вниз (поведение ожидаемое).
+- Внутрисессионная ротация может удлинять тренировку новых слов
+  (`NEW_PER_SESSION`×(`MC_TARGET`+`TYPE_TARGET`) ответов); пороги — в `learning.ts`.

@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import type { BadgeTag, CardFields, WordView } from "../../lib/types";
+import type { AnswerResult, BadgeTag, CardFields, WordView } from "../../lib/types";
 import { variantsMatch } from "../../lib/text";
 import { nextDueLabel, intervalLabel } from "../../lib/srs";
 import { speak } from "../../lib/speech";
@@ -23,7 +23,7 @@ export function TypeExercise({
   tag: BadgeTag;
   card: CardFields | undefined;
   isLast: boolean;
-  onAnswered: (firstTryCorrect: boolean) => void;
+  onAnswered: (result: AnswerResult) => void;
   onNext: () => void;
 }) {
   const recordAnswer = useMutation(api.progress.recordAnswer);
@@ -35,8 +35,8 @@ export function TypeExercise({
 
   async function finish(quality: 0 | 1 | 2, ok: boolean) {
     speak(word.pt);
-    onAnswered(quality === 2);
-    const res = await recordAnswer({ lessonKey: word.lessonKey, pt: word.pt, quality });
+    onAnswered({ mode: "type", correct: quality >= 1, firstTry: quality === 2 });
+    const res = await recordAnswer({ lessonKey: word.lessonKey, pt: word.pt, quality, mode: "type" });
     setResolved({ ok, dueLabel: nextDueLabel(res.card) });
   }
 

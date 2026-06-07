@@ -21,6 +21,7 @@ describe("recordAnswer (SM-2)", () => {
       lessonKey: "l1",
       pt: "olá",
       quality: 2,
+      mode: "mc",
     });
     expect(res.card.interval).toBe(1);
     expect(res.card.seen).toBe(1);
@@ -42,17 +43,17 @@ describe("recordAnswer (SM-2)", () => {
   it("walks the interval ladder 1 → 6 on consecutive perfect answers", async () => {
     const t = convexTest(schema, modules);
     const { as } = await asUser(t);
-    await as.mutation(api.progress.recordAnswer, { lessonKey: "l1", pt: "a", quality: 2 });
-    const second = await as.mutation(api.progress.recordAnswer, { lessonKey: "l1", pt: "a", quality: 2 });
+    await as.mutation(api.progress.recordAnswer, { lessonKey: "l1", pt: "a", quality: 2, mode: "mc" });
+    const second = await as.mutation(api.progress.recordAnswer, { lessonKey: "l1", pt: "a", quality: 2, mode: "mc" });
     expect(second.card.interval).toBe(6);
   });
 
   it("resets interval to 1 on a wrong answer without raising `correct`", async () => {
     const t = convexTest(schema, modules);
     const { as } = await asUser(t);
-    await as.mutation(api.progress.recordAnswer, { lessonKey: "l1", pt: "a", quality: 2 });
-    await as.mutation(api.progress.recordAnswer, { lessonKey: "l1", pt: "a", quality: 2 });
-    const wrong = await as.mutation(api.progress.recordAnswer, { lessonKey: "l1", pt: "a", quality: 0 });
+    await as.mutation(api.progress.recordAnswer, { lessonKey: "l1", pt: "a", quality: 2, mode: "mc" });
+    await as.mutation(api.progress.recordAnswer, { lessonKey: "l1", pt: "a", quality: 2, mode: "mc" });
+    const wrong = await as.mutation(api.progress.recordAnswer, { lessonKey: "l1", pt: "a", quality: 0, mode: "mc" });
     expect(wrong.card.interval).toBe(1);
     expect(wrong.card.seen).toBe(3);
     expect(wrong.card.correct).toBe(2);
@@ -63,7 +64,7 @@ describe("recordAnswer (SM-2)", () => {
     const { as } = await asUser(t);
     let res!: Awaited<ReturnType<typeof as.mutation>>;
     for (let i = 0; i < 8; i++) {
-      res = await as.mutation(api.progress.recordAnswer, { lessonKey: "l1", pt: "a", quality: 0 });
+      res = await as.mutation(api.progress.recordAnswer, { lessonKey: "l1", pt: "a", quality: 0, mode: "mc" });
     }
     expect(res.card.ef).toBeGreaterThanOrEqual(1.3);
   });
@@ -71,8 +72,30 @@ describe("recordAnswer (SM-2)", () => {
   it("rejects unauthenticated callers", async () => {
     const t = convexTest(schema, modules);
     await expect(
-      t.mutation(api.progress.recordAnswer, { lessonKey: "l1", pt: "a", quality: 2 }),
+      t.mutation(api.progress.recordAnswer, { lessonKey: "l1", pt: "a", quality: 2, mode: "mc" }),
     ).rejects.toThrow();
+  });
+});
+
+describe("staged-learning counters", () => {
+  it("grows mcCorrect on correct MC answers and typeCorrect on correct Type answers", async () => {
+    const t = convexTest(schema, modules);
+    const { as } = await asUser(t);
+    const a = await as.mutation(api.progress.recordAnswer, { lessonKey: "l1", pt: "a", quality: 2, mode: "mc" });
+    expect(a.card.mcCorrect).toBe(1);
+    expect(a.card.typeCorrect).toBe(0);
+    const b = await as.mutation(api.progress.recordAnswer, { lessonKey: "l1", pt: "a", quality: 1, mode: "type" });
+    expect(b.card.mcCorrect).toBe(1);
+    expect(b.card.typeCorrect).toBe(1);
+  });
+
+  it("does not grow stage counters on a wrong answer", async () => {
+    const t = convexTest(schema, modules);
+    const { as } = await asUser(t);
+    await as.mutation(api.progress.recordAnswer, { lessonKey: "l1", pt: "a", quality: 2, mode: "mc" });
+    const wrong = await as.mutation(api.progress.recordAnswer, { lessonKey: "l1", pt: "a", quality: 0, mode: "type" });
+    expect(wrong.card.mcCorrect).toBe(1);
+    expect(wrong.card.typeCorrect).toBe(0);
   });
 });
 
@@ -82,9 +105,7 @@ describe("getSrsState", () => {
     expect(await t.query(api.progress.getSrsState, {})).toBeNull();
   });
 
-  it("classifies a mastered word as learned and tallies lesson stats", async () => {
-    const t = convexTest(schema, modules);
-    const { as } = await asUser(t);
+  async function seedLesson(t: ReturnType<typeof convexTest>) {
     await t.run(async (ctx) => {
       await ctx.db.insert("lessons", {
         lessonKey: "l1",
@@ -95,22 +116,57 @@ describe("getSrsState", () => {
       });
       await ctx.db.insert("words", { lessonKey: "l1", pt: "a", ru: "а", order: 0 });
     });
+  }
 
-    // Before answering: counted in total, not yet seen.
+  it("marks a word learned only after TYPE_TARGET (3) correct manual inputs", async () => {
+    const t = convexTest(schema, modules);
+    const { as } = await asUser(t);
+    await seedLesson(t);
+
+    // Three correct MC answers do NOT make it learned (choice ≠ mastery).
+    for (let i = 0; i < 3; i++)
+      await as.mutation(api.progress.recordAnswer, { lessonKey: "l1", pt: "a", quality: 2, mode: "mc" });
     let srs = await as.query(api.progress.getSrsState, {});
-    expect(srs!.lessonStats["l1"].total).toBe(1);
-    expect(srs!.lessonStats["l1"].seen).toBe(0);
+    expect(srs!.lessonStats["l1"].learned).toBe(0);
+    expect(srs!.learnedPts).not.toContain("a");
 
-    // Two perfect answers → mastered (seen ≥ 2, ratio ≥ 0.6); due is 6 days out.
-    await as.mutation(api.progress.recordAnswer, { lessonKey: "l1", pt: "a", quality: 2 });
-    await as.mutation(api.progress.recordAnswer, { lessonKey: "l1", pt: "a", quality: 2 });
-
+    // Two correct Type answers — still not learned (need 3).
+    await as.mutation(api.progress.recordAnswer, { lessonKey: "l1", pt: "a", quality: 2, mode: "type" });
+    await as.mutation(api.progress.recordAnswer, { lessonKey: "l1", pt: "a", quality: 2, mode: "type" });
     srs = await as.query(api.progress.getSrsState, {});
-    expect(srs!.lessonStats["l1"].seen).toBe(1);
+    expect(srs!.lessonStats["l1"].learned).toBe(0);
+
+    // Third correct Type answer → learned.
+    await as.mutation(api.progress.recordAnswer, { lessonKey: "l1", pt: "a", quality: 2, mode: "type" });
+    srs = await as.query(api.progress.getSrsState, {});
     expect(srs!.lessonStats["l1"].learned).toBe(1);
     expect(srs!.learnedPts).toContain("a");
-    expect(srs!.dueCountAll).toBe(0);
     expect(srs!.tags.find((x) => x.pt === "a")?.tag).toBe("learned");
+  });
+
+  it("treats a legacy progress row (no stage counters) as not learned", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, as } = await asUser(t);
+    await seedLesson(t);
+    // A row predating the staged-learning fields: high seen/correct, but no
+    // mcCorrect/typeCorrect — must read as 0 and classify as ongoing, not learned.
+    await t.run((ctx) =>
+      ctx.db.insert("progress", {
+        userId,
+        lessonKey: "l1",
+        pt: "a",
+        interval: 6,
+        ef: 2.5,
+        due: Date.now() + 6 * 86400000,
+        seen: 5,
+        correct: 5,
+        lastSeen: Date.now(),
+      }),
+    );
+    const srs = await as.query(api.progress.getSrsState, {});
+    expect(srs!.lessonStats["l1"].seen).toBe(1);
+    expect(srs!.lessonStats["l1"].learned).toBe(0);
+    expect(srs!.tags.find((x) => x.pt === "a")?.tag).toBe("ongoing");
   });
 });
 

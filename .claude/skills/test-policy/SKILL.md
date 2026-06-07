@@ -38,7 +38,7 @@ const t = convexTest(schema, modules);
 // авторизованный пользователь: getAuthUserId парсит subject как `${userId}|session`
 const userId = await t.run((ctx) => ctx.db.insert("users", {}));
 const as = t.withIdentity({ subject: `${userId}|session` });
-await as.mutation(api.progress.recordAnswer, { lessonKey, pt, quality: 2 });
+await as.mutation(api.progress.recordAnswer, { lessonKey, pt, quality: 2, mode: "type" });
 ```
 
 **Frontend-unit** — детерминизм для недетерминированного:
