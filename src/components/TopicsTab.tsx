@@ -9,11 +9,13 @@ function LessonRow({
   lesson,
   srs,
   onOpen,
+  onOpenTheory,
 }: {
   topicKey: string;
   lesson: LessonView;
   srs: SrsState;
   onOpen: (topicKey: string, lesson: LessonView) => void;
+  onOpenTheory: (topicKey: string, lesson: LessonView) => void;
 }) {
   const ls = srs.lessonStats[lesson.lessonKey] ?? { ...EMPTY, total: lesson.words.length };
   const seen = srs.seenTheory.includes(lesson.lessonKey);
@@ -33,19 +35,32 @@ function LessonRow({
           )}
         </div>
       </div>
-      {ls.due > 0 ? (
-        <span className="m-chip-due">
-          <span className="m-dot" /> {ls.due}
-        </span>
-      ) : ls.learned === ls.total && ls.total > 0 ? (
-        <span className="m-lesson-done">
-          <Icon name="circle-check" />
-        </span>
-      ) : (
-        <span className="m-chev">
-          <Icon name="chevron-right" />
-        </span>
-      )}
+      <div className="m-lesson-actions">
+        <button
+          className="m-lesson-theory"
+          aria-label="Теория"
+          title="Теория"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenTheory(topicKey, lesson);
+          }}
+        >
+          <Icon name="book-open" size={16} />
+        </button>
+        {ls.due > 0 ? (
+          <span className="m-chip-due">
+            <span className="m-dot" /> {ls.due}
+          </span>
+        ) : ls.learned === ls.total && ls.total > 0 ? (
+          <span className="m-lesson-done">
+            <Icon name="circle-check" />
+          </span>
+        ) : (
+          <span className="m-chev">
+            <Icon name="chevron-right" />
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -54,11 +69,13 @@ function TopicBlock({
   topic,
   srs,
   onOpenLesson,
+  onOpenTheory,
   defaultOpen,
 }: {
   topic: TopicView;
   srs: SrsState;
   onOpenLesson: (topicKey: string, lesson: LessonView) => void;
+  onOpenTheory: (topicKey: string, lesson: LessonView) => void;
   defaultOpen?: boolean;
 }) {
   const [open, setOpen] = useState(!!defaultOpen);
@@ -96,6 +113,7 @@ function TopicBlock({
               lesson={l}
               srs={srs}
               onOpen={onOpenLesson}
+              onOpenTheory={onOpenTheory}
             />
           ))}
         </div>
@@ -108,10 +126,12 @@ export function TopicsTab({
   course,
   srs,
   onOpenLesson,
+  onOpenTheory,
 }: {
   course: Course;
   srs: SrsState;
   onOpenLesson: (topicKey: string, lesson: LessonView) => void;
+  onOpenTheory: (topicKey: string, lesson: LessonView) => void;
 }) {
   return (
     <div className="m-topics">
@@ -121,6 +141,7 @@ export function TopicsTab({
           topic={t}
           srs={srs}
           onOpenLesson={onOpenLesson}
+          onOpenTheory={onOpenTheory}
           defaultOpen={i === 0}
         />
       ))}

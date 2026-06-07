@@ -34,3 +34,23 @@ test("starts practice via the CTA", async ({ mount }) => {
   await component.getByRole("button", { name: /Начать практику/ }).click();
   expect(began).toBe(true);
 });
+
+test("shows no back button when onBack is omitted", async ({ mount }) => {
+  const component = await mount(<Theory lesson={lesson} onBegin={() => {}} />);
+  await expect(component.getByRole("button", { name: /Назад/ })).toHaveCount(0);
+});
+
+test("returns via the back button when onBack is provided", async ({ mount }) => {
+  let went = false;
+  const component = await mount(
+    <Theory
+      lesson={lesson}
+      onBegin={() => {}}
+      onBack={() => {
+        went = true;
+      }}
+    />,
+  );
+  await component.getByRole("button", { name: /Назад/ }).click();
+  expect(went).toBe(true);
+});
