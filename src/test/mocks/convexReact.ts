@@ -12,6 +12,8 @@ export function useMutation() {
       seen: 1,
       correct: 1,
       lastSeen: Date.now(),
+      mcCorrect: 1,
+      typeCorrect: 0,
     },
     streak: 1,
   });

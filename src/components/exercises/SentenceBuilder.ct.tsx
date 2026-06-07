@@ -24,8 +24,8 @@ test("accepts the correctly built sentence", async ({ mount }) => {
     <SentenceBuilder
       sentence={sentence}
       isLast={false}
-      onAnswered={(ok) => {
-        answeredFirstTry = ok;
+      onAnswered={(r) => {
+        answeredFirstTry = r.firstTry;
       }}
       onNext={() => {}}
     />,

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import type { BadgeTag, CardFields, Course, WordView } from "../../lib/types";
+import type { AnswerResult, BadgeTag, CardFields, Course, WordView } from "../../lib/types";
 import { shuffle } from "../../lib/shuffle";
 import { getWrong } from "../../lib/wrongOptions";
 import { nextDueLabel, intervalLabel } from "../../lib/srs";
@@ -30,7 +30,7 @@ export function McExercise({
   card: CardFields | undefined;
   course: Course;
   isLast: boolean;
-  onAnswered: (firstTryCorrect: boolean) => void;
+  onAnswered: (result: AnswerResult) => void;
   onNext: () => void;
 }) {
   const recordAnswer = useMutation(api.progress.recordAnswer);
@@ -44,8 +44,8 @@ export function McExercise({
 
   async function finish(quality: 0 | 1 | 2, ok: boolean) {
     speak(word.pt);
-    onAnswered(quality === 2);
-    const res = await recordAnswer({ lessonKey: word.lessonKey, pt: word.pt, quality });
+    onAnswered({ mode: "mc", correct: quality >= 1, firstTry: quality === 2 });
+    const res = await recordAnswer({ lessonKey: word.lessonKey, pt: word.pt, quality, mode: "mc" });
     setResolved({ ok, dueLabel: nextDueLabel(res.card) });
   }
 

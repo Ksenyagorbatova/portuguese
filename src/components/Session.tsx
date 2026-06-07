@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type {
-  BadgeTag,
+  AnswerResult,
   CardFields,
   Course,
   ExerciseType,
@@ -8,19 +8,16 @@ import type {
 } from "../lib/types";
 import { queueCounts } from "../lib/queue";
 import { wKey } from "../lib/srs";
+import { pickExerciseType, wordStage, shouldRequeue, REQUEUE_GAP } from "../lib/learning";
 import { McExercise } from "./exercises/McExercise";
 import { TypeExercise } from "./exercises/TypeExercise";
 import { SentenceBuilder } from "./exercises/SentenceBuilder";
 import { Complete } from "./Complete";
 
-function pickExerciseType(tag: BadgeTag): ExerciseType {
-  const pool: ExerciseType[] = ["mc_pt_ru", "mc_ru_pt", "type_pt"];
-  // 'due' items lean on typing to reinforce (ported from nextExercise).
-  if (tag === "due") {
-    return Math.random() < 0.5 ? "type_pt" : pool[Math.floor(Math.random() * 2)];
-  }
-  return pool[Math.floor(Math.random() * pool.length)];
-}
+// Local per-session stage progress for one word (seeded from the server card,
+// then advanced client-side as the user answers — drives in-session rotation).
+//   mc/type — correct choices / manual inputs so far; shown — times displayed.
+type WordProgress = { mc: number; type: number; shown: number };
 
 export function Session({
   queue,
@@ -43,32 +40,91 @@ export function Session({
   onPickLesson: (topicKey: string, lessonKey: string) => void;
   onGoReview: () => void;
 }) {
+  // Mutable working queue: not-yet-learned words get re-inserted as the user
+  // answers, so a new word is drilled within the same session (choosing →
+  // typing → learned) instead of being shown once and deferred to SM-2.
+  const [items, setItems] = useState<SessionItem[]>(queue);
   const [idx, setIdx] = useState(0);
   const [score, setScore] = useState({ correct: 0, total: 0 });
+
+  // Per-session stage progress, seeded from the server cards on mount.
+  const [wp, setWp] = useState<Record<string, WordProgress>>(() =>
+    Object.fromEntries(
+      Object.entries(cards).map(([k, c]) => [k, { mc: c.mcCorrect, type: c.typeCorrect, shown: 0 }]),
+    ),
+  );
+  // Distinct targets that left rotation (word learned/capped, or sentence done).
+  const [finishedKeys, setFinishedKeys] = useState<ReadonlySet<string>>(new Set());
+
+  const stageCardOf = (key: string) => {
+    const p = wp[key];
+    return p ? { mcCorrect: p.mc, typeCorrect: p.type } : undefined;
+  };
+
   const [type, setType] = useState<ExerciseType>(() => {
     const it = queue[0];
-    return it && it.kind === "word" ? pickExerciseType(it.tag) : "mc_pt_ru";
+    if (it && it.kind === "word")
+      return pickExerciseType(stageCardOf(wKey(it.word.lessonKey, it.word.pt)), it.tag);
+    return "mc_pt_ru";
   });
+
+  // Progress bar = mastery: how many distinct session targets are finished.
+  const totalTargets = useMemo(() => {
+    const keys = new Set<string>();
+    for (const it of queue)
+      keys.add(it.kind === "word" ? wKey(it.word.lessonKey, it.word.pt) : it.sentence.sentenceKey);
+    return keys.size;
+  }, [queue]);
 
   const counts = useMemo(() => queueCounts(queue), [queue]);
 
-  function handleAnswered(firstTryCorrect: boolean) {
+  function markFinished(key: string) {
+    setFinishedKeys((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
+  }
+
+  function handleAnswered(result: AnswerResult) {
     const ns = {
-      correct: score.correct + (firstTryCorrect ? 1 : 0),
+      correct: score.correct + (result.firstTry ? 1 : 0),
       total: score.total + 1,
     };
     setScore(ns);
     onScore(ns.correct, ns.total);
+
+    const item = items[idx];
+    if (item.kind === "sentence") {
+      markFinished(item.sentence.sentenceKey);
+      return;
+    }
+    const key = wKey(item.word.lessonKey, item.word.pt);
+    const cur = wp[key] ?? { mc: 0, type: 0, shown: 0 };
+    const next: WordProgress = {
+      mc: cur.mc + (result.correct && result.mode === "mc" ? 1 : 0),
+      type: cur.type + (result.correct && result.mode === "type" ? 1 : 0),
+      shown: cur.shown + 1,
+    };
+    setWp((prev) => ({ ...prev, [key]: next }));
+
+    const stage = wordStage({ mcCorrect: next.mc, typeCorrect: next.type });
+    if (shouldRequeue(stage, next.shown)) {
+      setItems((prev) => {
+        const n = [...prev];
+        n.splice(Math.min(idx + REQUEUE_GAP, n.length), 0, item);
+        return n;
+      });
+    } else {
+      markFinished(key);
+    }
   }
 
   function advance() {
     const ni = idx + 1;
-    const it = queue[ni];
-    if (it && it.kind === "word") setType(pickExerciseType(it.tag));
+    const it = items[ni];
+    if (it && it.kind === "word")
+      setType(pickExerciseType(stageCardOf(wKey(it.word.lessonKey, it.word.pt)), it.tag));
     setIdx(ni);
   }
 
-  if (idx >= queue.length) {
+  if (idx >= items.length) {
     return (
       <Complete
         correct={score.correct}
@@ -82,9 +138,10 @@ export function Session({
     );
   }
 
-  const item = queue[idx];
-  const isLast = idx === queue.length - 1;
-  const width = Math.round((idx / queue.length) * 100);
+  const item = items[idx];
+  const isLast = idx === items.length - 1;
+  const finished = finishedKeys.size;
+  const width = totalTargets > 0 ? Math.round((finished / totalTargets) * 100) : 0;
 
   let exercise;
   if (item.kind === "sentence") {
@@ -135,7 +192,7 @@ export function Session({
           <div className="m-progress-fill" style={{ width: `${width}%` }} />
         </div>
         <span className="m-progress-count">
-          {idx + 1}/{queue.length}
+          {finished}/{totalTargets}
         </span>
       </div>
       <SessionChips counts={counts} />

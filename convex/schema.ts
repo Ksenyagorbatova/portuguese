@@ -69,6 +69,10 @@ export default defineSchema({
     seen: v.number(),
     correct: v.number(),
     lastSeen: v.number(), // ms epoch
+    // Staged-learning counters (optional — older rows predate them, read as 0).
+    // mcCorrect: правильные выборы (MC); typeCorrect: правильные ручные вводы.
+    mcCorrect: v.optional(v.number()),
+    typeCorrect: v.optional(v.number()),
   })
     .index("by_user_lesson_pt", ["userId", "lessonKey", "pt"])
     .index("by_user_lesson", ["userId", "lessonKey"])

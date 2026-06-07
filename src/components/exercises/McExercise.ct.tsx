@@ -37,8 +37,8 @@ test("pt→ru: a correct first pick resolves to success", async ({ mount }) => {
       card={undefined}
       course={course}
       isLast={false}
-      onAnswered={(ok) => {
-        firstTryCorrect = ok;
+      onAnswered={(r) => {
+        firstTryCorrect = r.firstTry;
       }}
       onNext={() => {}}
     />,

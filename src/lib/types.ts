@@ -25,6 +25,8 @@ export type CardFields = {
   seen: number;
   correct: number;
   lastSeen: number;
+  mcCorrect: number; // правильные выборы (MC) — этап «выбор»
+  typeCorrect: number; // правильные ручные вводы (Type) — этап «ввод»
 };
 export type Stat = { total: number; seen: number; learned: number; due: number };
 
@@ -43,6 +45,16 @@ export type SrsState = {
 export type BadgeTag = "due" | "new" | "review" | "cross";
 
 export type ExerciseType = "mc_pt_ru" | "mc_ru_pt" | "type_pt";
+
+// Результат ответа, который упражнение сообщает сессии.
+//   mode     — каким упражнением отвечали (двигает этап / SM-2 на сервере)
+//   correct  — ответ в итоге верный (в т.ч. со 2-й попытки) → растит этап
+//   firstTry — верно с первой попытки → засчитывается в счёт сессии
+export type AnswerResult = {
+  mode: "mc" | "type" | "sentence";
+  correct: boolean;
+  firstTry: boolean;
+};
 
 export type SessionItem =
   | { kind: "word"; word: WordView; tag: BadgeTag }
