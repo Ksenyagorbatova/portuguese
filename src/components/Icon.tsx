@@ -95,6 +95,13 @@ const ICONS = {
     </>
   ),
   moon: <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />,
+  // Half-filled circle — the "auto / follow system" theme glyph (cf. iOS).
+  contrast: (
+    <>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 2a10 10 0 0 0 0 20z" fill="currentColor" stroke="none" />
+    </>
+  ),
   "log-out": (
     <>
       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
