@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import type {
   AnswerResult,
   CardFields,
@@ -55,9 +55,6 @@ export function Session({
       Object.entries(cards).map(([k, c]) => [k, { mc: c.mcCorrect, type: c.typeCorrect, shown: 0 }]),
     ),
   );
-  // Distinct targets that left rotation (word learned/capped, or sentence done).
-  const [finishedKeys, setFinishedKeys] = useState<ReadonlySet<string>>(new Set());
-
   const stageCardOf = (key: string) => {
     const p = wp[key];
     return p ? { mcCorrect: p.mc, typeCorrect: p.type } : undefined;
@@ -70,18 +67,6 @@ export function Session({
     return "mc_pt_ru";
   });
 
-  // Progress bar = mastery: how many distinct session targets are finished.
-  const totalTargets = useMemo(() => {
-    const keys = new Set<string>();
-    for (const it of queue)
-      keys.add(it.kind === "word" ? wKey(it.word.lessonKey, it.word.pt) : it.sentence.sentenceKey);
-    return keys.size;
-  }, [queue]);
-
-  function markFinished(key: string) {
-    setFinishedKeys((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
-  }
-
   function handleAnswered(result: AnswerResult) {
     const ns = {
       correct: score.correct + (result.firstTry ? 1 : 0),
@@ -92,7 +77,7 @@ export function Session({
 
     const item = items[idx];
     if (item.kind === "sentence") {
-      markFinished(item.sentence.sentenceKey);
+      // A sentence is shown once — never re-queued.
       return;
     }
     const key = wKey(item.word.lessonKey, item.word.pt);
@@ -111,8 +96,6 @@ export function Session({
         n.splice(requeuePosition(idx, n.length), 0, item);
         return n;
       });
-    } else {
-      markFinished(key);
     }
   }
 
@@ -140,8 +123,8 @@ export function Session({
 
   const item = items[idx];
   const isLast = idx === items.length - 1;
-  const finished = finishedKeys.size;
-  const width = totalTargets > 0 ? Math.round((finished / totalTargets) * 100) : 0;
+  // Полоса = ПОЗИЦИЯ в сессии (пройдено карточек / всего, растёт с переспросами).
+  const posPct = items.length > 0 ? Math.round((idx / items.length) * 100) : 0;
 
   let exercise;
   if (item.kind === "sentence") {
@@ -197,10 +180,10 @@ export function Session({
           <Icon name="x" size={18} />
         </button>
         <div className="m-progress">
-          <div className="m-progress-fill" style={{ width: `${width}%` }} />
+          <div className="m-progress-fill" style={{ width: `${posPct}%` }} />
         </div>
         <span className="m-progress-count">
-          {finished}/{totalTargets}
+          {idx + 1}/{items.length}
         </span>
       </div>
       {exercise}
