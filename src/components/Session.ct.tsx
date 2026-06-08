@@ -72,16 +72,17 @@ async function answerCorrect(component: Awaited<ReturnType<typeof mountSession>>
 test("a not-yet-learned word re-queues within the same session", async ({ mount }) => {
   const component = await mountSession(mount, { queue: [{ kind: "word", word, tag: "new" }] });
 
-  // One word → mastery bar starts at 0/1.
-  await expect(component.locator(".m-progress-count")).toHaveText("0/1");
+  // Counter = position in session. One word, first card → 1/1.
+  await expect(component.locator(".m-progress-count")).toHaveText("1/1");
 
-  // One correct answer is not mastery (needs 3 choices + 3 inputs): the word
-  // comes back in the SAME session — no Complete screen, bar still 0/1.
+  // One correct answer is not mastery (needs 3 choices + 3 inputs): the word is
+  // re-queued in the SAME session — no Complete screen. Position advances (the
+  // requeue grew the queue → 2/2).
   await answerCorrect(component);
   await component.getByRole("button", { name: /Дальше|Завершить/ }).click();
 
   await expect(component.locator(".m-complete")).toHaveCount(0);
-  await expect(component.locator(".m-progress-count")).toHaveText("0/1");
+  await expect(component.locator(".m-progress-count")).toHaveText("2/2");
   await expect(component.locator(".m-card")).toBeVisible();
 });
 
@@ -124,7 +125,7 @@ test("an already-learned word is shown once and finishes the session", async ({ 
     queue: [{ kind: "word", word, tag: "review" }],
     cards,
   });
-  await expect(component.locator(".m-progress-count")).toHaveText("0/1");
+  await expect(component.locator(".m-progress-count")).toHaveText("1/1");
 
   await answerCorrect(component);
   await component.getByRole("button", { name: /Дальше|Завершить/ }).click();
