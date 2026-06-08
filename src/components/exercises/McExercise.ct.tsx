@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/experimental-ct-react";
 import { McExercise } from "./McExercise";
-import type { Course, WordView } from "../../lib/types";
+import type { CardFields, Course, WordView } from "../../lib/types";
 
 const word: WordView = { lessonKey: "l1", pt: "olá", ru: "привет" };
 const course: Course = {
@@ -48,6 +48,35 @@ test("pt→ru: a correct first pick resolves to success", async ({ mount }) => {
   await component.getByRole("button", { name: "привет" }).click(); // correct translation
   await expect(component.getByText("Верно!")).toBeVisible();
   expect(firstTryCorrect).toBe(true);
+});
+
+test("a non-new card shows the «следующий повтор» line without «интервал»", async ({ mount }) => {
+  const card: CardFields = {
+    interval: 4,
+    ef: 2.5,
+    due: Date.now() + 4 * 86400000,
+    seen: 1,
+    correct: 3,
+    lastSeen: Date.now(),
+    mcCorrect: 2,
+    typeCorrect: 1,
+  };
+  const component = await mount(
+    <McExercise
+      word={word}
+      mode="pt_ru"
+      tag="review"
+      card={card}
+      course={course}
+      isLast={false}
+      onAnswered={() => {}}
+      onNext={() => {}}
+    />,
+  );
+  const srs = component.locator(".m-q-srs");
+  await expect(srs).toBeVisible();
+  await expect(srs).toContainText("следующий повтор:");
+  await expect(srs).not.toContainText("интервал");
 });
 
 test("reveals the answer after two wrong picks", async ({ mount }) => {

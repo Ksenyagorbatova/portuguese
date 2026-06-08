@@ -38,4 +38,21 @@ test("accepts the correctly built sentence", async ({ mount }) => {
 
   await expect(component.getByText("Верно!")).toBeVisible();
   expect(answeredFirstTry).toBe(true);
+  // Once resolved, the ✕ remove-hints are gone (tiles are no longer editable).
+  await expect(component.locator(".m-atile-x")).toHaveCount(0);
+});
+
+test("answer tiles show a removable ✕ and clicking a tile removes it", async ({ mount }) => {
+  const component = await mount(
+    <SentenceBuilder sentence={sentence} isLast={false} onAnswered={() => {}} onNext={() => {}} />,
+  );
+
+  await component.locator(".m-bank .m-wtile").filter({ hasText: "Bom" }).click();
+  await component.locator(".m-bank .m-wtile").filter({ hasText: "dia" }).click();
+
+  await expect(component.locator(".m-answer .m-atile")).toHaveCount(2);
+  await expect(component.locator(".m-answer .m-atile .m-atile-x")).toHaveCount(2);
+
+  await component.locator(".m-answer .m-atile").first().click();
+  await expect(component.locator(".m-answer .m-atile")).toHaveCount(1);
 });

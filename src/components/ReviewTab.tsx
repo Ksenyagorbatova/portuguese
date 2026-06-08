@@ -6,10 +6,12 @@ export function ReviewTab({
   course,
   srs,
   onStart,
+  onGoTopics,
 }: {
   course: Course;
   srs: SrsState;
   onStart: () => void;
+  onGoTopics: () => void;
 }) {
   const seenSet = new Set(srs.seenTheory);
   const seenLessons = course.topics
@@ -64,18 +66,18 @@ export function ReviewTab({
       <div className="m-hero-top">
         <ProgressRing pct={pct} size={96} stroke={9}>
           <div className="m-ring-pct">{pct}%</div>
-          <div className="m-ring-cap">усвоено</div>
+          <div className="m-ring-cap">выучено</div>
         </ProgressRing>
         <div className="m-hero-cols">
           <div className="m-hero-row">
             <span className="m-dot accent" />
             <span className="m-hero-num">{seenCount}</span>
-            <span className="m-hero-cap">изучено слов</span>
+            <span className="m-hero-cap">просмотрено слов</span>
           </div>
           <div className="m-hero-row">
             <span className="m-dot accent" />
             <span className="m-hero-num">{learnedCount}</span>
-            <span className="m-hero-cap">усвоено</span>
+            <span className="m-hero-cap">выучено</span>
           </div>
           <div className="m-hero-row">
             <span className={"m-dot " + (due > 0 ? "due" : "accent")} />
@@ -90,8 +92,7 @@ export function ReviewTab({
       <button
         className="m-btn m-btn--primary m-btn--block m-btn--lg"
         style={{ marginTop: 20 }}
-        disabled={seenCount === 0}
-        onClick={onStart}
+        onClick={seenCount === 0 ? onGoTopics : onStart}
       >
         {due > 0 ? (
           <>
@@ -103,7 +104,7 @@ export function ReviewTab({
           </>
         ) : (
           <>
-            <Icon name="book-open" size={18} /> Сначала изучи тему
+            <Icon name="book-open" size={18} /> Открыть темы
           </>
         )}
       </button>

@@ -4,6 +4,7 @@ import { shuffle } from "../../lib/shuffle";
 import { sentenceMatch } from "../../lib/text";
 import { speak } from "../../lib/speech";
 import { Badge } from "../Badge";
+import { Icon } from "../Icon";
 import { ResultFeedback, RetryBox, NextButton } from "../Feedback";
 
 // Cross-topic sentences don't touch SRS in the original — they only affect the
@@ -76,6 +77,7 @@ export function SentenceBuilder({
               onClick={() => !resolved && setSelected((s) => s.filter((_, i) => i !== idx))}
             >
               {wordById.get(id)}
+              {!resolved && <Icon name="x" size={13} className="m-atile-x" />}
             </div>
           ))
         )}

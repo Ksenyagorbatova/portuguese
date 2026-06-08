@@ -23,6 +23,10 @@ export function Header({
         </button>
       </div>
       <div className="m-header-right">
+        <div className="m-streak">
+          <span className="m-flame">🔥</span>
+          <b>{streak}</b>
+        </div>
         <button
           className="m-icon-btn"
           onClick={onToggleTheme}
@@ -31,12 +35,13 @@ export function Header({
         >
           <Icon name={dark ? "sun" : "moon"} />
         </button>
-        <div className="m-streak">
-          <span className="m-flame">🔥</span>
-          <b>{streak}</b>
-        </div>
-        <button className="m-signout" onClick={() => void signOut()}>
-          выйти
+        <button
+          className="m-icon-btn"
+          onClick={() => void signOut()}
+          aria-label="Выйти"
+          title="Выйти"
+        >
+          <Icon name="log-out" />
         </button>
       </div>
     </div>
