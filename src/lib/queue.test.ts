@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { buildLessonQueue, buildReviewQueue, queueCounts } from "./queue";
 import { wKey } from "./srs";
-import { NEW_PER_SESSION } from "./learning";
 import type { Course, LessonView, SrsState, Stat } from "./types";
 
 // shuffle → identity so queue order/slicing is deterministic to assert on.
@@ -49,17 +48,41 @@ describe("buildLessonQueue", () => {
     expect(q[0]).toMatchObject({ kind: "word", tag: "due", word: { pt: "a" } });
   });
 
-  it("caps new words at NEW_PER_SESSION", () => {
+  it("includes every word of the lesson (no slice — the whole lesson is drilled)", () => {
     const big: LessonView = {
       ...lesson,
       lessonKey: "lb",
-      words: Array.from({ length: 6 }, (_, i) => ({ lessonKey: "lb", pt: `w${i}`, ru: `п${i}` })),
+      words: Array.from({ length: 10 }, (_, i) => ({ lessonKey: "lb", pt: `w${i}`, ru: `п${i}` })),
     };
     const bigCourse: Course = {
       topics: [{ topicKey: "t", label: "T", icon: "x", lessons: [big] }],
       crossSentences: [],
     };
-    expect(queueCounts(buildLessonQueue(big, srsOf(), bigCourse)).nw).toBe(NEW_PER_SESSION);
+    const q = buildLessonQueue(big, srsOf(), bigCourse);
+    expect(q).toHaveLength(10);
+    expect(queueCounts(q).nw).toBe(10);
+  });
+
+  it("orders due words ahead of the rest while still including all of them", () => {
+    const mixed: LessonView = {
+      ...lesson,
+      lessonKey: "lm",
+      words: ["a", "b", "c", "d"].map((pt) => ({ lessonKey: "lm", pt, ru: pt })),
+    };
+    const mixedCourse: Course = {
+      topics: [{ topicKey: "t", label: "T", icon: "x", lessons: [mixed] }],
+      crossSentences: [],
+    };
+    const srs = srsOf({
+      tags: { [wKey("lm", "c")]: "due", [wKey("lm", "a")]: "learned" },
+    });
+    const q = buildLessonQueue(mixed, srs, mixedCourse);
+    expect(q).toHaveLength(4); // all four words present
+    expect(q[0]).toMatchObject({ kind: "word", tag: "due", word: { pt: "c" } });
+    const c = queueCounts(q);
+    expect(c.due).toBe(1);
+    expect(c.nw).toBe(2); // b, d untagged → new
+    expect(c.rv).toBe(1); // a learned → review badge
   });
 });
 

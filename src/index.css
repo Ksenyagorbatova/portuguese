@@ -71,6 +71,8 @@
   --accent-ink:    #0b5a3f;   /* text/icon on tint */
   --accent-shadow: rgba(29,158,117,.38);
   --accent-ring:   rgba(29,158,117,.20);  /* focus ring */
+  --flag-green:    #046a38;               /* зелёный флага Португалии (логотип) */
+  --flag-red:      #d52b1e;               /* красный флага Португалии (логотип) */
 }
 
 /* ── Density (compact) ───────────────────────────────────────────────── */
@@ -110,6 +112,8 @@
   --accent-ink:    #7fe0bc;
   --accent-shadow: rgba(39,185,136,.4);
   --accent-ring:   rgba(39,185,136,.25);
+  --flag-green:    #0a7d45;
+  --flag-red:      #e23a2c;
 }
 
 /* ============================================================================
@@ -168,14 +172,16 @@ body{
 /* ── Header ────────────────────────────────────────────────────────────── */
 .m-header{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);padding:var(--s2) var(--s1) var(--s1)}
 .m-brand{display:flex;align-items:center;gap:var(--s3)}
-.m-logo{width:42px;height:42px;border-radius:13px;background:linear-gradient(150deg,var(--accent),var(--accent-strong));display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--font-display);font-weight:800;font-size:18px;box-shadow:var(--e-accent);letter-spacing:-.02em;flex-shrink:0}
+.m-logo{width:42px;height:42px;border:none;padding:0;cursor:pointer;border-radius:13px;background:linear-gradient(90deg,var(--flag-green) 0 40%,var(--flag-red) 40% 100%);display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--font-display);font-weight:800;font-size:18px;box-shadow:var(--e-accent);letter-spacing:-.02em;flex-shrink:0;transition:transform var(--dur-press) var(--ease),box-shadow var(--dur)}
+.m-logo:hover{box-shadow:0 6px 18px -3px var(--accent-shadow)}
+.m-logo:active{transform:scale(.94)}
 .m-kicker{font-size:11px;font-weight:600;color:var(--ink-400);letter-spacing:.04em}
 .m-title{font-family:var(--font-display);font-size:21px;font-weight:700;color:var(--ink-900);line-height:1.05;letter-spacing:-.01em}
 .m-header-right{display:flex;align-items:center;gap:var(--s2)}
 .m-streak{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-full);padding:7px 13px 7px 11px;box-shadow:var(--e1)}
 .m-streak b{font-family:var(--font-display);font-size:16px;color:var(--ink-900);font-variant-numeric:tabular-nums}
 .m-streak .m-flame{font-size:15px;filter:saturate(1.1)}
-.m-signout{background:none;border:none;color:var(--ink-400);font:inherit;font-size:12px;cursor:pointer;padding:2px 0;text-align:left;font-weight:500}
+.m-signout{background:none;border:none;color:var(--ink-400);font:inherit;font-size:13px;cursor:pointer;padding:8px 6px;font-weight:600;transition:color var(--dur)}
 .m-signout:hover{color:var(--due-ink)}
 .m-icon-btn{display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:var(--r-full);background:var(--surface);border:1px solid var(--line);box-shadow:var(--e1);color:var(--ink-500);cursor:pointer;transition:transform var(--dur-press) var(--ease),background var(--dur),color var(--dur)}
 .m-icon-btn:hover{background:var(--surface-2);color:var(--ink-700)}
@@ -284,11 +290,39 @@ body{
 .m-lesson-theory .lucide{width:16px;height:16px}
 
 /* ── Session progress ──────────────────────────────────────────────────── */
-.m-session-top{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.m-session-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.m-session-exit{display:flex;align-items:center;justify-content:center;width:32px;height:32px;flex-shrink:0;border-radius:var(--r-full);background:var(--surface);border:1px solid var(--line);box-shadow:var(--e1);color:var(--ink-500);cursor:pointer;transition:transform var(--dur-press) var(--ease),background var(--dur),color var(--dur)}
+.m-session-exit:hover{background:var(--surface-2);color:var(--ink-700)}
+.m-session-exit:active{transform:scale(.92)}
+.m-session-exit .lucide{width:16px;height:16px}
 .m-progress{flex:1;height:8px;background:var(--surface-3);border-radius:var(--r-full);overflow:hidden}
 .m-progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-strong));border-radius:var(--r-full);transition:width var(--dur-bar) var(--ease)}
 .m-progress-count{font-size:13px;font-weight:700;color:var(--ink-500);font-variant-numeric:tabular-nums}
-.m-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.m-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+
+/* ── Compact training layout ─────────────────────────────────────────────
+   Во время тренировки статистика, табы и чипы скрыты (см. Shell/Session), а
+   карточка упражнения уплотнена по вертикали, чтобы кнопка «Дальше»
+   помещалась на экране без прокрутки — и на десктопе, и на мобиле (даже самый
+   высокий случай: выбор из 4 вариантов + строка SRS + фидбэк). */
+/* В сессии нет нижней навигации — срезаем большой нижний паддинг .m-app
+   (он зарезервирован под неё), чтобы страница тренировки не прокручивалась. */
+.m-app:has(.m-session){padding-bottom:var(--s5)}
+.m-session-top{margin-bottom:8px}
+.m-session .m-card{padding:16px}
+.m-session .m-q-head{margin-bottom:8px}
+.m-session .m-q-text{font-size:25px}
+.m-session .m-q-note{margin-top:4px}
+/* До-ответную строку «следующий повтор … · интервал …» в сессии прячем: она
+   дублирует то, что показывается в фидбэке после ответа, и съедает высоту
+   (на мобиле переносится в 2 строки). */
+.m-session .m-q-srs{display:none}
+.m-session .m-q-prompt{margin:10px 0 6px}
+.m-session .m-opts{gap:7px}
+.m-session .m-opt{padding:9px 14px}
+.m-session .m-field .m-input{height:48px}
+.m-session .m-hint{margin-top:6px}
+.m-session .m-fb{margin-top:8px}
 
 /* ── Exercise card ─────────────────────────────────────────────────────── */
 .m-q-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px}
@@ -405,7 +439,7 @@ body{
 /* ── Sign in ───────────────────────────────────────────────────────────── */
 .m-signin{margin-top:var(--s7);display:flex;flex-direction:column;gap:var(--s4)}
 .m-signin-brand{display:flex;flex-direction:column;align-items:center;gap:14px;margin-bottom:var(--s2)}
-.m-signin-logo{width:64px;height:64px;border-radius:19px;background:linear-gradient(150deg,var(--accent),var(--accent-strong));display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--font-display);font-weight:800;font-size:27px;box-shadow:var(--e-accent)}
+.m-signin-logo{width:64px;height:64px;border-radius:19px;background:linear-gradient(90deg,var(--flag-green) 0 40%,var(--flag-red) 40% 100%);display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--font-display);font-weight:800;font-size:27px;box-shadow:var(--e-accent)}
 .m-signin-kicker{font-size:12px;font-weight:600;color:var(--ink-400);letter-spacing:.04em;text-align:center}
 .m-signin-title{font-family:var(--font-display);font-size:27px;font-weight:700;color:var(--ink-900);text-align:center;letter-spacing:-.02em;margin-top:2px}
 .m-form{display:flex;flex-direction:column;gap:12px}

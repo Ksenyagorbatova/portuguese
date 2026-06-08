@@ -9,7 +9,7 @@ import type {
 } from "./types";
 import { shuffle } from "./shuffle";
 import { wKey } from "./srs";
-import { NEW_PER_SESSION, SENTENCE_TOPIC_THRESHOLD } from "./learning";
+import { SENTENCE_TOPIC_THRESHOLD } from "./learning";
 
 // Client-side session-queue builders. The server (getSrsState) supplies the
 // due/new/learned/ongoing classification via `tags`; here we shuffle, slice and
@@ -50,21 +50,23 @@ function eligibleSentences(course: Course, srs: SrsState): CrossSentenceView[] {
   });
 }
 
+// A lesson session now drills the WHOLE lesson, not a slice: every word takes
+// part. Due words go first (most urgent), the rest follow shuffled together.
+// Per-word exercise type (MC/Type) and in-session rotation are decided later in
+// Session.tsx — here we only set the starting line-up.
 export function buildLessonQueue(lesson: LessonView, srs: SrsState, course: Course): SessionItem[] {
   const tagOf = (w: WordView) => srs.tags[wKey(w.lessonKey, w.pt)] ?? "new";
-  const due = lesson.words.filter((w) => tagOf(w) === "due");
-  const unseen = lesson.words.filter((w) => tagOf(w) === "new");
-  const ongoing = lesson.words.filter((w) => tagOf(w) === "ongoing");
+  const badgeOf = (w: WordView): BadgeTag => {
+    const t = tagOf(w);
+    return t === "due" ? "due" : t === "new" ? "new" : "review";
+  };
 
-  let q: SessionItem[] = [];
-  q.push(...shuffle(due).map((w) => wordItem(w, "due")));
-  q.push(
-    ...shuffle(unseen)
-      .slice(0, Math.max(0, NEW_PER_SESSION - due.length))
-      .map((w) => wordItem(w, "new")),
-  );
-  q.push(...shuffle(ongoing).slice(0, 3).map((w) => wordItem(w, "review")));
-  if (q.length === 0) q = shuffle(lesson.words).slice(0, 8).map((w) => wordItem(w, "review"));
+  const due = lesson.words.filter((w) => tagOf(w) === "due");
+  const rest = lesson.words.filter((w) => tagOf(w) !== "due");
+  const q: SessionItem[] = [
+    ...shuffle(due).map((w) => wordItem(w, "due")),
+    ...shuffle(rest).map((w) => wordItem(w, badgeOf(w))),
+  ];
 
   shuffle(eligibleSentences(course, srs))
     .slice(0, 2)

@@ -6,13 +6,13 @@ import type {
   ExerciseType,
   SessionItem,
 } from "../lib/types";
-import { queueCounts } from "../lib/queue";
 import { wKey } from "../lib/srs";
-import { pickExerciseType, wordStage, shouldRequeue, REQUEUE_GAP } from "../lib/learning";
+import { pickExerciseType, shouldRequeue, requeuePosition } from "../lib/learning";
 import { McExercise } from "./exercises/McExercise";
 import { TypeExercise } from "./exercises/TypeExercise";
 import { SentenceBuilder } from "./exercises/SentenceBuilder";
 import { Complete } from "./Complete";
+import { Icon } from "./Icon";
 
 // Local per-session stage progress for one word (seeded from the server card,
 // then advanced client-side as the user answers — drives in-session rotation).
@@ -29,6 +29,7 @@ export function Session({
   onRestart,
   onPickLesson,
   onGoReview,
+  onExit,
 }: {
   queue: SessionItem[];
   course: Course;
@@ -39,6 +40,7 @@ export function Session({
   onRestart: () => void;
   onPickLesson: (topicKey: string, lessonKey: string) => void;
   onGoReview: () => void;
+  onExit: () => void;
 }) {
   // Mutable working queue: not-yet-learned words get re-inserted as the user
   // answers, so a new word is drilled within the same session (choosing →
@@ -76,8 +78,6 @@ export function Session({
     return keys.size;
   }, [queue]);
 
-  const counts = useMemo(() => queueCounts(queue), [queue]);
-
   function markFinished(key: string) {
     setFinishedKeys((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
   }
@@ -104,11 +104,11 @@ export function Session({
     };
     setWp((prev) => ({ ...prev, [key]: next }));
 
-    const stage = wordStage({ mcCorrect: next.mc, typeCorrect: next.type });
-    if (shouldRequeue(stage, next.shown)) {
+    const stageCard = { mcCorrect: next.mc, typeCorrect: next.type };
+    if (shouldRequeue(stageCard, next.shown)) {
       setItems((prev) => {
         const n = [...prev];
-        n.splice(Math.min(idx + REQUEUE_GAP, n.length), 0, item);
+        n.splice(requeuePosition(idx, n.length), 0, item);
         return n;
       });
     } else {
@@ -186,8 +186,16 @@ export function Session({
   }
 
   return (
-    <>
+    <div className="m-session">
       <div className="m-session-top">
+        <button
+          className="m-session-exit"
+          onClick={onExit}
+          aria-label="Выйти из тренировки"
+          title="Выйти из тренировки"
+        >
+          <Icon name="x" size={18} />
+        </button>
         <div className="m-progress">
           <div className="m-progress-fill" style={{ width: `${width}%` }} />
         </div>
@@ -195,31 +203,7 @@ export function Session({
           {finished}/{totalTargets}
         </span>
       </div>
-      <SessionChips counts={counts} />
       {exercise}
-    </>
-  );
-}
-
-function SessionChips({
-  counts,
-}: {
-  counts: { due: number; nw: number; rv: number; cr: number };
-}) {
-  const chip = (cls: string, n: number, label: string) =>
-    n > 0 ? (
-      <span className={"m-badge " + cls}>
-        <span className={"m-dot " + cls} />
-        {n} {label}
-      </span>
-    ) : null;
-  if (counts.due + counts.nw + counts.rv + counts.cr === 0) return null;
-  return (
-    <div className="m-chips">
-      {chip("due", counts.due, "срочных")}
-      {chip("new", counts.nw, "новых")}
-      {chip("rev", counts.rv, "повторений")}
-      {chip("cross", counts.cr, "сочетаний")}
     </div>
   );
 }

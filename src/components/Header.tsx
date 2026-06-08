@@ -6,24 +6,21 @@ export function Header({
   streak,
   theme,
   onToggleTheme,
+  onHome,
 }: {
   streak: number;
   theme: Theme;
   onToggleTheme: () => void;
+  onHome: () => void;
 }) {
   const { signOut } = useAuthActions();
   const dark = theme === "dark";
   return (
     <div className="m-header">
       <div className="m-brand">
-        <div className="m-logo">pt</div>
-        <div>
-          <div className="m-kicker">Português Europeu · A0–A1</div>
-          <div className="m-title">Тренажёр</div>
-          <button className="m-signout" onClick={() => void signOut()}>
-            выйти
-          </button>
-        </div>
+        <button className="m-logo" onClick={onHome} aria-label="На главный экран" title="На главный экран">
+          pt
+        </button>
       </div>
       <div className="m-header-right">
         <button
@@ -38,6 +35,9 @@ export function Header({
           <span className="m-flame">🔥</span>
           <b>{streak}</b>
         </div>
+        <button className="m-signout" onClick={() => void signOut()}>
+          выйти
+        </button>
       </div>
     </div>
   );
