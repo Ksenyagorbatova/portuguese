@@ -53,15 +53,6 @@ jobs:
           CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
         run: npx convex run seed:seedContent --prod
 
-      # ОДНОРАЗОВЫЙ идемпотентный бэкфилл: обрезает легаси-инфляцию расписания
-      # SM-2 (interval/due) под MAX_INTERVAL. reclampSchedules уже задеплоена
-      # шагом выше. Повторный прогон — no-op (правит только over-cap строки).
-      # УДАЛИТЬ этот шаг отдельным PR после первого успешного прогона на проде.
-      - name: Reclamp SRS schedules (prod, one-time backfill)
-        env:
-          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
-        run: npx convex run progress:reclampSchedules --prod
-
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
         with:
