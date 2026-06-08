@@ -14,8 +14,11 @@
    актуальную документацию через MCP-сервер `context7` (Convex, React 19, Vite 8,
    `@convex-dev/auth`, Vitest, Playwright) и следуй ей. Стек быстро движется — не
    полагайся на память для API/конфигов.
-2. **Ветка на задачу.** Никогда не коммить/пушить в `main` напрямую — только через
-   Pull Request. Имя ветки по сути: `feat/…`, `fix/…`, `chore/…`.
+2. **Ветка на задачу, всегда от свежего `origin/main`.** Перед работой:
+   `git checkout main && git pull --ff-only origin main`, затем
+   `git checkout -b <type>/<desc>` (не от устаревшего main или другой ветки). Никогда
+   не коммить/пушить в `main` напрямую — только через Pull Request. Имя: `feat/…`,
+   `fix/…`, `chore/…`.
 3. **Тесты обязательны** в том же изменении: backend (Vitest + convex-test,
    `convex/*.test.ts`) / frontend-unit (Vitest + jsdom, `src/**/*.test.ts`) /
    компонентное (Playwright CT, `src/**/*.ct.tsx`). См. раздел «Тестирование» в
