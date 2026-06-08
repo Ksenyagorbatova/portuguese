@@ -43,6 +43,22 @@ describe("nextDueLabel", () => {
     expect(nextDueLabel(card(3 * day))).toBe("через 3 дн.");
     expect(nextDueLabel(card(-day))).toBe("прямо сейчас");
   });
+
+  it("rounds large intervals into human buckets (weeks / months / year)", () => {
+    vi.spyOn(Date, "now").mockReturnValue(0);
+    const day = 86400000;
+    const card = (due: number) => ({ interval: 1, ef: 2.5, due, seen: 1, correct: 1, lastSeen: 0 });
+    // weeks (Russian plural: 1 неделю, 2 недели, 5 недель — though <28d caps at 4)
+    expect(nextDueLabel(card(7 * day))).toBe("через 1 неделю");
+    expect(nextDueLabel(card(21 * day))).toBe("через 3 недели");
+    // months
+    expect(nextDueLabel(card(30 * day))).toBe("через 1 месяц");
+    expect(nextDueLabel(card(90 * day))).toBe("через 3 месяца");
+    expect(nextDueLabel(card(150 * day))).toBe("через 5 месяцев");
+    // a year+ — including the legacy «through 455 days» case
+    expect(nextDueLabel(card(330 * day))).toBe("примерно через год");
+    expect(nextDueLabel(card(455 * day))).toBe("примерно через год");
+  });
 });
 
 describe("intervalLabel", () => {

@@ -40,14 +40,34 @@ export function adaptSrs(raw: RawSrsState): SrsState {
   };
 }
 
+// Russian plural picker: one (1, 21…), few (2–4, 22–24…), many (0, 5–20…).
+function pluralRu(n: number, one: string, few: string, many: string): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
+  return many;
+}
+
 // Display labels (ported from nextDueLabel/intervalLabel). Computed client-side
-// from the card + current time; purely presentational.
+// from the card + current time; purely presentational. Большие интервалы
+// округляем в недели/месяцы/«примерно через год» — «через 455 дн» читается как
+// сломанное (а на проде у части слов до миграции лежат именно такие легаси-due).
 export function nextDueLabel(card: CardFields | undefined): string {
   if (!card || !card.seen) return "новое";
   const days = Math.round((card.due - Date.now()) / 86400000);
   if (days <= 0) return "прямо сейчас";
   if (days === 1) return "завтра";
-  return `через ${days} дн.`;
+  if (days < 7) return `через ${days} дн.`;
+  if (days < 28) {
+    const w = Math.round(days / 7);
+    return `через ${w} ${pluralRu(w, "неделю", "недели", "недель")}`;
+  }
+  if (days < 330) {
+    const m = Math.round(days / 30);
+    return `через ${m} ${pluralRu(m, "месяц", "месяца", "месяцев")}`;
+  }
+  return "примерно через год";
 }
 
 export function intervalLabel(card: CardFields | undefined): string {

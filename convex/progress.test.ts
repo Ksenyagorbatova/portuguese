@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { convexTest } from "convex-test";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import schema from "./schema";
 
 const modules = import.meta.glob(["./**/*.*s", "!./**/*.test.ts"]);
@@ -88,7 +88,7 @@ describe("recordAnswer — SM-2 only advances on a review event", () => {
     expect(review.card.interval).toBe(6);
   });
 
-  it("caps the interval at MAX_INTERVAL (365 дн) however many perfect reviews", async () => {
+  it("caps the interval at MAX_INTERVAL (120 дн) however many perfect reviews", async () => {
     const t = convexTest(schema, modules);
     const { as } = await asUser(t);
     await graduate(as);
@@ -97,7 +97,7 @@ describe("recordAnswer — SM-2 only advances on a review event", () => {
       await makeDue(t);
       res = await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "type" });
     }
-    expect(res.card.interval).toBe(365);
+    expect(res.card.interval).toBe(120);
   });
 
   it("resets a learned word's interval to 1 on a wrong DUE review", async () => {
@@ -291,5 +291,50 @@ describe("markTheorySeen", () => {
 
     const srs = await as.query(api.progress.getSrsState, {});
     expect(srs!.seenTheory).toContain("l1");
+  });
+});
+
+describe("reclampSchedules — heals legacy inflated rows", () => {
+  const DAY = 86400000;
+
+  it("clamps interval/due back under MAX_INTERVAL and is idempotent", async () => {
+    const t = convexTest(schema, modules);
+    const { userId } = await asUser(t);
+    const now = Date.now();
+    // Legacy row written by the pre-cap scheduler: interval 600, due ~455 дн.
+    const id = await t.run((ctx) =>
+      ctx.db.insert("progress", {
+        userId, lessonKey: "l1", pt: "a",
+        interval: 600, ef: 2.6, due: now + 455 * DAY,
+        seen: 8, correct: 8, lastSeen: now, mcCorrect: 3, typeCorrect: 3,
+      }),
+    );
+
+    const first = await t.mutation(internal.progress.reclampSchedules, {});
+    expect(first).toEqual({ scanned: 1, fixed: 1 });
+
+    const row = await t.run((ctx) => ctx.db.get(id));
+    expect(row!.interval).toBe(120);
+    expect(row!.due).toBeLessThanOrEqual(now + 120 * DAY);
+    expect(row!.due).toBeGreaterThan(now); // still in the future, just sane
+
+    // Re-running changes nothing — clamp is idempotent.
+    const second = await t.mutation(internal.progress.reclampSchedules, {});
+    expect(second).toEqual({ scanned: 1, fixed: 0 });
+  });
+
+  it("leaves already-sane rows untouched", async () => {
+    const t = convexTest(schema, modules);
+    const { userId } = await asUser(t);
+    const now = Date.now();
+    await t.run((ctx) =>
+      ctx.db.insert("progress", {
+        userId, lessonKey: "l1", pt: "b",
+        interval: 10, ef: 2.5, due: now + 10 * DAY,
+        seen: 6, correct: 6, lastSeen: now, mcCorrect: 3, typeCorrect: 3,
+      }),
+    );
+    const res = await t.mutation(internal.progress.reclampSchedules, {});
+    expect(res).toEqual({ scanned: 1, fixed: 0 });
   });
 });
