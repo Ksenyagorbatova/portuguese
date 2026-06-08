@@ -71,6 +71,7 @@
   --accent-ink:    #0b5a3f;   /* text/icon on tint */
   --accent-shadow: rgba(29,158,117,.38);
   --accent-ring:   rgba(29,158,117,.20);  /* focus ring */
+  --flag-green:    #046a38;               /* зелёный флага Португалии (логотип) */
   --flag-red:      #d52b1e;               /* красный флага Португалии (логотип) */
 }
 
@@ -111,6 +112,7 @@
   --accent-ink:    #7fe0bc;
   --accent-shadow: rgba(39,185,136,.4);
   --accent-ring:   rgba(39,185,136,.25);
+  --flag-green:    #0a7d45;
   --flag-red:      #e23a2c;
 }
 
@@ -170,7 +172,7 @@ body{
 /* ── Header ────────────────────────────────────────────────────────────── */
 .m-header{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);padding:var(--s2) var(--s1) var(--s1)}
 .m-brand{display:flex;align-items:center;gap:var(--s3)}
-.m-logo{width:42px;height:42px;border:none;padding:0;cursor:pointer;border-radius:13px;background:linear-gradient(90deg,var(--accent) 0 40%,var(--flag-red) 40% 100%);display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--font-display);font-weight:800;font-size:18px;box-shadow:var(--e-accent);letter-spacing:-.02em;flex-shrink:0;transition:transform var(--dur-press) var(--ease),box-shadow var(--dur)}
+.m-logo{width:42px;height:42px;border:none;padding:0;cursor:pointer;border-radius:13px;background:linear-gradient(90deg,var(--flag-green) 0 40%,var(--flag-red) 40% 100%);display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--font-display);font-weight:800;font-size:18px;box-shadow:var(--e-accent);letter-spacing:-.02em;flex-shrink:0;transition:transform var(--dur-press) var(--ease),box-shadow var(--dur)}
 .m-logo:hover{box-shadow:0 6px 18px -3px var(--accent-shadow)}
 .m-logo:active{transform:scale(.94)}
 .m-kicker{font-size:11px;font-weight:600;color:var(--ink-400);letter-spacing:.04em}
@@ -437,7 +439,7 @@ body{
 /* ── Sign in ───────────────────────────────────────────────────────────── */
 .m-signin{margin-top:var(--s7);display:flex;flex-direction:column;gap:var(--s4)}
 .m-signin-brand{display:flex;flex-direction:column;align-items:center;gap:14px;margin-bottom:var(--s2)}
-.m-signin-logo{width:64px;height:64px;border-radius:19px;background:linear-gradient(90deg,var(--accent) 0 40%,var(--flag-red) 40% 100%);display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--font-display);font-weight:800;font-size:27px;box-shadow:var(--e-accent)}
+.m-signin-logo{width:64px;height:64px;border-radius:19px;background:linear-gradient(90deg,var(--flag-green) 0 40%,var(--flag-red) 40% 100%);display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--font-display);font-weight:800;font-size:27px;box-shadow:var(--e-accent)}
 .m-signin-kicker{font-size:12px;font-weight:600;color:var(--ink-400);letter-spacing:.04em;text-align:center}
 .m-signin-title{font-family:var(--font-display);font-size:27px;font-weight:700;color:var(--ink-900);text-align:center;letter-spacing:-.02em;margin-top:2px}
 .m-form{display:flex;flex-direction:column;gap:12px}
