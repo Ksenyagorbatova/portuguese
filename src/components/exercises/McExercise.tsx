@@ -90,7 +90,10 @@ export function McExercise({
         )}
       </div>
       {word.note && <div className="m-q-note">{word.note}</div>}
-      {tag !== "new" && (
+      {/* Строку показываем только для реально просроченных (due) слов: при
+          досрочной практике («Тренировать все слова») дата будущего повтора —
+          шум. После ответа расписание всё равно показывает Feedback. */}
+      {tag === "due" && (
         <div className="m-q-srs">
           <Icon name="clock" /> следующий повтор: {nextDueLabel(card)}
         </div>

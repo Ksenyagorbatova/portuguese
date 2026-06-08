@@ -50,23 +50,24 @@ test("pt→ru: a correct first pick resolves to success", async ({ mount }) => {
   expect(firstTryCorrect).toBe(true);
 });
 
-test("a non-new card shows the «следующий повтор» line without «интервал»", async ({ mount }) => {
-  const card: CardFields = {
-    interval: 4,
-    ef: 2.5,
-    due: Date.now() + 4 * 86400000,
-    seen: 1,
-    correct: 3,
-    lastSeen: Date.now(),
-    mcCorrect: 2,
-    typeCorrect: 1,
-  };
+const dueCard: CardFields = {
+  interval: 10,
+  ef: 2.5,
+  due: Date.now() - 86400000, // overdue
+  seen: 4,
+  correct: 4,
+  lastSeen: Date.now() - 86400000,
+  mcCorrect: 3,
+  typeCorrect: 3,
+};
+
+test("a DUE word shows the «следующий повтор» line without «интервал»", async ({ mount }) => {
   const component = await mount(
     <McExercise
       word={word}
       mode="pt_ru"
-      tag="review"
-      card={card}
+      tag="due"
+      card={dueCard}
       course={course}
       isLast={false}
       onAnswered={() => {}}
@@ -77,6 +78,22 @@ test("a non-new card shows the «следующий повтор» line without 
   await expect(srs).toBeVisible();
   await expect(srs).toContainText("следующий повтор:");
   await expect(srs).not.toContainText("интервал");
+});
+
+test("a non-due word (early practice) hides the pre-answer SRS line", async ({ mount }) => {
+  const component = await mount(
+    <McExercise
+      word={word}
+      mode="pt_ru"
+      tag="review"
+      card={dueCard}
+      course={course}
+      isLast={false}
+      onAnswered={() => {}}
+      onNext={() => {}}
+    />,
+  );
+  await expect(component.locator(".m-q-srs")).toHaveCount(0);
 });
 
 test("reveals the answer after two wrong picks", async ({ mount }) => {

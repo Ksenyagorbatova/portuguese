@@ -66,7 +66,8 @@ export function TypeExercise({
       </div>
       <div className="m-q-text">{word.ru}</div>
       {word.note && <div className="m-q-note">{word.note}</div>}
-      {tag !== "new" && (
+      {/* Только для реально просроченных (due) слов — см. McExercise. */}
+      {tag === "due" && (
         <div className="m-q-srs">
           <Icon name="clock" /> следующий повтор: {nextDueLabel(card)}
         </div>

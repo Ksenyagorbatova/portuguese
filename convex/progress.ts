@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { query, mutation } from "./_generated/server";
+import { query, mutation, internalMutation } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
 
 // ─── SM-2 helpers (ported from the original updateCard/isDue) ────────────────
@@ -253,5 +253,33 @@ export const markTheorySeen = mutation({
       .unique();
     if (!existing) await ctx.db.insert("theorySeen", { userId, lessonKey });
     return null;
+  },
+});
+
+// ─── reclampSchedules (одноразовая миграция данных) ──────────────────────────
+// Легаси-строки `progress`, записанные до фикса инфляции интервала SM-2
+// (interval умножался на ef на КАЖДЫЙ ответ, без потолка), несут раздутые
+// interval/due — отсюда «следующий повтор: через 455 дн». Текущий планировщик
+// НЕ переписывает расписание выученного, ещё не наступившего (due>now) слова при
+// досрочной практике, поэтому такие значения заморожены до (далёкой) даты
+// повтора. Эта миграция возвращает каждую строку под MAX_INTERVAL. Идемпотентна:
+// повторный запуск — no-op. Запуск вручную (dev и, с --prod, на проде):
+//   npx convex run progress:reclampSchedules
+export const reclampSchedules = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const DAY = 86400000;
+    const rows = await ctx.db.query("progress").collect();
+    let fixed = 0;
+    for (const r of rows) {
+      const interval = Math.min(r.interval, MAX_INTERVAL);
+      // due не может стоять дальше, чем обрезанный интервал от последнего повтора.
+      const due = Math.min(r.due, r.lastSeen + interval * DAY);
+      if (interval !== r.interval || due !== r.due) {
+        await ctx.db.patch(r._id, { interval, due });
+        fixed++;
+      }
+    }
+    return { scanned: rows.length, fixed };
   },
 });
