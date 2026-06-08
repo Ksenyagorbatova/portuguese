@@ -12,6 +12,14 @@ Convex (БД + функции + авторизация `@convex-dev/auth`, пр�
 Node 24. Тесты: Vitest (+ convex-test) и Playwright Component Testing.
 Сайт: `https://ksenyagorbatova.github.io/portuguese/` (base path `/portuguese/`).
 
+## Метод работы: context7 (ОБЯЗАТЕЛЬНО)
+
+Перед тем как писать код или предлагать фикс — тяни актуальную, версионно-точную
+документацию через MCP-сервер **context7** и следуй найденным best-practices. Стек
+быстро движется (Convex, React 19, Vite 8, `@convex-dev/auth`, Vitest 4, Playwright
+CT) — не полагайся на память для форм API и конфигов: резолвни библиотеку в
+context7, прочитай нужное, потом реализуй под актуальную версию.
+
 ## ⚠️ Рабочий процесс (ОБЯЗАТЕЛЬНО)
 
 1. **Каждая задача — в отдельной ветке.** Имя ветки по сути задачи:
@@ -172,7 +180,8 @@ src/components/ Shell (оркестратор) → Header/ScoreRow/TabBar → Re
 src/test/       setup.ts (jest-dom), mocks/ (стабы для CT)
 playwright/     index.html/index.tsx — точка монтирования Playwright CT
 specs/          спеки на задачу specs/<branch>.md + baseline-спеки specs/feature/*
-.claude/skills/ spec (/spec) · test-policy (тест-политика)
+.claude/        settings.json (permissions + PostToolUse lint-хук) · hooks/lint-edited-file.sh
+                · skills/{spec,test-policy}
 .githooks/      pre-push (spec-гейт + code-review reminder + npm run verify)
 .github/workflows/  ci.yml (PR-проверки) · deploy.yml (деплой при мёрже в main)
 ```
