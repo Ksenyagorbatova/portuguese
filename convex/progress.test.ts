@@ -88,7 +88,7 @@ describe("recordAnswer — SM-2 only advances on a review event", () => {
     expect(review.card.interval).toBe(6);
   });
 
-  it("caps the interval at MAX_INTERVAL (365 дн) however many perfect reviews", async () => {
+  it("caps the interval at MAX_INTERVAL (120 дн) however many perfect reviews", async () => {
     const t = convexTest(schema, modules);
     const { as } = await asUser(t);
     await graduate(as);
@@ -97,7 +97,7 @@ describe("recordAnswer — SM-2 only advances on a review event", () => {
       await makeDue(t);
       res = await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "type" });
     }
-    expect(res.card.interval).toBe(365);
+    expect(res.card.interval).toBe(120);
   });
 
   it("resets a learned word's interval to 1 on a wrong DUE review", async () => {
@@ -314,8 +314,8 @@ describe("reclampSchedules — heals legacy inflated rows", () => {
     expect(first).toEqual({ scanned: 1, fixed: 1 });
 
     const row = await t.run((ctx) => ctx.db.get(id));
-    expect(row!.interval).toBe(365);
-    expect(row!.due).toBeLessThanOrEqual(now + 365 * DAY);
+    expect(row!.interval).toBe(120);
+    expect(row!.due).toBeLessThanOrEqual(now + 120 * DAY);
     expect(row!.due).toBeGreaterThan(now); // still in the future, just sane
 
     // Re-running changes nothing — clamp is idempotent.
