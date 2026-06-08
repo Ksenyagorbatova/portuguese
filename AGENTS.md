@@ -40,5 +40,13 @@ npx convex dev     # бэкенд Convex + кодоген (отдельный т
 npm run wt:setup   # настроить git-worktree (параллельная разработка) — см. CLAUDE.md
 ```
 
+## Скиллы
+
+Вызываемые скиллы в [`.claude/skills/`](.claude/skills/): `spec`, `test-policy`,
+`content-authoring` (правка `content.ts`), `convex-conventions` (серверные
+готчи Convex), `srs-invariants` (guard SM-2/порогов/очереди), `browser-smoke`
+(вход + потоки), `ship-task` (все гейты → PR). Обзор — в [CLAUDE.md](CLAUDE.md),
+раздел «Скиллы проекта».
+
 Дальнейшее (архитектура SRS/очереди/тем, контент-сид, деплой, worktree) — в
 [CLAUDE.md](CLAUDE.md) и [`specs/`](specs/).
