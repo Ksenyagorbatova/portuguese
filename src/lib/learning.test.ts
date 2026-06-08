@@ -3,8 +3,10 @@ import {
   isWordLearned,
   pickExerciseType,
   shouldRequeue,
+  requeuePosition,
   MC_TARGET,
   TYPE_TARGET,
+  REQUEUE_GAP,
   SESSION_REQUEUE_CAP,
 } from "./learning";
 
@@ -67,5 +69,31 @@ describe("shouldRequeue", () => {
 
   it("never requeues a learned word (both skills met)", () => {
     expect(shouldRequeue({ mcCorrect: MC_TARGET, typeCorrect: TYPE_TARGET }, 0)).toBe(false);
+  });
+});
+
+describe("requeuePosition (spreads requeues across the whole queue, not a 3-cycle)", () => {
+  it("keeps at least REQUEUE_GAP cards before the word repeats", () => {
+    expect(requeuePosition(0, 10, () => 0)).toBe(REQUEUE_GAP);
+    expect(requeuePosition(2, 10, () => 0)).toBe(2 + REQUEUE_GAP);
+  });
+
+  it("can land anywhere up to the END of the queue (so all words get a turn)", () => {
+    expect(requeuePosition(0, 10, () => 0.999)).toBe(10);
+  });
+
+  it("does NOT collapse to a fixed idx+GAP cycle — position varies with rnd", () => {
+    const atStart = requeuePosition(0, 12, () => 0);
+    const atMid = requeuePosition(0, 12, () => 0.5);
+    const atEnd = requeuePosition(0, 12, () => 0.999);
+    expect(atStart).toBe(REQUEUE_GAP);
+    expect(atEnd).toBe(12);
+    expect(atMid).toBeGreaterThan(atStart);
+    expect(atMid).toBeLessThan(atEnd);
+  });
+
+  it("appends to the end when the word is near the back (no room for the gap)", () => {
+    expect(requeuePosition(8, 10, () => 0.5)).toBe(10);
+    expect(requeuePosition(9, 10, () => 0)).toBe(10);
   });
 });

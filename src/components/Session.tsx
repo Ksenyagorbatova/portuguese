@@ -7,7 +7,7 @@ import type {
   SessionItem,
 } from "../lib/types";
 import { wKey } from "../lib/srs";
-import { pickExerciseType, shouldRequeue, REQUEUE_GAP } from "../lib/learning";
+import { pickExerciseType, shouldRequeue, requeuePosition } from "../lib/learning";
 import { McExercise } from "./exercises/McExercise";
 import { TypeExercise } from "./exercises/TypeExercise";
 import { SentenceBuilder } from "./exercises/SentenceBuilder";
@@ -108,7 +108,7 @@ export function Session({
     if (shouldRequeue(stageCard, next.shown)) {
       setItems((prev) => {
         const n = [...prev];
-        n.splice(Math.min(idx + REQUEUE_GAP, n.length), 0, item);
+        n.splice(requeuePosition(idx, n.length), 0, item);
         return n;
       });
     } else {

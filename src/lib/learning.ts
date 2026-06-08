@@ -67,3 +67,20 @@ export function pickExerciseType(
 export function shouldRequeue(card: StageCard | undefined, seenCount: number): boolean {
   return !isWordLearned(card) && seenCount < SESSION_REQUEUE_CAP;
 }
+
+// Куда вставить не выученное слово обратно в рабочую очередь (idx — текущая
+// позиция, length — длина очереди). СЛУЧАЙНО в задней части: от `idx+REQUEUE_GAP`
+// (минимальный зазор, чтобы слово не повторилось сразу) до конца. Это ключевое:
+// фиксированная вставка ровно на `idx+REQUEUE_GAP` образует тесный цикл из
+// первых REQUEUE_GAP слов — остальные слова урока не показываются, пока первые
+// не выучены. Случайная позиция до конца перемешивает ВСЕ слова сессии.
+// `rnd` инжектируется ради детерминизма в тестах.
+export function requeuePosition(
+  idx: number,
+  length: number,
+  rnd: () => number = Math.random,
+): number {
+  const lo = Math.min(idx + REQUEUE_GAP, length);
+  if (lo >= length) return length;
+  return lo + Math.floor(rnd() * (length - lo + 1));
+}
