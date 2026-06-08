@@ -17,15 +17,11 @@ export function Header({
     <div className="m-header">
       <div className="m-brand">
         <div className="m-logo">pt</div>
-        <div>
-          <div className="m-kicker">Português Europeu · A0–A1</div>
-          <div className="m-title">Тренажёр</div>
-          <button className="m-signout" onClick={() => void signOut()}>
-            выйти
-          </button>
-        </div>
       </div>
       <div className="m-header-right">
+        <button className="m-signout" onClick={() => void signOut()}>
+          выйти
+        </button>
         <button
           className="m-icon-btn"
           onClick={onToggleTheme}

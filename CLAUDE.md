@@ -67,8 +67,9 @@ npx convex run seed:seedContent   # залить/обновить контент
 в том же PR; перед push весь набор зелёный (форсит `.githooks/pre-push`). Три уровня:
 
 - **Бэкенд** — Vitest + `convex-test` (edge-runtime), файлы `convex/*.test.ts`.
-  Покрывают Convex-функции: SM-2 (`recordAnswer` с `mode`), этапные счётчики
-  `mcCorrect/typeCorrect` и «выучено» по `typeCorrect`, классификацию
+  Покрывают Convex-функции: SM-2 (`recordAnswer` с `mode`; интервал двигается
+  только на «событие повторения», потолок `MAX_INTERVAL`), этапные счётчики
+  `mcCorrect/typeCorrect` и «выучено» по ОБОИМ навыкам, классификацию
   (`getSrsState`), идемпотентность сида, `getCourse`, серверную блокировку
   регистрации.
   Авторизованный контекст: `t.withIdentity({ subject: ` + "`${userId}|session`" + ` })`;
@@ -95,23 +96,36 @@ npx convex run seed:seedContent   # залить/обновить контент
   в конец (ключ `cs_NNNN` берётся из индекса).
 - **Прогресс** — per-user, таблица `progress`, ключ `(userId, lessonKey, pt)`,
   НЕ Convex `_id` (чтобы пере-сидинг не ломал прогресс). SM-2 считается на
-  сервере в [`convex/progress.ts`](convex/progress.ts) (`recordAnswer`);
-  классификация due/new/learned/ongoing — в `getSrsState`.
-- **Этапная модель освоения слова.** Каждое слово проходит этапы
-  **выбор (MC) → ручной ввод (Type) → выучено**. В таблице `progress` два
-  счётчика: `mcCorrect` (верные выборы) и `typeCorrect` (верные ручные вводы),
-  оба `v.optional` (старые строки читаются как 0). Пороги:
-  `MC_TARGET=3` (выбор → ввод), `TYPE_TARGET=3` (ввод → выучено).
-  `recordAnswer` принимает `mode: "mc" | "type"` и при верном ответе
-  (`quality>=1`) растит соответствующий счётчик. **`isLearned(c)` =
-  `c.typeCorrect >= TYPE_TARGET`** — выучено ТОЛЬКО через ручной ввод
-  (`TYPE_TARGET` дублируется в [`src/lib/learning.ts`](src/lib/learning.ts) —
-  держать синхронно, Convex не делит модули с `src/`). Этап и тип упражнения
-  считаются в `learning.ts` (`wordStage`, `pickExerciseType`).
+  сервере в [`convex/progress.ts`](convex/progress.ts) (`recordAnswer`).
+  **Важно:** интервал SM-2 двигается ТОЛЬКО на «событие повторения» — когда
+  слово выучивается этим ответом (выпуск) ИЛИ повторяется уже выученным И
+  реально наступил повтор (`due<=now`). Промежуточные ответы внутрисессионной
+  отработки расписание НЕ трогают (иначе интервал умножается на `ef` по ~6 раз
+  за сессию и улетает в тысячи дней — был баг «следующий повтор: 4131 дн»):
+  недоученное слово получает короткий шаг обучения (через день) и
+  классифицируется как `ongoing` (а не застревает на `due=0`/«срочное»), а
+  ранняя практика выученного не-`due` слова расписание не сдвигает. Интервал
+  ограничен сверху `MAX_INTERVAL=365` дн. Классификация
+  due/new/learned/ongoing — в `getSrsState`.
+- **Смешанная модель освоения слова.** Каждое слово тренируется двумя навыками —
+  **узнавание (MC, выбор)** и **воспроизведение (Type, ручной ввод)** —
+  ВПЕРЕМЕШКУ в случайном порядке (НЕ «сначала все выборы, потом все вводы»). В
+  таблице `progress` два счётчика: `mcCorrect` (верные выборы) и `typeCorrect`
+  (верные ручные вводы), оба `v.optional` (старые строки читаются как 0). Пороги
+  `MC_TARGET=3` и `TYPE_TARGET=3`. `recordAnswer` принимает `mode: "mc" | "type"`
+  и при верном ответе (`quality>=1`) растит соответствующий счётчик.
+  **`isLearned(c)` = `mcCorrect>=MC_TARGET && typeCorrect>=TYPE_TARGET`** —
+  выучено, когда набраны ОБА навыка (оба порога дублируются в
+  [`src/lib/learning.ts`](src/lib/learning.ts) — держать синхронно, Convex не
+  делит модули с `src/`). Тип следующего упражнения выбирает `pickExerciseType`
+  ([`learning.ts`](src/lib/learning.ts)): пока слово не выучено — случайно среди
+  ещё НЕ набранных навыков (так сессия гарантированно добирает и `MC_TARGET`
+  выборов, и `TYPE_TARGET` вводов, но вперемешку).
 - **Клиент vs сервер.** Сервер: хранение, авторизация, SM-2, классификация,
-  статистика. Клиент: shuffle/slice и вставка кросс-предложений
-  ([`src/lib/queue.ts`](src/lib/queue.ts)), выбор типа упражнения по этапу слова
-  и **динамическая внутрисессионная ротация** ([`src/components/Session.tsx`](src/components/Session.tsx)):
+  статистика. Клиент: shuffle и вставка кросс-предложений
+  ([`src/lib/queue.ts`](src/lib/queue.ts)) — урок берёт в стартовый набор ВСЕ
+  слова темы (не срез), случайный выбор MC/Type вперемешку и **динамическая
+  внутрисессионная ротация** ([`src/components/Session.tsx`](src/components/Session.tsx)):
   не выученное слово возвращается в той же сессии (через `REQUEUE_GAP`, с
   предохранителем `SESSION_REQUEUE_CAP`), пока не дойдёт до `learned` — поэтому
   очередь от `queue.ts` это лишь СТАРТОВЫЙ набор. Недетерминированное держим вне
@@ -123,6 +137,13 @@ npx convex run seed:seedContent   # залить/обновить контент
   ([`src/components/TopicsTab.tsx`](src/components/TopicsTab.tsx) → `openTheory` в
   `Shell`), открывает [`Theory`](src/components/Theory.tsx) в любой момент
   (с кнопкой «Назад»). Онбординг (теория перед первой практикой) сохранён.
+- **UI тренировки.** Хедер ([`Header.tsx`](src/components/Header.tsx)) — только
+  логотип слева, «выйти»/тема/стрик справа. Во время сессии (`view.kind ===
+  "session"`) [`Shell`](src/components/Shell.tsx) скрывает статистику
+  (`ScoreRow`) и табы (`TabBar`), оставляя «само поле тренировки» — чтобы кнопка
+  «Дальше» помещалась без прокрутки на десктопе и мобиле (карточка дополнительно
+  уплотнена через scoped-класс `.m-session` в [`index.css`](src/index.css)).
+  Вместо табов у сессии свой выход (`onExit`, крестик в строке прогресса).
 - **Важно:** `getSrsState` возвращает `cards`/`tags` МАССИВАМИ (не Record),
   т.к. `pt` содержит не-ASCII (á, ã, ç…), а Convex запрещает не-ASCII в именах
   полей объектов. Клиент собирает Record через `adaptSrs` в
@@ -144,7 +165,7 @@ npx convex run seed:seedContent   # залить/обновить контент
 convex/         схема, content.ts (сид-данные), seed.ts, courseQueries.ts,
                 progress.ts (SRS), auth.ts/auth.config.ts/http.ts
                 *.test.ts — backend-тесты (convex-test)
-src/lib/        types, queue, srs (+adaptSrs), learning (этапы/ротация/пороги),
+src/lib/        types, queue, srs (+adaptSrs), learning (навыки MC/Type, ротация, пороги),
                 text, shuffle, wrongOptions, speech
                 *.test.ts — unit-тесты (Vitest)
 src/components/ Shell (оркестратор) → Header/ScoreRow/TabBar → ReviewTab/TopicsTab/
@@ -171,7 +192,10 @@ frontend-тесты, компонентные).
 - Нет офлайна (Convex требует сети; до первой загрузки — экран загрузки).
 - Streak растёт при первом ответе за день (логика в `recordAnswer`).
 - Проверка ответа — на клиенте; сервер доверяет присланному `quality` и `mode`.
-- «Выучено» считается по `typeCorrect` — миграции старых строк нет, у ранее
-  «выученных» слов классификация пересчитается вниз (поведение ожидаемое).
-- Внутрисессионная ротация может удлинять тренировку новых слов
-  (`NEW_PER_SESSION`×(`MC_TARGET`+`TYPE_TARGET`) ответов); пороги — в `learning.ts`.
+- «Выучено» = оба навыка (`mcCorrect>=MC_TARGET` И `typeCorrect>=TYPE_TARGET`).
+  Миграции не требуется: ранее «выученные» строки уже имеют `mc>=3` (в старой
+  фазовой модели `type` рос только после фазы выбора), так что правило их не
+  разучивает.
+- Урок берёт в сессию ВСЕ слова темы, и каждое доводится до «выучено» за сессию
+  (~(`MC_TARGET`+`TYPE_TARGET`) верных ответов на слово) — поэтому первая
+  тренировка большого урока (до 10 слов) длинная; пороги — в `learning.ts`.

@@ -8,11 +8,12 @@ import type {
 } from "../lib/types";
 import { queueCounts } from "../lib/queue";
 import { wKey } from "../lib/srs";
-import { pickExerciseType, wordStage, shouldRequeue, REQUEUE_GAP } from "../lib/learning";
+import { pickExerciseType, shouldRequeue, REQUEUE_GAP } from "../lib/learning";
 import { McExercise } from "./exercises/McExercise";
 import { TypeExercise } from "./exercises/TypeExercise";
 import { SentenceBuilder } from "./exercises/SentenceBuilder";
 import { Complete } from "./Complete";
+import { Icon } from "./Icon";
 
 // Local per-session stage progress for one word (seeded from the server card,
 // then advanced client-side as the user answers — drives in-session rotation).
@@ -29,6 +30,7 @@ export function Session({
   onRestart,
   onPickLesson,
   onGoReview,
+  onExit,
 }: {
   queue: SessionItem[];
   course: Course;
@@ -39,6 +41,7 @@ export function Session({
   onRestart: () => void;
   onPickLesson: (topicKey: string, lessonKey: string) => void;
   onGoReview: () => void;
+  onExit: () => void;
 }) {
   // Mutable working queue: not-yet-learned words get re-inserted as the user
   // answers, so a new word is drilled within the same session (choosing →
@@ -104,8 +107,8 @@ export function Session({
     };
     setWp((prev) => ({ ...prev, [key]: next }));
 
-    const stage = wordStage({ mcCorrect: next.mc, typeCorrect: next.type });
-    if (shouldRequeue(stage, next.shown)) {
+    const stageCard = { mcCorrect: next.mc, typeCorrect: next.type };
+    if (shouldRequeue(stageCard, next.shown)) {
       setItems((prev) => {
         const n = [...prev];
         n.splice(Math.min(idx + REQUEUE_GAP, n.length), 0, item);
@@ -186,8 +189,16 @@ export function Session({
   }
 
   return (
-    <>
+    <div className="m-session">
       <div className="m-session-top">
+        <button
+          className="m-session-exit"
+          onClick={onExit}
+          aria-label="Выйти из тренировки"
+          title="Выйти из тренировки"
+        >
+          <Icon name="x" size={18} />
+        </button>
         <div className="m-progress">
           <div className="m-progress-fill" style={{ width: `${width}%` }} />
         </div>
@@ -197,7 +208,7 @@ export function Session({
       </div>
       <SessionChips counts={counts} />
       {exercise}
-    </>
+    </div>
   );
 }
 

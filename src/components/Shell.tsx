@@ -108,6 +108,8 @@ export function Shell({
     if (lesson) openLesson(topicKey, lesson);
   }
 
+  const inSession = view.kind === "session";
+
   let content;
   if (view.kind === "session") {
     content = (
@@ -122,6 +124,7 @@ export function Shell({
         onRestart={onRestart}
         onPickLesson={onPickLesson}
         onGoReview={() => switchTab("review")}
+        onExit={() => setView({ kind: "home" })}
       />
     );
   } else if (view.kind === "theory") {
@@ -148,11 +151,18 @@ export function Shell({
         ? `theory-${view.lesson.lessonKey}`
         : `home-${tab}`;
 
+  // During a session the stat strip and tab bar are hidden so only the training
+  // card remains — keeps the «Дальше» button on-screen without scrolling
+  // (the session has its own exit control instead of the tabs).
   return (
     <>
       <Header streak={s.streak} theme={theme} onToggleTheme={onToggleTheme} />
-      <ScoreRow correct={score.correct} total={score.total} due={s.dueCountAll} />
-      <TabBar tab={tab} onTab={switchTab} />
+      {!inSession && (
+        <>
+          <ScoreRow correct={score.correct} total={score.total} due={s.dueCountAll} />
+          <TabBar tab={tab} onTab={switchTab} />
+        </>
+      )}
       <div className="m-view" key={viewKey}>
         {content}
       </div>

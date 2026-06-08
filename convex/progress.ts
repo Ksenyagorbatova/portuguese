@@ -25,13 +25,23 @@ const DEFAULT_CARD: CardFields = {
   typeCorrect: 0,
 };
 
-// Staged-learning threshold. KEEP IN SYNC with TYPE_TARGET in src/lib/learning.ts
-// (Convex bundles separately from src/, so the constant is duplicated).
-const TYPE_TARGET = 3; // правильных ручных вводов → слово выучено
+// Staged-learning thresholds. KEEP IN SYNC with MC_TARGET/TYPE_TARGET in
+// src/lib/learning.ts (Convex bundles separately from src/, so the constants
+// are duplicated).
+const MC_TARGET = 3; // правильных выборов (узнавание)
+const TYPE_TARGET = 3; // правильных ручных вводов (воспроизведение)
 
-// Слово выучено, только если его правильно вписали вручную TYPE_TARGET раз.
+// Потолок интервала SM-2 (дн.). Чистый SM-2 интервал не ограничивает, но для
+// тренажёра A0–A1 повтор раз в год — разумный минимум, а без потолка лейбл
+// «следующий повтор» уходит в годы и выглядит сломанным.
+const MAX_INTERVAL = 365;
+
+// Слово выучено, когда набраны И узнавание (MC_TARGET выборов), И
+// воспроизведение (TYPE_TARGET ручных вводов). Счётчики только растут, так что
+// классификация монотонна; старые «выученные» строки уже имеют mc≥3 (их type
+// рос только после фазы выбора), поэтому правило их не разучивает.
 function isLearned(c: CardFields): boolean {
-  return c.typeCorrect >= TYPE_TARGET;
+  return c.mcCorrect >= MC_TARGET && c.typeCorrect >= TYPE_TARGET;
 }
 
 // Per-word classification tag (server-authoritative, uses the frozen Date.now()):
@@ -173,14 +183,36 @@ export const recordAnswer = mutation({
     // Этапные счётчики растут только при верном ответе соответствующего типа.
     const mcCorrect = c.mcCorrect + (right && mode === "mc" ? 1 : 0);
     const typeCorrect = c.typeCorrect + (right && mode === "type" ? 1 : 0);
-    const q = quality === 2 ? 5 : quality === 1 ? 3 : 1;
-    const ef = Math.max(1.3, c.ef + 0.1 - (5 - q) * (0.08 + (5 - q) * 0.02));
-    let interval: number;
-    if (q < 2) interval = 1;
-    else if (c.interval === 0) interval = 1;
-    else if (c.interval === 1) interval = 6;
-    else interval = Math.round(c.interval * ef);
-    const due = now + interval * 86400000;
+
+    const DAY = 86400000;
+    // SM-2-расписание двигаем ТОЛЬКО на «событие повторения»: слово выучивается
+    // этим ответом (выпуск) ИЛИ повторяется уже выученным И реально наступил
+    // повтор (due<=now). Иначе интервал умножался бы на ef по ~6 раз за сессию
+    // (баг «следующий повтор: 4131 дн»), а ранняя практика выученного слова не
+    // должна сдвигать его расписание.
+    const wasLearned = isLearned(c);
+    const nowLearned = isLearned({ ...c, mcCorrect, typeCorrect });
+    const graduating = !wasLearned && nowLearned;
+    const dueReview = wasLearned && c.due <= now;
+
+    let { interval, ef, due } = c;
+    if (graduating || dueReview) {
+      const q = quality === 2 ? 5 : quality === 1 ? 3 : 1;
+      ef = Math.max(1.3, c.ef + 0.1 - (5 - q) * (0.08 + (5 - q) * 0.02));
+      if (q < 2) interval = 1;
+      else if (c.interval === 0) interval = 1;
+      else if (c.interval === 1) interval = 6;
+      else interval = Math.round(c.interval * ef);
+      interval = Math.min(interval, MAX_INTERVAL);
+      due = now + interval * DAY;
+    } else if (!nowLearned) {
+      // Слово ещё осваивается — короткий фиксированный шаг обучения (через
+      // день), БЕЗ умножения интервала: так оно классифицируется как «ongoing»
+      // (в работе), а не «due», и не застревает на due=0.
+      due = now + DAY;
+    }
+    // else: ранняя практика уже выученного, но ещё не due-слова — расписание
+    // (interval/ef/due) не трогаем, повтор ещё не наступил.
 
     const card: CardFields = {
       interval, ef, due, seen, correct, lastSeen: now, mcCorrect, typeCorrect,
