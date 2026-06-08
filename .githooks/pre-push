@@ -1,10 +1,43 @@
 #!/bin/sh
-# Pre-push quality gate — nothing leaves the machine until it's green.
+# Pre-push quality gate — ничего не уходит с машины, пока не зелёное.
 #
-# Runs `npm run verify` = typecheck + lint + Vitest (unit + backend) +
-# Playwright CT. A non-zero exit aborts the push.
+# Делает три вещи по порядку:
+#   1. Spec-гейт: ветка, которая трогает код (src/ | convex/), должна создать/
+#      обновить свою спеку specs/<branch>.md (правило «Specs» в CLAUDE.md).
+#   2. Напоминание про /code-review (hook не может сам запустить skill).
+#   3. `npm run verify` = typecheck + lint + Vitest (unit + backend) + Playwright CT.
 #
-# Auto-installed by `npm install` (package.json "prepare" sets
-# core.hooksPath=.githooks). Emergency bypass (use sparingly): git push --no-verify
-echo "▶ pre-push: verifying (typecheck + lint + tests + component tests)…"
+# Подключается `npm install` (package.json "prepare" ставит core.hooksPath=.githooks).
+# Разовый обход (осторожно): git push --no-verify
+
+# ── 1. Spec-гейт ─────────────────────────────────────────────────────────────
+branch=$(git symbolic-ref --short -q HEAD) || branch=""
+if [ -n "$branch" ] && [ "$branch" != "main" ]; then
+  if git rev-parse --verify -q origin/main >/dev/null; then
+    base=origin/main
+  elif git rev-parse --verify -q main >/dev/null; then
+    base=main
+  else
+    base=""
+  fi
+  if [ -n "$base" ]; then
+    changed=$(git diff --name-only "$base"...HEAD)
+    # Гейт срабатывает, только если ветка реально трогает код.
+    if echo "$changed" | grep -qE '^(src|convex)/'; then
+      spec="specs/$branch.md"
+      if ! echo "$changed" | grep -qxF "$spec"; then
+        echo "✗ push заблокирован: нет спеки для этой задачи."
+        echo "  Ожидается, что '$spec' создан/обновлён в этой ветке (CLAUDE.md → Specs)."
+        echo "  Почини: запусти /spec в Claude, закоммить спеку, потом push снова."
+        echo "  Разовый обход (только осознанно): git push --no-verify"
+        exit 1
+      fi
+      # ── 2. Напоминание про code-review (только когда менялся код) ───────────
+      echo "ℹ pre-push: прогони /code-review на этом диффе, разбери находки, почини реальные баги (с тестами)."
+    fi
+  fi
+fi
+
+# ── 3. Полная проверка ───────────────────────────────────────────────────────
+echo "▶ pre-push: verify (typecheck + lint + tests + component tests)…"
 npm run verify
