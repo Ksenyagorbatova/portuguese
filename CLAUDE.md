@@ -76,7 +76,7 @@ context7, прочитай нужное, потом реализуй под ак
 npm run dev            # Vite dev-сервер → http://localhost:5173/ (dev сервится с корня;
                        # base /portuguese/ только в прод-сборке — см. vite.config.ts)
 npx convex dev         # бэкенд Convex + кодоген convex/_generated (отдельный терминал)
-npm run lint           # ESLint
+npm run lint           # oxlint (Rust; конфиг .oxlintrc.json)
 npm run typecheck      # типы: tsc -b + convex/tsconfig + tsconfig.test (тесты)
 npm run check          # typecheck + lint
 npm run test           # Vitest: unit (jsdom) + backend (convex-test)
