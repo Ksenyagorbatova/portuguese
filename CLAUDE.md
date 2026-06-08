@@ -87,11 +87,34 @@ npm run test:ct        # Playwright Component Testing (*.ct.tsx)
 npm run verify         # check + test + test:ct — то же, что форсит pre-push
 npm run build          # прод-сборка
 npx convex run seed:seedContent   # залить/обновить контент в БД (идемпотентно)
+npm run wt:setup       # настроить git-worktree (локальный Convex + сид) — см. «Worktree»
+npm run wt:seed        # пере-сид локального деплоя worktree (контент + dev-аккаунт)
 ```
 
 Локально нужны: `.env.local` с `VITE_CONVEX_URL` (создаётся `npx convex dev`),
 и dev-`SITE_URL` (`npx convex env set SITE_URL http://localhost:5173`).
 Версия Node — 24 (см. `.nvmrc`); первый `npm install` подключает pre-push hook.
+
+## Worktree (параллельная разработка)
+
+Несколько задач параллельно в отдельных `git worktree` без конфликтов портов/данных.
+Основной checkout НЕ меняется (облачный dev-Convex, фикс-порт 5173). Вся
+worktree-логика — только для *linked* worktree (детект — `scripts/worktree.mjs`).
+
+- **Первое в свежем worktree:** `npm run wt:setup` — ставит зависимости, поднимает
+  ИЗОЛИРОВАННЫЙ локальный Convex-деплой (свои функции/схема/данные), провижинит
+  Convex Auth env и сеет контент + dev-аккаунт **`dev@example.com` / `12345678q`**
+  (регистрация выключена → без сида не залогиниться). Идемпотентно; пере-сид —
+  `npm run wt:seed`. No-op в основном checkout.
+- **Порты:** `npm run dev` (Vite) и `npm run test:ct` (CT) в worktree берут
+  смещённый порт (детерминированно от пути), `strictPort` снят — параллельные
+  серверы не сталкиваются. Основной checkout: 5173/3100, strict.
+- **Convex в worktree:** `npx convex dev` использует локальный деплой из `.env.local`
+  (его пишет `wt:setup`); `.convex`/`.env.local` — per-каталог, уже изолированы.
+- **Защита от сида на облаке:** `seed:seedLocal` строго локальный — гейты
+  `CONVEX_CLOUD_URL` (127.0.0.1) + `ALLOW_DEV_SEED=1`; на облачном dev/prod
+  отказывается. Подробности —
+  [`specs/chore/worktree-parallel-dev.md`](specs/chore/worktree-parallel-dev.md).
 
 ## Тестирование
 
@@ -179,6 +202,7 @@ src/components/ Shell (оркестратор) → Header/ScoreRow/TabBar → Re
                 *.ct.tsx — компонентные тесты (Playwright CT)
 src/test/       setup.ts (jest-dom), mocks/ (стабы для CT)
 playwright/     index.html/index.tsx — точка монтирования Playwright CT
+scripts/        worktree.mjs (детект/порт-офсет) · wt-setup/wt-seed.mjs (локальный Convex + сид)
 specs/          спеки на задачу specs/<branch>.md + baseline-спеки specs/feature/*
 .claude/        settings.json (permissions + PostToolUse lint-хук) · hooks/lint-edited-file.sh
                 · skills/{spec,test-policy}

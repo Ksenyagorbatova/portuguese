@@ -1,4 +1,8 @@
-import { internalMutation } from "./_generated/server";
+import { internalAction, internalMutation, internalQuery } from "./_generated/server";
+import { v } from "convex/values";
+import { createAccount } from "@convex-dev/auth/server";
+import { internal } from "./_generated/api";
+import type { DataModel } from "./_generated/dataModel";
 import { TOPICS, CROSS_SENTENCES } from "./content";
 
 // Idempotent content seed. Upserts by natural key (topicKey / lessonKey /
@@ -93,5 +97,111 @@ export const seedContent = internalMutation({
       words: wordCount,
       crossSentences: CROSS_SENTENCES.length,
     };
+  },
+});
+
+// ─── LOCAL / WORKTREE-ONLY: dev-аккаунт ──────────────────────────────────────
+// Свежий локальный Convex-деплой (создаётся на каждый worktree через
+// `npm run wt:setup`) пуст и без auth-env, а публичная регистрация выключена
+// (convex/auth.ts, SIGNUP_ENABLED) — значит залогиниться нечем. `seedLocal`
+// создаёт готовый dev-логин ПЛЮС заливает контент, чтобы worktree сразу был
+// кликабелен. НИКОГДА не запускать на облачном dev/prod.
+//
+// Многослойная защита держит это вне облака:
+//   1. Вызыватель (`scripts/wt-seed.mjs`) работает только в linked-worktree И
+//      отказывается сеять, если выбранный CONVEX_DEPLOYMENT не `local:`/`anonymous:`.
+//   2. Сам `seedLocal` отказывается, если CONVEX_CLOUD_URL (системная переменная,
+//      которой владеет бэкенд, — её нельзя подделать) указывает не на localhost,
+//      ИЛИ если не выставлен явный opt-in ALLOW_DEV_SEED=1.
+
+// Канонический dev-аккаунт. Пароль удовлетворяет политике провайдера Password
+// (>= 8 символов), так что реальный вход этими данными работает.
+export const DEV_EMAIL = "dev@example.com";
+export const DEV_PASSWORD = "12345678q";
+
+// CONVEX_CLOUD_URL не-локального (облачного) деплоя. Локальный бэкенд отдаёт его
+// с 127.0.0.1/localhost; облако — с *.convex.cloud. `undefined` (напр. под
+// convex-test) считаем локальным, так что там правит ALLOW_DEV_SEED; непарсимое
+// непустое значение — не-локальным (fail safe).
+function isNonLocalCloudUrl(cloudUrl: string | undefined): boolean {
+  if (cloudUrl === undefined) return false;
+  try {
+    const { hostname } = new URL(cloudUrl);
+    return hostname !== "127.0.0.1" && hostname !== "localhost" && hostname !== "0.0.0.0";
+  } catch {
+    return true;
+  }
+}
+
+// Id dev-пользователя по email (null, если ещё не создан). Обеспечивает
+// идемпотентность seedLocal: существующий пользователь → не звать createAccount
+// повторно (он бросает на дубликате).
+export const findUserByEmail = internalQuery({
+  args: { email: v.string() },
+  handler: async (ctx, { email }) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("email", (q) => q.eq("email", email))
+      .first();
+    return user?._id ?? null;
+  },
+});
+
+// Залить контент + создать dev-аккаунт на ЛОКАЛЬНОМ деплое. Идемпотентно:
+// контент — upsert (seedContent), аккаунт — пропускается, если уже есть.
+// Action, т.к. createAccount требует ActionCtx (хеширует пароль scrypt'ом
+// провайдера Password и пишет auth-таблицы); работа с БД — через internal
+// query/mutation.
+export const seedLocal = internalAction({
+  args: {},
+  handler: async (
+    ctx,
+  ): Promise<{
+    email: string;
+    createdAccount: boolean;
+    topics: number;
+    lessons: number;
+    words: number;
+    crossSentences: number;
+  }> => {
+    // Две независимые защиты держат это вне облака. Env читаем через
+    // `globalThis.process` (не голый `process`), чтобы файл тайпчекался и под
+    // фронтовым tsconfig — он подтягивается туда через _generated/api.d.ts, где
+    // нет node-типов. Под convex-test CONVEX_CLOUD_URL не задан → локально, и
+    // правит ALLOW_DEV_SEED.
+    const env =
+      (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};
+    if (isNonLocalCloudUrl(env.CONVEX_CLOUD_URL)) {
+      throw new Error(
+        `seed:seedLocal отказывается работать на не-локальном деплое (CONVEX_CLOUD_URL=${env.CONVEX_CLOUD_URL}). ` +
+          "Он сеет только изолированные локальные worktree-деплои, никогда облачный dev/prod.",
+      );
+    }
+    if (env.ALLOW_DEV_SEED !== "1") {
+      throw new Error(
+        "seed:seedLocal выключен на этом деплое (ALLOW_DEV_SEED != 1). " +
+          "Он запускается только на локальных worktree-деплоях, поднятых `npm run wt:setup`.",
+      );
+    }
+
+    // Контент (глобальный, идемпотентный upsert).
+    const content = await ctx.runMutation(internal.seed.seedContent, {});
+
+    // Dev-аккаунт (идемпотентно): существующий пользователь → не создаём заново
+    // (createAccount бросает на дубликате).
+    const existing = await ctx.runQuery(internal.seed.findUserByEmail, { email: DEV_EMAIL });
+    let createdAccount = false;
+    if (existing === null) {
+      // Создаёт пользователя + хешированный пароль под провайдером "password" с
+      // account id = email — ровно то, что ищет вход.
+      await createAccount<DataModel>(ctx, {
+        provider: "password",
+        account: { id: DEV_EMAIL, secret: DEV_PASSWORD },
+        profile: { email: DEV_EMAIL },
+      });
+      createdAccount = true;
+    }
+
+    return { email: DEV_EMAIL, createdAccount, ...content };
   },
 });
