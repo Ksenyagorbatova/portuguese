@@ -6,7 +6,6 @@ import type {
   ExerciseType,
   SessionItem,
 } from "../lib/types";
-import { queueCounts } from "../lib/queue";
 import { wKey } from "../lib/srs";
 import { pickExerciseType, shouldRequeue, REQUEUE_GAP } from "../lib/learning";
 import { McExercise } from "./exercises/McExercise";
@@ -78,8 +77,6 @@ export function Session({
       keys.add(it.kind === "word" ? wKey(it.word.lessonKey, it.word.pt) : it.sentence.sentenceKey);
     return keys.size;
   }, [queue]);
-
-  const counts = useMemo(() => queueCounts(queue), [queue]);
 
   function markFinished(key: string) {
     setFinishedKeys((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
@@ -206,31 +203,7 @@ export function Session({
           {finished}/{totalTargets}
         </span>
       </div>
-      <SessionChips counts={counts} />
       {exercise}
-    </div>
-  );
-}
-
-function SessionChips({
-  counts,
-}: {
-  counts: { due: number; nw: number; rv: number; cr: number };
-}) {
-  const chip = (cls: string, n: number, label: string) =>
-    n > 0 ? (
-      <span className={"m-badge " + cls}>
-        <span className={"m-dot " + cls} />
-        {n} {label}
-      </span>
-    ) : null;
-  if (counts.due + counts.nw + counts.rv + counts.cr === 0) return null;
-  return (
-    <div className="m-chips">
-      {chip("due", counts.due, "срочных")}
-      {chip("new", counts.nw, "новых")}
-      {chip("rev", counts.rv, "повторений")}
-      {chip("cross", counts.cr, "сочетаний")}
     </div>
   );
 }

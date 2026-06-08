@@ -37,11 +37,19 @@ describe("pickExerciseType (mixed MC/Type until learned)", () => {
     expect(pickExerciseType({ mcCorrect: 0, typeCorrect: TYPE_TARGET }, "new", r(0.7))).toBe("mc_ru_pt");
   });
 
-  it("mixes both kinds randomly while both skills are owed (not phased)", () => {
-    // rnd < 0.5 → manual input; rnd ≥ 0.5 → choice. So a fresh word can start
-    // with EITHER exercise, unlike the old «all MC then all Type» phases.
-    expect(pickExerciseType({ mcCorrect: 0, typeCorrect: 0 }, "new", r(0.2))).toBe("type_pt");
+  it("starts a brand-new word with multiple-choice (recognition before recall)", () => {
+    // First encounter (no correct answers yet) → MC regardless of rnd: typing a
+    // never-seen word blind is impossible. Direction still varies by rnd.
+    expect(pickExerciseType({ mcCorrect: 0, typeCorrect: 0 }, "new", r(0.2))).toBe("mc_pt_ru");
     expect(pickExerciseType({ mcCorrect: 0, typeCorrect: 0 }, "new", r(0.7))).toBe("mc_ru_pt");
+  });
+
+  it("mixes both kinds randomly once the word has been touched (not phased)", () => {
+    // After the first correct answer (e.g. mc=1) both skills are still owed →
+    // rnd < 0.5 → manual input; rnd ≥ 0.5 → choice. So the order is mixed, unlike
+    // the old «all MC then all Type» phases.
+    expect(pickExerciseType({ mcCorrect: 1, typeCorrect: 0 }, "new", r(0.2))).toBe("type_pt");
+    expect(pickExerciseType({ mcCorrect: 1, typeCorrect: 0 }, "new", r(0.7))).toBe("mc_ru_pt");
   });
 
   it("keeps mixing on a learned 'due' review (leans manual)", () => {

@@ -11,11 +11,13 @@ test("shows only the logo on the left — no title or kicker text", async ({ mou
   await expect(c.getByText(/Português/)).toHaveCount(0);
 });
 
-test("moves «выйти» into the right-hand header cluster, next to streak", async ({ mount }) => {
+test("puts «выйти» last in the right cluster — after the theme/streak icons", async ({ mount }) => {
   const c = await mount(<Header streak={7} theme="light" onToggleTheme={() => {}} />);
-  // «выйти» lives inside the right cluster (.m-header-right), not under the logo.
-  await expect(c.locator(".m-header-right .m-signout")).toHaveText("выйти");
+  // «выйти» lives inside the right cluster (.m-header-right), not under the logo,
+  // and is the LAST control (to the right of the theme toggle and streak).
   await expect(c.locator(".m-brand .m-signout")).toHaveCount(0);
+  await expect(c.locator(".m-header-right > *:last-child")).toHaveClass(/m-signout/);
+  await expect(c.locator(".m-header-right .m-signout")).toHaveText("выйти");
   await expect(c.locator(".m-streak")).toContainText("7");
 });
 

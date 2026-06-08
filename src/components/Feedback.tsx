@@ -50,7 +50,7 @@ export function WordFeedback({
 
 export function NextButton({ isLast, onClick }: { isLast: boolean; onClick: () => void }) {
   return (
-    <button className="m-btn m-btn--ghost m-btn--block" style={{ marginTop: 14 }} onClick={onClick}>
+    <button className="m-btn m-btn--ghost m-btn--block" style={{ marginTop: 10 }} onClick={onClick}>
       {isLast ? "Завершить" : "Дальше"} <Icon name="arrow-right" size={18} />
     </button>
   );

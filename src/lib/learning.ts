@@ -46,8 +46,12 @@ export function pickExerciseType(
   const needType = type < TYPE_TARGET;
 
   if (needMc || needType) {
-    // Оба навыка нужны → 50/50; иначе единственный недобранный.
-    const pickType = needType && (!needMc || rnd() < 0.5);
+    // Первое знакомство со словом (ещё ни одного верного ответа) → начинаем с
+    // узнавания (MC): ввод по слову, которое ни разу не видел, набрать
+    // невозможно. После первого верного ответа — случайный микс (оба навыка
+    // нужны → 50/50; иначе единственный недобранный).
+    const firstEncounter = mc === 0 && type === 0;
+    const pickType = !firstEncounter && needType && (!needMc || rnd() < 0.5);
     if (pickType) return "type_pt";
     return rnd() < 0.5 ? "mc_pt_ru" : "mc_ru_pt";
   }

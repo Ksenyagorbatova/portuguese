@@ -19,9 +19,6 @@ export function Header({
         <div className="m-logo">pt</div>
       </div>
       <div className="m-header-right">
-        <button className="m-signout" onClick={() => void signOut()}>
-          выйти
-        </button>
         <button
           className="m-icon-btn"
           onClick={onToggleTheme}
@@ -34,6 +31,9 @@ export function Header({
           <span className="m-flame">🔥</span>
           <b>{streak}</b>
         </div>
+        <button className="m-signout" onClick={() => void signOut()}>
+          выйти
+        </button>
       </div>
     </div>
   );

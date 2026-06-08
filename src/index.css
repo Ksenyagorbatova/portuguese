@@ -295,19 +295,28 @@ body{
 .m-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
 
 /* ── Compact training layout ─────────────────────────────────────────────
-   Во время тренировки статистика и табы скрыты (см. Shell), а карточка
-   упражнения уплотнена по вертикали, чтобы кнопка «Дальше» помещалась на
-   экране без прокрутки — и на десктопе, и на мобиле. */
-.m-session .m-card{padding:18px}
-.m-session .m-q-head{margin-bottom:10px}
-.m-session .m-q-note{margin-top:6px}
-.m-session .m-q-srs{margin-top:8px}
-.m-session .m-q-prompt{margin:12px 0 8px}
-.m-session .m-opts{gap:8px}
-.m-session .m-opt{padding:11px 14px}
-.m-session .m-field .m-input{height:50px}
-.m-session .m-hint{margin-top:8px}
-.m-session .m-fb{margin-top:10px}
+   Во время тренировки статистика, табы и чипы скрыты (см. Shell/Session), а
+   карточка упражнения уплотнена по вертикали, чтобы кнопка «Дальше»
+   помещалась на экране без прокрутки — и на десктопе, и на мобиле (даже самый
+   высокий случай: выбор из 4 вариантов + строка SRS + фидбэк). */
+/* В сессии нет нижней навигации — срезаем большой нижний паддинг .m-app
+   (он зарезервирован под неё), чтобы страница тренировки не прокручивалась. */
+.m-app:has(.m-session){padding-bottom:var(--s5)}
+.m-session-top{margin-bottom:8px}
+.m-session .m-card{padding:16px}
+.m-session .m-q-head{margin-bottom:8px}
+.m-session .m-q-text{font-size:25px}
+.m-session .m-q-note{margin-top:4px}
+/* До-ответную строку «следующий повтор … · интервал …» в сессии прячем: она
+   дублирует то, что показывается в фидбэке после ответа, и съедает высоту
+   (на мобиле переносится в 2 строки). */
+.m-session .m-q-srs{display:none}
+.m-session .m-q-prompt{margin:10px 0 6px}
+.m-session .m-opts{gap:7px}
+.m-session .m-opt{padding:9px 14px}
+.m-session .m-field .m-input{height:48px}
+.m-session .m-hint{margin-top:6px}
+.m-session .m-fb{margin-top:8px}
 
 /* ── Exercise card ─────────────────────────────────────────────────────── */
 .m-q-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px}
