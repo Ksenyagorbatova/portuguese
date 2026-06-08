@@ -6,17 +6,21 @@ export function Header({
   streak,
   theme,
   onToggleTheme,
+  onHome,
 }: {
   streak: number;
   theme: Theme;
   onToggleTheme: () => void;
+  onHome: () => void;
 }) {
   const { signOut } = useAuthActions();
   const dark = theme === "dark";
   return (
     <div className="m-header">
       <div className="m-brand">
-        <div className="m-logo">pt</div>
+        <button className="m-logo" onClick={onHome} aria-label="На главный экран" title="На главный экран">
+          pt
+        </button>
       </div>
       <div className="m-header-right">
         <button

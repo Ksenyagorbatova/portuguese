@@ -168,7 +168,9 @@ body{
 /* ── Header ────────────────────────────────────────────────────────────── */
 .m-header{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);padding:var(--s2) var(--s1) var(--s1)}
 .m-brand{display:flex;align-items:center;gap:var(--s3)}
-.m-logo{width:42px;height:42px;border-radius:13px;background:linear-gradient(150deg,var(--accent),var(--accent-strong));display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--font-display);font-weight:800;font-size:18px;box-shadow:var(--e-accent);letter-spacing:-.02em;flex-shrink:0}
+.m-logo{width:42px;height:42px;border:none;padding:0;cursor:pointer;border-radius:13px;background:linear-gradient(150deg,var(--accent),var(--accent-strong));display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--font-display);font-weight:800;font-size:18px;box-shadow:var(--e-accent);letter-spacing:-.02em;flex-shrink:0;transition:transform var(--dur-press) var(--ease),box-shadow var(--dur)}
+.m-logo:hover{box-shadow:0 6px 18px -3px var(--accent-shadow)}
+.m-logo:active{transform:scale(.94)}
 .m-kicker{font-size:11px;font-weight:600;color:var(--ink-400);letter-spacing:.04em}
 .m-title{font-family:var(--font-display);font-size:21px;font-weight:700;color:var(--ink-900);line-height:1.05;letter-spacing:-.01em}
 .m-header-right{display:flex;align-items:center;gap:var(--s2)}

@@ -156,7 +156,12 @@ export function Shell({
   // (the session has its own exit control instead of the tabs).
   return (
     <>
-      <Header streak={s.streak} theme={theme} onToggleTheme={onToggleTheme} />
+      <Header
+        streak={s.streak}
+        theme={theme}
+        onToggleTheme={onToggleTheme}
+        onHome={() => switchTab("review")}
+      />
       {!inSession && (
         <>
           <ScoreRow correct={score.correct} total={score.total} due={s.dueCountAll} />
