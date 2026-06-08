@@ -26,3 +26,6 @@ playwright/.cache
 !.vscode/extensions.json
 *.log
 .playwright-mcp
+
+# Claude Code — машинно-локальные настройки и разрешения (не в гит)
+.claude/settings.local.json
