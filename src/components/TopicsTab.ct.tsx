@@ -52,6 +52,16 @@ test("the Теория button opens theory without starting the lesson", async (
   expect(lessonOpened).toBe(false); // stopPropagation kept the row click from firing
 });
 
+test("lesson meta reads «N из M слов» with no stray percent near the bar", async ({ mount }) => {
+  const component = await mount(
+    <TopicsTab course={course} srs={srs} onOpenLesson={() => {}} onOpenTheory={() => {}} />,
+  );
+  await expect(component.locator(".m-lesson-meta")).toContainText("0 из 1 слов");
+  // The duplicate «N%» text (m-topic-pct) is gone — the bar encodes progress.
+  await expect(component.locator(".m-topic-pct")).toHaveCount(0);
+  await expect(component).not.toContainText("%");
+});
+
 test("clicking the lesson row starts the lesson", async ({ mount }) => {
   let openedLesson: string | null = null;
   const component = await mount(

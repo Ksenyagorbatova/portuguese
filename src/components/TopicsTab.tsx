@@ -19,16 +19,13 @@ function LessonRow({
 }) {
   const ls = srs.lessonStats[lesson.lessonKey] ?? { ...EMPTY, total: lesson.words.length };
   const seen = srs.seenTheory.includes(lesson.lessonKey);
-  const lpct = ls.total > 0 ? Math.round((ls.learned / ls.total) * 100) : 0;
   return (
     <div className="m-lesson" onClick={() => onOpen(topicKey, lesson)}>
       <div style={{ minWidth: 0 }}>
         <div className="m-lesson-name">{lesson.label}</div>
         <div className="m-lesson-meta">
-          {ls.learned}/{ls.total} слов
-          {seen ? (
-            <span>· {lpct}%</span>
-          ) : (
+          {ls.learned} из {ls.total} слов
+          {!seen && (
             <span className="m-pill-new">
               <Icon name="book-open" size={11} /> новая
             </span>
@@ -96,9 +93,11 @@ function TopicBlock({
             <span className="m-chip-due">
               <span className="m-dot" /> {ts.due}
             </span>
-          ) : (
-            <span className="m-topic-pct">{pct}%</span>
-          )}
+          ) : pct === 100 ? (
+            <span className="m-lesson-done">
+              <Icon name="circle-check" />
+            </span>
+          ) : null}
           <span className="m-chev">
             <Icon name="chevron-right" />
           </span>

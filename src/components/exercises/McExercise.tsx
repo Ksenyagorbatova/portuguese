@@ -4,7 +4,7 @@ import { api } from "../../../convex/_generated/api";
 import type { AnswerResult, BadgeTag, CardFields, Course, WordView } from "../../lib/types";
 import { shuffle } from "../../lib/shuffle";
 import { getWrong } from "../../lib/wrongOptions";
-import { nextDueLabel, intervalLabel } from "../../lib/srs";
+import { nextDueLabel } from "../../lib/srs";
 import { speak } from "../../lib/speech";
 import { Badge } from "../Badge";
 import { Icon } from "../Icon";
@@ -92,8 +92,7 @@ export function McExercise({
       {word.note && <div className="m-q-note">{word.note}</div>}
       {tag !== "new" && (
         <div className="m-q-srs">
-          <Icon name="clock" /> следующий повтор: {nextDueLabel(card)} · интервал:{" "}
-          {intervalLabel(card)}
+          <Icon name="clock" /> следующий повтор: {nextDueLabel(card)}
         </div>
       )}
       <div className="m-q-prompt">{prompt}</div>

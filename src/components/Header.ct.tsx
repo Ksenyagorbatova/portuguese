@@ -13,14 +13,22 @@ test("shows only the logo on the left — no title or kicker text", async ({ mou
   await expect(c.getByText(/Português/)).toHaveCount(0);
 });
 
-test("puts «выйти» last in the right cluster — after the theme/streak icons", async ({ mount }) => {
+test("right cluster order is streak → theme → exit, exit being an icon button", async ({ mount }) => {
   const c = await mount(<Header streak={7} theme="light" onToggleTheme={noop} onHome={noop} />);
-  // «выйти» lives inside the right cluster (.m-header-right), not under the logo,
-  // and is the LAST control (to the right of the theme toggle and streak).
-  await expect(c.locator(".m-brand .m-signout")).toHaveCount(0);
-  await expect(c.locator(".m-header-right > *:last-child")).toHaveClass(/m-signout/);
-  await expect(c.locator(".m-header-right .m-signout")).toHaveText("выйти");
+  // The old text «выйти» button is gone — exit is now an icon door.
+  await expect(c.locator(".m-signout")).toHaveCount(0);
+  await expect(c.getByText("выйти")).toHaveCount(0);
+  // Streak leads the cluster; the exit icon button trails it.
+  await expect(c.locator(".m-header-right > *:first-child")).toHaveClass(/m-streak/);
+  const exit = c.locator(".m-header-right > *:last-child");
+  await expect(exit).toHaveClass(/m-icon-btn/);
+  await expect(exit).toHaveAttribute("aria-label", "Выйти");
   await expect(c.locator(".m-streak")).toContainText("7");
+});
+
+test("exit button carries an accessible label and the log-out icon", async ({ mount }) => {
+  const c = await mount(<Header streak={2} theme="light" onToggleTheme={noop} onHome={noop} />);
+  await expect(c.getByRole("button", { name: "Выйти" })).toBeVisible();
 });
 
 test("the logo is a button that navigates home", async ({ mount }) => {

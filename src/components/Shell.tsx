@@ -138,7 +138,7 @@ export function Shell({
   } else {
     content =
       tab === "review" ? (
-        <ReviewTab course={c} srs={s} onStart={startReview} />
+        <ReviewTab course={c} srs={s} onStart={startReview} onGoTopics={() => switchTab("topics")} />
       ) : (
         <TopicsTab course={c} srs={s} onOpenLesson={openLesson} onOpenTheory={openTheory} />
       );
@@ -164,7 +164,7 @@ export function Shell({
       />
       {!inSession && (
         <>
-          <ScoreRow correct={score.correct} total={score.total} due={s.dueCountAll} />
+          {score.total > 0 && <ScoreRow correct={score.correct} total={score.total} />}
           <TabBar tab={tab} onTab={switchTab} />
         </>
       )}
