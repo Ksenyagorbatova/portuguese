@@ -399,7 +399,7 @@ body{
 .m-wtile.used{opacity:.32;pointer-events:none}
 
 /* ── Theory ────────────────────────────────────────────────────────────── */
-.m-theory-back{display:inline-flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;color:var(--ink-500);font:inherit;font-size:13px;font-weight:600;padding:0;margin-bottom:14px;transition:color var(--dur)}
+.m-theory-back{display:inline-flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;color:var(--ink-500);font:inherit;font-size:13px;font-weight:600;padding:0;margin-bottom:14px;margin-right:var(--s3);transition:color var(--dur)}
 .m-theory-back:hover{color:var(--ink-700)}
 .m-theory-back .lucide{width:16px;height:16px}
 .m-theory-eyebrow{display:inline-flex;align-items:center;gap:7px;background:var(--accent-50);color:var(--accent-ink);border-radius:var(--r-full);padding:5px 12px 5px 10px;font-size:12px;font-weight:700;margin-bottom:14px}
