@@ -1,20 +1,31 @@
 import { useAuthActions } from "@convex-dev/auth/react";
-import { Icon } from "./Icon";
-import type { Theme } from "../lib/useTheme";
+import { Icon, type IconName } from "./Icon";
+import type { ThemeChoice } from "../lib/useTheme";
+
+const THEME_ICON: Record<ThemeChoice, IconName> = {
+  light: "sun",
+  dark: "moon",
+  system: "contrast",
+};
+const THEME_LABEL: Record<ThemeChoice, string> = {
+  light: "Тема: светлая",
+  dark: "Тема: тёмная",
+  system: "Тема: системная",
+};
 
 export function Header({
   streak,
-  theme,
-  onToggleTheme,
+  themeChoice,
+  onCycleTheme,
   onHome,
 }: {
   streak: number;
-  theme: Theme;
-  onToggleTheme: () => void;
+  themeChoice: ThemeChoice;
+  onCycleTheme: () => void;
   onHome: () => void;
 }) {
   const { signOut } = useAuthActions();
-  const dark = theme === "dark";
+  const themeLabel = THEME_LABEL[themeChoice];
   return (
     <div className="m-header">
       <div className="m-brand">
@@ -29,11 +40,11 @@ export function Header({
         </div>
         <button
           className="m-icon-btn"
-          onClick={onToggleTheme}
-          aria-label={dark ? "Светлая тема" : "Тёмная тема"}
-          title={dark ? "Светлая тема" : "Тёмная тема"}
+          onClick={onCycleTheme}
+          aria-label={themeLabel}
+          title={themeLabel}
         >
-          <Icon name={dark ? "sun" : "moon"} />
+          <Icon name={THEME_ICON[themeChoice]} />
         </button>
         <button
           className="m-icon-btn"

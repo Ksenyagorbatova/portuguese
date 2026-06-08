@@ -148,7 +148,16 @@ npx convex run seed:seedContent   # залить/обновить контент
 - **UI тренировки.** Хедер ([`Header.tsx`](src/components/Header.tsx)) — только
   логотип слева; справа по порядку стрик, переключатель темы, выход (выход —
   icon-кнопка с иконкой двери `log-out`, крайний правый; класс `.m-signout`
-  удалён).
+  удалён). Переключатель темы — циклическая кнопка на **три** режима: светлая →
+  тёмная → системная (иконки `sun`/`moon`/`contrast`). Логика —
+  [`useTheme.ts`](src/lib/useTheme.ts): хранит выбор `ThemeChoice`
+  (`light`/`dark`/`system`, дефолт `system`) в `localStorage`, применяет
+  `data-theme="dark"` на `<html>`; в режиме `system` тема следует ОС
+  (`prefers-color-scheme`) и реагирует на её смену вживую (подписка на
+  `matchMedia`; `resolved` — производное от выбора и системного предпочтения,
+  считается при рендере, НЕ через setState-in-effect), явный выбор ОС
+  игнорирует. Anti-flash до первой отрисовки — inline-скрипт в
+  [`index.html`](index.html) (явные `light`/`dark` уважает, иначе резолвит по ОС).
   Во время сессии (`view.kind === "session"`) [`Shell`](src/components/Shell.tsx)
   скрывает статистику (`ScoreRow`) и табы (`TabBar`), а [`Session`](src/components/Session.tsx)
   не рендерит чипы — остаётся «само поле тренировки». Карточка упражнения

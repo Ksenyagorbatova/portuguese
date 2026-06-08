@@ -12,7 +12,7 @@ import { TopicsTab } from "./TopicsTab";
 import { Theory } from "./Theory";
 import { Session } from "./Session";
 import { Splash } from "./Splash";
-import type { Theme } from "../lib/useTheme";
+import type { ThemeChoice } from "../lib/useTheme";
 
 type Tab = "review" | "topics";
 type View =
@@ -21,11 +21,11 @@ type View =
   | { kind: "session"; queue: SessionItem[]; origin: SessionOrigin };
 
 export function Shell({
-  theme,
-  onToggleTheme,
+  themeChoice,
+  onCycleTheme,
 }: {
-  theme: Theme;
-  onToggleTheme: () => void;
+  themeChoice: ThemeChoice;
+  onCycleTheme: () => void;
 }) {
   const course = useQuery(api.courseQueries.getCourse);
   const rawSrs = useQuery(api.progress.getSrsState);
@@ -158,8 +158,8 @@ export function Shell({
     <>
       <Header
         streak={s.streak}
-        theme={theme}
-        onToggleTheme={onToggleTheme}
+        themeChoice={themeChoice}
+        onCycleTheme={onCycleTheme}
         onHome={() => switchTab("review")}
       />
       {!inSession && (

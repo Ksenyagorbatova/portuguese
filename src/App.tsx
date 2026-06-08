@@ -5,7 +5,7 @@ import { Splash } from "./components/Splash";
 import { useTheme } from "./lib/useTheme";
 
 export default function App() {
-  const { theme, toggle } = useTheme();
+  const { choice, cycle } = useTheme();
   return (
     <div className="m-app">
       <AuthLoading>
@@ -15,7 +15,7 @@ export default function App() {
         <SignIn />
       </Unauthenticated>
       <Authenticated>
-        <Shell theme={theme} onToggleTheme={toggle} />
+        <Shell themeChoice={choice} onCycleTheme={cycle} />
       </Authenticated>
     </div>
   );
