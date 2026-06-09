@@ -87,6 +87,9 @@ context7, прочитай нужное, потом реализуй под ак
 
 - [`spec`](.claude/skills/spec/SKILL.md) — создать/обновить спеку ветки `specs/<branch>.md`.
 - [`test-policy`](.claude/skills/test-policy/SKILL.md) — что и каким уровнем покрывать тестами.
+- [`context7-first`](.claude/skills/context7-first/SKILL.md) — перед кодом с API библиотеки
+  (Convex / React 19 / Vite 8 / Vitest 4 / @convex-dev/auth / Playwright CT) подтянуть
+  версионно-точные доки через context7.
 - [`content-authoring`](.claude/skills/content-authoring/SKILL.md) — добавить/править контент
   в `content.ts` (стабильность `lessonKey`/`pt`, кросс-предложения append-only, европейский PT, тесты сида).
 - [`convex-conventions`](.claude/skills/convex-conventions/SKILL.md) — серверные конвенции/готчи
@@ -236,8 +239,8 @@ playwright/     index.html/index.tsx — точка монтирования Pla
 scripts/        worktree.mjs (детект/порт-офсет) · wt-setup/wt-seed.mjs (локальный Convex + сид)
 specs/          спеки на задачу specs/<branch>.md + baseline-спеки specs/feature/*
 .claude/        settings.json (permissions + PostToolUse lint-хук) · hooks/lint-edited-file.sh
-                · skills/{spec,test-policy,content-authoring,convex-conventions,
-                  srs-invariants,browser-smoke,ship-task}
+                · skills/{spec,test-policy,context7-first,content-authoring,
+                  convex-conventions,srs-invariants,browser-smoke,ship-task}
 .githooks/      pre-push (spec-гейт + code-review reminder + npm run verify)
 .github/workflows/  ci.yml (PR-проверки) · deploy.yml (деплой при мёрже в main)
 ```
