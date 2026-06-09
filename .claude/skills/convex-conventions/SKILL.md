@@ -1,10 +1,13 @@
 ---
 name: convex-conventions
 description: >-
-  Применяй при написании или правке Convex-функций (query / mutation / action) и
-  их тестов в convex/. Несёт серверные конвенции и готчи проекта: натуральные ключи
-  vs _id, запрет не-ASCII в именах полей (pt → массивы + adaptSrs), авторизация
-  через getAuthUserId, internal-функции и гейты, паттерн convex-test.
+  Применяй при написании или правке Convex-функций (query/mutation/action/internal)
+  и их convex-test тестов в convex/ — новый endpoint, изменение
+  getSrsState/recordAnswer/сида, серверная авторизация. Несёт серверные готчи
+  проекта: запрет не-ASCII в именах полей Convex (pt → массивы + adaptSrs),
+  натуральные ключи vs _id, getAuthUserId, internal-функции и многослойные гейты,
+  паттерн convex-test (modules glob, withIdentity). Для контент-ДАННЫХ в content.ts
+  — content-authoring; для логики SM-2/порогов/очереди — srs-invariants.
 ---
 
 # Convex — конвенции серверных функций
