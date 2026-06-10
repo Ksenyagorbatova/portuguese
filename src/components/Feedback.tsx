@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { WordView } from "../lib/types";
+import { speakSmart } from "../lib/speech";
 import { Icon } from "./Icon";
 
 // Structured answer feedback (icon + body). Animates in (fade + 8px rise).
@@ -48,6 +49,16 @@ export function WordFeedback({
     <ResultFeedback ok={ok}>
       {ok ? <b>Верно!</b> : "Правильно:"}{" "}
       <span className="m-fb-pt" lang="pt-PT">{word.pt}</span> — {word.ru}
+      {/* Озвучка из фидбэка: момент, когда хочется переслушать слово. Повторный
+          тап в течение 4с — медленно (speakSmart, как у 🔊 в вопросе). */}
+      <button
+        className="m-fb-audio"
+        onClick={() => speakSmart(word.pt)}
+        aria-label="Прослушать (второй тап — медленно)"
+        title="Прослушать (второй тап — медленно)"
+      >
+        <Icon name="volume" size={13} />
+      </button>
       {word.note && <div className="m-fb-sub">💡 {word.note}</div>}
       <div className="m-fb-sub">
         <Icon name="clock" /> следующий повтор: {dueLabel ?? "—"}

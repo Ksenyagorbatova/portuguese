@@ -280,7 +280,6 @@ body{
 .m-lesson-name{font-size:14px;font-weight:600;color:var(--ink-700)}
 .m-lesson-meta{font-size:12px;color:var(--ink-500);margin-top:3px;font-weight:500;display:flex;align-items:center;gap:6px}
 .m-pill-new{display:inline-flex;align-items:center;gap:5px;color:var(--new-ink);background:var(--new-bg);border-radius:var(--r-full);padding:2px 8px;font-size:11px;font-weight:700}
-.m-pill-est{display:inline-flex;align-items:center;gap:5px;color:var(--ink-600);background:var(--surface-3);border-radius:var(--r-full);padding:2px 8px;font-size:11px;font-weight:700;white-space:nowrap}
 .m-lesson-done{color:var(--accent);display:flex}
 .m-lesson-done .lucide{width:20px;height:20px}
 .m-lesson-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
@@ -371,6 +370,10 @@ body{
 .m-fb-ico{flex-shrink:0;display:flex;width:24px;height:24px;align-items:center;justify-content:center;border-radius:50%}
 .m-fb-ico .lucide{width:16px;height:16px;color:#fff}
 .m-fb-body{font-size:14.5px;line-height:1.5}
+/* Кнопка озвучки в фидбэке: в строку с «pt — ru», по образцу .m-mist-audio. */
+.m-fb-audio{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:var(--r-full);background:var(--surface);color:var(--accent);border:none;cursor:pointer;vertical-align:middle;margin-left:8px;transition:transform var(--dur-press) var(--ease)}
+.m-fb-audio:active{transform:scale(.92)}
+.m-fb-audio .lucide{width:13px;height:13px}
 .m-fb-body b{font-weight:700}
 .m-fb-pt{font-weight:700}
 .m-fb-sub{font-size:12.5px;color:var(--ink-500);margin-top:4px;display:flex;align-items:center;gap:6px}
@@ -519,7 +522,7 @@ button.m-flip{width:100%}
    у элементов с собственной тенью кольцо добавляется К ней ниже. */
 :where(.m-btn,.m-opt,.m-icon-btn,.m-logo,.m-seg-btn,.m-audio,.m-atile,
        .m-wtile,.m-flip,.m-topic-head,.m-lesson,.m-lesson-theory,
-       .m-session-exit,.m-theory-back,.m-mist-audio):focus-visible{
+       .m-session-exit,.m-theory-back,.m-mist-audio,.m-fb-audio):focus-visible{
   outline:none;
   box-shadow:0 0 0 4px var(--accent-ring);
 }

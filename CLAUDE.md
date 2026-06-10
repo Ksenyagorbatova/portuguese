@@ -232,8 +232,10 @@ worktree-логика — только для *linked* worktree (детект �
 convex/         схема, content.ts (сид-данные), seed.ts, courseQueries.ts,
                 progress.ts (SRS), auth.ts/auth.config.ts/http.ts
                 *.test.ts — backend-тесты (convex-test)
-src/lib/        types, queue (interleaved-сборка), srs (+adaptSrs), learning (навыки
-                MC/Type, пороги, SESSION_SIZE), text, shuffle, wrongOptions, speech
+src/lib/        types, queue (interleaved-сборка), srs (+adaptSrs), srsPredict (зеркало
+                планировщика для мгновенной метки повтора, пин-тест к серверу),
+                learning (навыки MC/Type, пороги, SESSION_SIZE), hints (гашение
+                служебных хинтов), text, shuffle, wrongOptions, speech
                 *.test.ts — unit-тесты (Vitest)
 src/components/ Shell (оркестратор) → Header/ScoreRow/TabBar → ReviewTab/TopicsTab/
                 Theory → Session → exercises/{Mc,Type,SentenceBuilder} → Feedback/Complete

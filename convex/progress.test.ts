@@ -8,6 +8,10 @@ import schema from "./schema";
 // ЛЮБАЯ из двух копий разъедется, graduate-циклы ниже перестанут попадать в
 // серверный порог и тесты упадут.
 import { MC_TARGET, TYPE_TARGET } from "../src/lib/learning";
+// Тот же приём для зеркала планировщика: клиент мгновенно предсказывает
+// «следующий повтор» (src/lib/srsPredict), пин-матрица ниже сверяет
+// предсказание с фактическим ответом recordAnswer.
+import { predictCardAfterAnswer } from "../src/lib/srsPredict";
 
 const modules = import.meta.glob(["./**/*.*s", "!./**/*.test.ts"]);
 
@@ -619,6 +623,87 @@ describe("recordAnswer — честный стрик по clientDay", () => {
     const res = await answer(as);
     expect(res.streak).toBe(1);
     expect((await readStats(t)).lastDay).toBe(new Date().toISOString().slice(0, 10));
+  });
+});
+
+// ─── Пин зеркала планировщика (src/lib/srsPredict) ───────────────────────────
+// Клиент показывает «следующий повтор» МГНОВЕННО по локальному предсказанию;
+// матрица ниже гонит те же ответы через НАСТОЯЩИЙ recordAnswer и сверяет поля.
+// Разъедутся формулы (или MAX_INTERVAL) — упадёт здесь.
+describe("predictCardAfterAnswer зеркалит recordAnswer (пин-матрица)", () => {
+  // Текущая карточка слова из БД (undefined до первого ответа) — то же, что
+  // упражнение получает пропом card.
+  async function currentCard(t: TestConvex<typeof schema>) {
+    const row = await t.run((ctx) =>
+      ctx.db
+        .query("progress")
+        .withIndex("by_user_lesson_pt", (q) => q)
+        .unique(),
+    );
+    if (!row) return undefined;
+    const { interval, ef, due, seen, correct, lastSeen, mcCorrect, typeCorrect } = row;
+    return { interval, ef, due, seen, correct, lastSeen, mcCorrect: mcCorrect ?? 0, typeCorrect: typeCorrect ?? 0 };
+  }
+
+  // Предсказать → выполнить → сверить. now у клиента и сервера различаются на
+  // миллисекунды прогона: due сверяем с допуском, остальное — точно.
+  async function step(
+    t: TestConvex<typeof schema>,
+    as: AuthCtx,
+    quality: 0 | 1 | 2,
+    mode: "mc" | "type",
+  ) {
+    const before = await currentCard(t);
+    const predicted = predictCardAfterAnswer(before, quality, mode, Date.now());
+    const { card: actual } = await as.mutation(api.progress.recordAnswer, { ...W, quality, mode });
+    expect(actual.interval, `interval (q=${quality}, ${mode})`).toBe(predicted.interval);
+    expect(actual.ef, `ef (q=${quality}, ${mode})`).toBeCloseTo(predicted.ef, 10);
+    expect(actual.mcCorrect).toBe(predicted.mcCorrect);
+    expect(actual.typeCorrect).toBe(predicted.typeCorrect);
+    expect(actual.seen).toBe(predicted.seen);
+    expect(actual.correct).toBe(predicted.correct);
+    expect(Math.abs(actual.due - predicted.due), `due (q=${quality}, ${mode})`).toBeLessThan(5000);
+  }
+
+  it("вся жизнь слова: знакомство → добор → выпуск → due-повторы → лапсы", async () => {
+    const t = convexTest(schema, modules);
+    const { as } = await asUser(t);
+    await seedWordA(t);
+
+    // Знакомство и добор обоих навыков (фикс-шаг «завтра» на каждом шаге).
+    await step(t, as, 2, "mc");
+    await step(t, as, 1, "mc");
+    await step(t, as, 0, "type"); // промах недоученного
+    for (let i = 0; i < MC_TARGET - 2; i++) await step(t, as, 2, "mc");
+    for (let i = 0; i < TYPE_TARGET - 1; i++) await step(t, as, 2, "type");
+    await step(t, as, 2, "type"); // выпуск (graduating)
+
+    // Ранняя практика выученного: верная не двигает, q0 приближает повтор.
+    await step(t, as, 2, "mc");
+    await step(t, as, 0, "mc");
+
+    // Настоящие due-повторы: q2 (1→6), снова q2 (6→×ef), q1 и q0.
+    await makeDue(t);
+    await step(t, as, 2, "type");
+    await makeDue(t);
+    await step(t, as, 2, "mc");
+    await makeDue(t);
+    await step(t, as, 1, "type");
+    await makeDue(t);
+    await step(t, as, 0, "mc");
+  });
+
+  it("потолок MAX_INTERVAL: разогнанный интервал клампится одинаково", async () => {
+    const t = convexTest(schema, modules);
+    const { as } = await asUser(t);
+    await seedWordA(t);
+    await graduate(as);
+    // Разогнать interval до сотни прямо в БД и сделать due.
+    await t.run(async (ctx) => {
+      const rows = await ctx.db.query("progress").collect();
+      for (const r of rows) await ctx.db.patch(r._id, { interval: 100, due: 0 });
+    });
+    await step(t, as, 2, "mc"); // 100×ef > 120 → 120 с обеих сторон
   });
 });
 

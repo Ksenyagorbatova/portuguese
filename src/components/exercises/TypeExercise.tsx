@@ -3,8 +3,10 @@ import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { AnswerResult, BadgeTag, CardFields, WordView } from "../../lib/types";
 import { variantsMatch } from "../../lib/text";
+import { ACCENTS_HINT_KEY, useFadingHint } from "../../lib/hints";
 import { localDay } from "../../lib/day";
 import { nextDueLabel } from "../../lib/srs";
+import { predictCardAfterAnswer } from "../../lib/srsPredict";
 import { speak } from "../../lib/speech";
 import { Badge } from "../Badge";
 import { Icon } from "../Icon";
@@ -31,6 +33,8 @@ export function TypeExercise({
 }) {
   const recordAnswer = useMutation(api.progress.recordAnswer);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Хинт про необязательность акцентов гаснет после нескольких показов.
+  const showAccentsHint = useFadingHint(ACCENTS_HINT_KEY);
   const [value, setValue] = useState("");
   const [tries, setTries] = useState(0);
   const [retry, setRetry] = useState(false);
@@ -45,12 +49,11 @@ export function TypeExercise({
     pendingRef.current = true;
     speak(word.pt);
     onAnswered({ mode: "type", correct: quality >= 1, firstTry: quality === 2 });
-    // UI резолвим сразу, НЕ дожидаясь сети: при разрыве соединения Convex
-    // не реджектит мутацию, а держит её в очереди до реконнекта (промис висит
-    // неограниченно долго) — ждать его значит подвесить упражнение. Метка
-    // следующего повтора подтянется с ответом сервера; при отказе мутации
-    // останется «—» с пометкой, что ответ не сохранился.
-    setResolved({ ok, dueLabel: null });
+    // UI резолвим сразу, НЕ дожидаясь сети (Convex при разрыве держит мутацию
+    // в очереди — промис может висеть неограниченно долго). Метка «следующий
+    // повтор» считается мгновенно зеркалом планировщика (srsPredict, пин-тест
+    // сверяет с сервером) — без «—» → «завтра»-дёргания после roundtrip'а.
+    setResolved({ ok, dueLabel: nextDueLabel(predictCardAfterAnswer(card, quality, "type")) });
     void recordAnswer({
       lessonKey: word.lessonKey,
       pt: word.pt,
@@ -58,7 +61,14 @@ export function TypeExercise({
       mode: "type",
       clientDay: localDay(),
     }).then(
-      (res) => setResolved({ ok, dueLabel: nextDueLabel(res.card) }),
+      // Сервер — истина: при расхождении (устаревший card-проп) тихо поправим.
+      (res) =>
+        setResolved((prev) => {
+          const dueLabel = nextDueLabel(res.card);
+          return prev && prev.dueLabel === dueLabel ? prev : { ok, dueLabel };
+        }),
+      // Мутация отвергнута — расписание НЕ изменилось, предсказание ложно:
+      // честные «—» и пометка о несохранённом ответе.
       () => setResolved({ ok, dueLabel: null, saveFailed: true }),
     );
   }
@@ -113,9 +123,11 @@ export function TypeExercise({
           }}
         />
       </div>
-      <div className="m-hint">
-        <Icon name="info" /> Акценты и пунктуация необязательны — «ate logo» = «até logo»
-      </div>
+      {showAccentsHint && (
+        <div className="m-hint">
+          <Icon name="info" /> Акценты и пунктуация необязательны — «ate logo» = «até logo»
+        </div>
+      )}
       {!resolved && (
         <button
           className="m-btn m-btn--primary m-btn--block"

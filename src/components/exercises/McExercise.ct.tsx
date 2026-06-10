@@ -394,7 +394,7 @@ test.describe("устойчивость к сети", () => {
     await expect.poll(() => advanced).toBe(true);
   });
 
-  test("пока сервер молчит — фидбэк с «—», метка повтора подтягивается после ответа", async ({
+  test("метка повтора предсказана СРАЗУ — даже пока сервер молчит", async ({
     mount,
     page,
   }) => {
@@ -415,10 +415,12 @@ test.describe("устойчивость к сети", () => {
     });
 
     await component.getByRole("button", { name: "привет" }).click();
-    // Ответа сервера ещё нет — но фидбэк уже виден, метка — заглушка.
+    // Сервер ещё не ответил, но метка уже финальная (зеркало планировщика:
+    // новое слово → фикс-шаг «завтра») — никакого «—» → «завтра»-дёргания.
     await expect(component.getByText("Верно!")).toBeVisible();
-    await expect(component.getByText(/следующий повтор: —/)).toBeVisible();
-    // Сервер ответил (mock: due через сутки) → метка обновилась.
+    await expect(component.getByText(/следующий повтор: завтра/)).toBeVisible();
+    await expect(component.getByText(/следующий повтор: —/)).toHaveCount(0);
+    // Ответ сервера (mock: due через сутки) совпадает — текст не меняется.
     await page.evaluate(() => window.__mutationMock?.release?.());
     await expect(component.getByText(/следующий повтор: завтра/)).toBeVisible();
   });

@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/experimental-ct-react";
-import { ResultFeedback, RetryBox, NextButton } from "./Feedback";
+import { ResultFeedback, RetryBox, NextButton, WordFeedback } from "./Feedback";
 
 test.describe("NextButton", () => {
   test("labels the next step", async ({ mount }) => {
@@ -78,4 +78,16 @@ test("held Enter (autorepeat) clicks «Дальше» only once", async ({ mount
   await page.keyboard.down("Enter");
   await page.keyboard.up("Enter");
   expect(clicked).toBe(1);
+});
+
+// ── Озвучка из фидбэка (фидбэк владельца после v2) ───────────────────────────
+test("WordFeedback carries a 🔊 button advertising the slow-replay double tap", async ({
+  mount,
+}) => {
+  const word = { lessonKey: "l1", pt: "olá", ru: "привет" };
+  const component = await mount(<WordFeedback ok={true} word={word} dueLabel="завтра" />);
+  const btn = component.getByRole("button", { name: "Прослушать (второй тап — медленно)" });
+  await expect(btn).toBeVisible();
+  await btn.click(); // speak guard'ится при отсутствии голосов — клик не должен падать
+  await expect(component).toContainText("olá");
 });

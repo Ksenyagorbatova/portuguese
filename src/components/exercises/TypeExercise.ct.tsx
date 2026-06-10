@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/experimental-ct-react";
 import { TypeExercise } from "./TypeExercise";
+import { HINT_SHOW_LIMIT } from "../../lib/hints";
 import type { CardFields, WordView } from "../../lib/types";
 
 const word: WordView = { lessonKey: "l1", pt: "olá", ru: "привет" };
@@ -215,4 +216,28 @@ test("the ≤13px hint text uses --ink-500 (AA), not --ink-400", async ({ mount 
     .locator(".m-hint")
     .evaluate((el) => getComputedStyle(el).color);
   expect(color).toBe("rgb(111, 110, 102)"); // #6f6e66 — --ink-500 светлой темы
+});
+
+// ── Гашение служебного хинта (опц. пункт #4 дизайн-ревью v2) ─────────────────
+test("the accents hint fades out after HINT_SHOW_LIMIT mounts", async ({ mount }) => {
+  const props = {
+    word,
+    tag: "new" as const,
+    card: undefined,
+    isLast: false,
+    onAnswered: () => {},
+    onNext: () => {},
+  };
+  // Первые HINT_SHOW_LIMIT показов хинт виден (каждый маунт = показ).
+  for (let i = 0; i < HINT_SHOW_LIMIT; i++) {
+    const c = await mount(<TypeExercise {...props} />);
+    await expect(
+      c.getByText(/Акценты и пунктуация необязательны/),
+      `показ №${i + 1} должен быть виден`,
+    ).toBeVisible();
+    await c.unmount();
+  }
+  // Приём усвоен — хинт погас насовсем.
+  const c = await mount(<TypeExercise {...props} />);
+  await expect(c.locator(".m-hint")).toHaveCount(0);
 });

@@ -107,6 +107,15 @@ describe("целостность контента", () => {
     expect(findDuplicates(CROSS_SENTENCES.map((_, i) => sentenceKey(i)))).toEqual([]);
   });
 
+  // Разметка совета (m-tip в Theory.tsx) рендерит СВОЙ флаг 🇵🇹 слева — флаг в
+  // начале текста tip давал бы два флага подряд (замечено владельцем на проде).
+  it("tip теории не начинается с эмодзи-флага (флаг рисует разметка)", () => {
+    const bad = lessons
+      .filter((l) => l.theory.tip.startsWith("🇵🇹"))
+      .map((l) => `${l.id}: tip начинается с 🇵🇹`);
+    expect(bad).toEqual([]);
+  });
+
   // "||" — разделитель составного ключа wKey (convex/progress.ts, src/lib/srs.ts).
   // Попади он в pt или lessonKey — составной ключ стал бы неоднозначным.
   it('ни pt, ни lessonKey не содержат "||"', () => {

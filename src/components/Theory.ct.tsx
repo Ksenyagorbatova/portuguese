@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/experimental-ct-react";
 import { Theory } from "./Theory";
 import type { LessonView } from "../lib/types";
+import { HINT_SHOW_LIMIT } from "../lib/hints";
 
 const lesson: LessonView = {
   lessonKey: "l1",
@@ -68,4 +69,15 @@ test("returns via the back button when onBack is provided", async ({ mount }) =>
   );
   await component.getByRole("button", { name: /Назад/ }).click();
   expect(went).toBe(true);
+});
+
+// ── Гашение хинта «Нажми на карточку…» (опц. пункт #4 дизайн-ревью v2) ───────
+test("the flip hint fades out after HINT_SHOW_LIMIT theory opens", async ({ mount }) => {
+  for (let i = 0; i < HINT_SHOW_LIMIT; i++) {
+    const c = await mount(<Theory lesson={lesson} onBegin={() => {}} />);
+    await expect(c.getByText(/Нажми на карточку/)).toBeVisible();
+    await c.unmount();
+  }
+  const c = await mount(<Theory lesson={lesson} onBegin={() => {}} />);
+  await expect(c.getByText(/Нажми на карточку/)).toHaveCount(0);
 });
