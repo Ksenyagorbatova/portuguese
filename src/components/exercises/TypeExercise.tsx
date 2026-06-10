@@ -139,6 +139,9 @@ export function TypeExercise({
           onClick={check}
         >
           Проверить
+          {/* Чип-подсказка хоткея (как A–E в выборе): ответить можно Enter'ом.
+              aria-hidden — имя кнопки остаётся «Проверить»; на таче скрыт. */}
+          <span className="m-btn-key" aria-hidden="true">↵</span>
         </button>
       )}
       {!resolved && retry && (

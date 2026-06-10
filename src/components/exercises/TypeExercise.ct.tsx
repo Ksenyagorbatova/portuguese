@@ -319,3 +319,24 @@ test.describe("Enter в инпуте НЕ проскакивает фидбэк"
     expect(next).toBe(0);
   });
 });
+
+test("кнопка «Проверить» несёт чип-подсказку Enter (aria-hidden, имя кнопки чистое)", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <TypeExercise
+      word={word}
+      tag="new"
+      card={undefined}
+      isLast={false}
+      onAnswered={() => {}}
+      onNext={() => {}}
+    />,
+  );
+  const chip = component.locator(".m-btn-key");
+  await expect(chip).toBeVisible();
+  await expect(chip).toHaveText("↵");
+  await expect(chip).toHaveAttribute("aria-hidden", "true");
+  // Имя кнопки не «Проверить ↵» — чип скрыт от скринридера.
+  await expect(component.getByRole("button", { name: "Проверить", exact: true })).toBeVisible();
+});
