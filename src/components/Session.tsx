@@ -2,12 +2,15 @@ import { useState } from "react";
 import type {
   AnswerResult,
   CardFields,
+  CompleteHeading,
   Course,
   ExerciseType,
+  NextStep,
   SessionItem,
+  WordView,
 } from "../lib/types";
 import { wKey } from "../lib/srs";
-import { pickExerciseType, shouldRequeue, requeuePosition } from "../lib/learning";
+import { pickExerciseType } from "../lib/learning";
 import { McExercise } from "./exercises/McExercise";
 import { TypeExercise } from "./exercises/TypeExercise";
 import { SentenceBuilder } from "./exercises/SentenceBuilder";
@@ -15,48 +18,56 @@ import { Complete } from "./Complete";
 import { Icon } from "./Icon";
 
 // Local per-session stage progress for one word (seeded from the server card,
-// then advanced client-side as the user answers — drives in-session rotation).
-//   mc/type — correct choices / manual inputs so far; shown — times displayed.
-type WordProgress = { mc: number; type: number; shown: number };
+// then advanced client-side as the user answers — drives the per-card exercise
+// type for repeat shows of the same word within the static queue).
+//   mc/type — correct choices / manual inputs so far.
+type WordProgress = { mc: number; type: number };
 
 export function Session({
   queue,
   course,
   cards,
   dueCountAll,
-  nextLesson,
+  heading,
+  nextStep,
   onScore,
   onRestart,
   onPickLesson,
   onGoReview,
   onExit,
+  onRetryMistakes,
   onComplete,
 }: {
   queue: SessionItem[];
   course: Course;
   cards: Record<string, CardFields>;
   dueCountAll: number;
-  nextLesson: { topicKey: string; lessonKey: string; label: string } | null;
+  heading: CompleteHeading;
+  nextStep: NextStep | null;
   onScore: (correct: number, total: number) => void;
   onRestart: () => void;
   onPickLesson: (topicKey: string, lessonKey: string) => void;
   onGoReview: () => void;
   onExit: () => void;
+  // Мини-сессия с финала: повторить промахнутые слова этой сессии.
+  onRetryMistakes: (words: WordView[]) => void;
   // Сессия дойдена до экрана Complete (очередь исчерпана) — Shell по этому
   // флагу перестаёт спрашивать confirm при выходе по логотипу.
   onComplete?: () => void;
 }) {
-  // Mutable working queue: not-yet-learned words get re-inserted as the user
-  // answers, so a new word is drilled within the same session (choosing →
-  // typing → learned) instead of being shown once and deferred to SM-2.
-  const [items, setItems] = useState<SessionItem[]>(queue);
+  // The queue is STATIC: built once before mount, never grows — a miss does not
+  // re-insert the card (per-word progress is server-side, the next session
+  // resumes the grind). Only the cursor moves.
   const [idx, setIdx] = useState(0);
   const [score, setScore] = useState({ correct: 0, total: 0 });
+  // Уникальные слова, отвеченные с quality 0 (исчерпаны обе попытки) — финал
+  // показывает их разбором «Споткнулся на» с кнопкой повтора.
+  const [mistakes, setMistakes] = useState<WordView[]>([]);
 
   // Per-session stage progress, seeded from the server cards on mount.
   const [wp, setWp] = useState<Record<string, WordProgress>>(() =>
     Object.fromEntries(
-      Object.entries(cards).map(([k, c]) => [k, { mc: c.mcCorrect, type: c.typeCorrect, shown: 0 }]),
+      Object.entries(cards).map(([k, c]) => [k, { mc: c.mcCorrect, type: c.typeCorrect }]),
     ),
   );
   const stageCardOf = (key: string) => {
@@ -79,57 +90,53 @@ export function Session({
     setScore(ns);
     onScore(ns.correct, ns.total);
 
-    const item = items[idx];
-    if (item.kind === "sentence") {
-      // A sentence is shown once — never re-queued.
-      return;
-    }
+    const item = queue[idx];
+    if (item.kind === "sentence") return; // предложения в разбор ошибок не попадают
     const key = wKey(item.word.lessonKey, item.word.pt);
-    const cur = wp[key] ?? { mc: 0, type: 0, shown: 0 };
+    const cur = wp[key] ?? { mc: 0, type: 0 };
     const next: WordProgress = {
       mc: cur.mc + (result.correct && result.mode === "mc" ? 1 : 0),
       type: cur.type + (result.correct && result.mode === "type" ? 1 : 0),
-      shown: cur.shown + 1,
     };
     setWp((prev) => ({ ...prev, [key]: next }));
 
-    const stageCard = { mcCorrect: next.mc, typeCorrect: next.type };
-    if (shouldRequeue(stageCard, next.shown)) {
-      setItems((prev) => {
-        const n = [...prev];
-        n.splice(requeuePosition(idx, n.length), 0, item);
-        return n;
-      });
+    if (!result.correct) {
+      setMistakes((prev) =>
+        prev.some((w) => wKey(w.lessonKey, w.pt) === key) ? prev : [...prev, item.word],
+      );
     }
   }
 
   function advance() {
     const ni = idx + 1;
-    const it = items[ni];
+    const it = queue[ni];
     if (it && it.kind === "word")
       setType(pickExerciseType(stageCardOf(wKey(it.word.lessonKey, it.word.pt)), it.tag));
-    if (ni >= items.length) onComplete?.(); // очередь исчерпана → дальше Complete
+    if (ni >= queue.length) onComplete?.(); // очередь исчерпана → дальше Complete
     setIdx(ni);
   }
 
-  if (idx >= items.length) {
+  if (idx >= queue.length) {
     return (
       <Complete
         correct={score.correct}
         total={score.total}
         dueCountAll={dueCountAll}
-        nextLesson={nextLesson}
+        heading={heading}
+        nextStep={nextStep}
+        mistakes={mistakes}
         onRestart={onRestart}
         onPickLesson={onPickLesson}
         onGoReview={onGoReview}
+        onRetryMistakes={() => onRetryMistakes(mistakes)}
       />
     );
   }
 
-  const item = items[idx];
-  const isLast = idx === items.length - 1;
-  // Полоса = ПОЗИЦИЯ в сессии (пройдено карточек / всего, растёт с переспросами).
-  const posPct = items.length > 0 ? Math.round((idx / items.length) * 100) : 0;
+  const item = queue[idx];
+  const isLast = idx === queue.length - 1;
+  // Полоса = ПОЗИЦИЯ в сессии. Очередь статична → знаменатель не меняется.
+  const posPct = queue.length > 0 ? Math.round((idx / queue.length) * 100) : 0;
 
   let exercise;
   if (item.kind === "sentence") {
@@ -189,13 +196,13 @@ export function Session({
           role="progressbar"
           aria-label="Позиция в сессии"
           aria-valuemin={0}
-          aria-valuemax={items.length}
+          aria-valuemax={queue.length}
           aria-valuenow={idx + 1}
         >
           <div className="m-progress-fill" style={{ width: `${posPct}%` }} />
         </div>
         <span className="m-progress-count">
-          {idx + 1}/{items.length}
+          {idx + 1}/{queue.length}
         </span>
       </div>
       {exercise}

@@ -276,6 +276,7 @@ body{
 .m-lesson-name{font-size:14px;font-weight:600;color:var(--ink-700)}
 .m-lesson-meta{font-size:12px;color:var(--ink-400);margin-top:3px;font-weight:500;display:flex;align-items:center;gap:6px}
 .m-pill-new{display:inline-flex;align-items:center;gap:5px;color:var(--new-ink);background:var(--new-bg);border-radius:var(--r-full);padding:2px 8px;font-size:11px;font-weight:700}
+.m-pill-est{display:inline-flex;align-items:center;gap:5px;color:var(--ink-600);background:var(--surface-3);border-radius:var(--r-full);padding:2px 8px;font-size:11px;font-weight:700;white-space:nowrap}
 .m-lesson-done{color:var(--accent);display:flex}
 .m-lesson-done .lucide{width:20px;height:20px}
 .m-lesson-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
@@ -433,7 +434,19 @@ body{
 .m-complete-note .lucide{width:16px;height:16px}
 .m-complete-note.due{background:var(--due-bg);color:var(--due-ink)}
 .m-complete-note.ok{background:var(--accent-50);color:var(--accent-ink)}
-.m-complete-actions{display:flex;flex-direction:column;gap:10px}
+.m-complete-actions{display:flex;flex-direction:column;gap:10px;margin-top:18px}
+
+/* ── Разбор ошибок на финале («Споткнулся на») ─────────────────────────── */
+.m-mistakes{margin:2px 0 4px;text-align:left}
+.m-mist-head{font-size:13px;font-weight:700;color:var(--ink-500);letter-spacing:.01em;margin-bottom:8px;text-align:center}
+.m-mist-row{display:flex;align-items:center;gap:8px;background:var(--due-bg);border-radius:var(--r-md);padding:10px 12px;margin-bottom:8px}
+.m-mist-pt{font-weight:700;color:var(--due-ink);font-size:14.5px}
+.m-mist-ru{flex:1;min-width:0;color:var(--ink-600);font-size:13.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.m-mist-audio{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:var(--r-full);background:var(--surface);color:var(--accent);border:none;cursor:pointer;flex-shrink:0;transition:transform var(--dur-press) var(--ease),background var(--dur)}
+.m-mist-audio:hover{background:var(--accent-50)}
+.m-mist-audio:active{transform:scale(.92)}
+.m-mist-audio .lucide{width:14px;height:14px}
+.m-mist-retry{margin-top:4px}
 
 /* ── Sign in ───────────────────────────────────────────────────────────── */
 .m-signin{margin-top:var(--s7);display:flex;flex-direction:column;gap:var(--s4)}

@@ -15,10 +15,11 @@ export const TYPE_TARGET = 3; // верных ручных вводов (вос�
 // Порог темы (доля выученных слов), с которого подмешиваются предложения.
 export const SENTENCE_TOPIC_THRESHOLD = 0.8;
 
-// Сколько карточек между повторами одного слова внутри сессии.
-export const REQUEUE_GAP = 3;
-// Предохранитель: максимум показов одного слова за сессию (от зацикливания).
-export const SESSION_REQUEUE_CAP = 12;
+// Максимум карточек за сессию. Очередь СТАТИЧНА: собирается один раз при старте
+// (interleaved-проходами по недоученным словам — см. queue.ts) и после старта не
+// растёт — ошибка не вставляет переспрос. Прогресс mc/type хранится на сервере,
+// следующая сессия продолжает добор с того же места.
+export const SESSION_SIZE = 20;
 
 type StageCard = Pick<CardFields, "mcCorrect" | "typeCorrect">;
 
@@ -63,24 +64,11 @@ export function pickExerciseType(
   return pool[Math.floor(rnd() * pool.length)];
 }
 
-// Вернуть ли слово в очередь внутри сессии: пока не выучено и не упёрлись в CAP.
-export function shouldRequeue(card: StageCard | undefined, seenCount: number): boolean {
-  return !isWordLearned(card) && seenCount < SESSION_REQUEUE_CAP;
-}
-
-// Куда вставить не выученное слово обратно в рабочую очередь (idx — текущая
-// позиция, length — длина очереди). СЛУЧАЙНО в задней части: от `idx+REQUEUE_GAP`
-// (минимальный зазор, чтобы слово не повторилось сразу) до конца. Это ключевое:
-// фиксированная вставка ровно на `idx+REQUEUE_GAP` образует тесный цикл из
-// первых REQUEUE_GAP слов — остальные слова урока не показываются, пока первые
-// не выучены. Случайная позиция до конца перемешивает ВСЕ слова сессии.
-// `rnd` инжектируется ради детерминизма в тестах.
-export function requeuePosition(
-  idx: number,
-  length: number,
-  rnd: () => number = Math.random,
-): number {
-  const lo = Math.min(idx + REQUEUE_GAP, length);
-  if (lo >= length) return length;
-  return lo + Math.floor(rnd() * (length - lo + 1));
+// Сколько показов слову ещё нужно до «выучено» (остаток до обоих порогов).
+// Питает interleaved-сборку очереди в queue.ts: слово участвует в проходах,
+// пока набранные в очередь показы не покроют этот остаток.
+export function remainingReps(card?: StageCard): number {
+  const mc = card?.mcCorrect ?? 0;
+  const type = card?.typeCorrect ?? 0;
+  return Math.max(0, MC_TARGET - mc) + Math.max(0, TYPE_TARGET - type);
 }

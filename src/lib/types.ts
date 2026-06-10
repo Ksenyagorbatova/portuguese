@@ -60,5 +60,17 @@ export type SessionItem =
   | { kind: "word"; word: WordView; tag: BadgeTag }
   | { kind: "sentence"; sentence: CrossSentenceView; tag: "cross" };
 
-// Where a session was launched from (drives the "next lesson" suggestion).
+// Where a session was launched from (drives the "next step" suggestion).
 export type SessionOrigin = "review" | { topicKey: string; lessonKey: string };
+
+// Финал-трамплин: главный CTA экрана Complete по ФАКТИЧЕСКОМУ прогрессу.
+//   continue — в уроке остались недоученные слова (рестарт того же урока);
+//   lesson   — урок добит, есть следующий урок темы;
+//   topic    — урок добит, тема ≥ порога, перекат на первый урок следующей темы.
+export type NextStep =
+  | { kind: "continue"; remaining: number }
+  | { kind: "lesson"; topicKey: string; lessonKey: string; label: string }
+  | { kind: "topic"; topicKey: string; lessonKey: string; label: string };
+
+// Заголовок финала: чем закончилась сессия (тема целиком / урок / просто сессия).
+export type CompleteHeading = "topic" | "lesson" | "session";

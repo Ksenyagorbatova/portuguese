@@ -1,8 +1,17 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import type { LessonView, SessionItem, SessionOrigin, TopicView } from "../lib/types";
-import { buildLessonQueue, buildReviewQueue } from "../lib/queue";
+import type {
+  CompleteHeading,
+  LessonView,
+  NextStep,
+  SessionItem,
+  SessionOrigin,
+  TopicView,
+  WordView,
+} from "../lib/types";
+import { buildLessonQueue, buildMistakesQueue, buildReviewQueue } from "../lib/queue";
+import { SENTENCE_TOPIC_THRESHOLD } from "../lib/learning";
 import { adaptSrs } from "../lib/srs";
 import { Header } from "./Header";
 import { OfflineBanner } from "./OfflineBanner";
@@ -101,15 +110,52 @@ export function Shell({
         ?.lessons.find((l: LessonView) => l.lessonKey === lessonKey) ?? null
     );
   }
-  function nextLessonOf(
-    origin: SessionOrigin,
-  ): { topicKey: string; lessonKey: string; label: string } | null {
+  // Сколько слов урока ещё не выучено. lessonStats реактивны (Convex), поэтому
+  // к экрану Complete значение уже учитывает ответы сессии; у нетронутого
+  // урока строки в lessonStats может не быть — тогда весь урок впереди.
+  function lessonRemaining(topicKey: string, lessonKey: string): number {
+    const ls = s.lessonStats[lessonKey];
+    if (ls) return ls.total - ls.learned;
+    return findLesson(topicKey, lessonKey)?.words.length ?? 0;
+  }
+  // Финал-трамплин: CTA по фактическому прогрессу — продолжить недоученный
+  // урок → следующий урок темы → (тема ≥ порога предложений) первый урок
+  // следующей темы. Для review-сессий шага вперёд нет (CTA «Ещё раз»).
+  function nextStepOf(origin: SessionOrigin): NextStep | null {
     if (origin === "review") return null;
-    const topic = c.topics.find((t: TopicView) => t.topicKey === origin.topicKey);
+    const ti = c.topics.findIndex((t: TopicView) => t.topicKey === origin.topicKey);
+    const topic = c.topics[ti];
     if (!topic) return null;
+    const remaining = lessonRemaining(origin.topicKey, origin.lessonKey);
+    if (remaining > 0) return { kind: "continue", remaining };
     const i = topic.lessons.findIndex((l: LessonView) => l.lessonKey === origin.lessonKey);
     const nx = topic.lessons[i + 1];
-    return nx ? { topicKey: origin.topicKey, lessonKey: nx.lessonKey, label: nx.label } : null;
+    if (nx) return { kind: "lesson", topicKey: origin.topicKey, lessonKey: nx.lessonKey, label: nx.label };
+    const ts = s.topicStats[origin.topicKey];
+    const topicReady = !!ts && ts.total > 0 && ts.learned / ts.total >= SENTENCE_TOPIC_THRESHOLD;
+    const nextTopic = c.topics[ti + 1];
+    const first = nextTopic?.lessons[0];
+    if (topicReady && first)
+      return { kind: "topic", topicKey: nextTopic.topicKey, lessonKey: first.lessonKey, label: nextTopic.label };
+    return null;
+  }
+  // Заголовок финала: «Тема закрыта!» только при 100% слов темы, «Урок выучен!»
+  // при добитом уроке, иначе «Сессия завершена!».
+  function headingOf(origin: SessionOrigin): CompleteHeading {
+    if (origin === "review") return "session";
+    const ts = s.topicStats[origin.topicKey];
+    if (ts && ts.total > 0 && ts.learned === ts.total) return "topic";
+    if (lessonRemaining(origin.topicKey, origin.lessonKey) === 0) return "lesson";
+    return "session";
+  }
+  // Мини-сессия из промахов финала: та же статичная механика, origin
+  // наследуется (после неё финал снова считает CTA по факту).
+  function retryMistakes(origin: SessionOrigin, words: WordView[]) {
+    if (words.length === 0) return;
+    setScore({ correct: 0, total: 0 });
+    setNonce((n) => n + 1);
+    setSessionDone(false);
+    setView({ kind: "session", queue: buildMistakesQueue(words, s), origin });
   }
   function onRestart() {
     if (view.kind !== "session") return;
@@ -136,12 +182,14 @@ export function Shell({
         course={c}
         cards={s.cards}
         dueCountAll={s.dueCountAll}
-        nextLesson={nextLessonOf(view.origin)}
+        heading={headingOf(view.origin)}
+        nextStep={nextStepOf(view.origin)}
         onScore={(correct, total) => setScore({ correct, total })}
         onRestart={onRestart}
         onPickLesson={onPickLesson}
         onGoReview={() => switchTab("review")}
         onExit={() => setView({ kind: "home" })}
+        onRetryMistakes={(words) => retryMistakes(view.origin, words)}
         onComplete={() => setSessionDone(true)}
       />
     );

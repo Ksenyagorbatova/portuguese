@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/experimental-ct-react";
 import type { ComponentFixtures, MountResult } from "@playwright/experimental-ct-react";
 import { Session } from "./Session";
-import type { CardFields, Course, SessionItem } from "../lib/types";
+import type { CardFields, Course, SessionItem, WordView } from "../lib/types";
 
 // A new word with same-lesson distractors so the choice exercise has options.
 const word = { lessonKey: "l1", pt: "olá", ru: "привет" };
@@ -32,7 +32,11 @@ const noop = () => {};
 
 function mountSession(
   mount: ComponentFixtures["mount"],
-  over: { queue: SessionItem[]; cards?: Record<string, CardFields> },
+  over: {
+    queue: SessionItem[];
+    cards?: Record<string, CardFields>;
+    onRetryMistakes?: (words: WordView[]) => void;
+  },
 ): Promise<MountResult> {
   return mount(
     <Session
@@ -40,12 +44,14 @@ function mountSession(
       course={course}
       cards={over.cards ?? {}}
       dueCountAll={0}
-      nextLesson={null}
+      heading="session"
+      nextStep={null}
       onScore={noop}
       onRestart={noop}
       onPickLesson={noop}
       onGoReview={noop}
       onExit={noop}
+      onRetryMistakes={over.onRetryMistakes ?? noop}
     />,
   );
 }
@@ -70,21 +76,54 @@ async function answerCorrect(component: MountResult) {
   }
 }
 
-test("a not-yet-learned word re-queues within the same session", async ({ mount }) => {
-  const component = await mountSession(mount, { queue: [{ kind: "word", word, tag: "new" }] });
+test("the queue is STATIC: a miss never grows the denominator", async ({ mount }) => {
+  // Две карточки одного недоученного слова — как их собрал бы interleaved-билдер.
+  const component = await mountSession(mount, {
+    queue: [
+      { kind: "word", word, tag: "new" },
+      { kind: "word", word, tag: "new" },
+    ],
+  });
+  await expect(component.locator(".m-progress-count")).toHaveText("1/2");
 
-  // Counter = position in session. One word, first card → 1/1.
-  await expect(component.locator(".m-progress-count")).toHaveText("1/1");
-
-  // One correct answer is not mastery (needs 3 choices + 3 inputs): the word is
-  // re-queued in the SAME session — no Complete screen. Position advances (the
-  // requeue grew the queue → 2/2).
+  // Верный ответ не «выучивает» слово (нужны 3 выбора + 3 ввода), но переспрос
+  // НЕ вставляется: знаменатель статичен, позиция просто двигается дальше.
   await answerCorrect(component);
   await component.getByRole("button", { name: /Дальше|Завершить/ }).click();
-
-  await expect(component.locator(".m-complete")).toHaveCount(0);
   await expect(component.locator(".m-progress-count")).toHaveText("2/2");
-  await expect(component.locator(".m-card")).toBeVisible();
+  await expect(component.getByRole("progressbar")).toHaveAttribute("aria-valuemax", "2");
+
+  // Вторая карточка отвечена → очередь исчерпана → финал (без доращивания).
+  await answerCorrect(component);
+  await component.getByRole("button", { name: /Дальше|Завершить/ }).click();
+  await expect(component.getByText("Сессия завершена!")).toBeVisible();
+});
+
+test("misses are collected and offered for a retry on the Complete screen", async ({ mount }) => {
+  let retried: WordView[] | null = null;
+  const component = await mountSession(mount, {
+    queue: [{ kind: "word", word, tag: "new" }],
+    onRetryMistakes: (words) => {
+      retried = words;
+    },
+  });
+
+  // Новое слово всегда начинает с выбора (MC): проваливаем обе попытки —
+  // кликаем две НЕВЕРНЫЕ опции (не «привет» и не «olá»).
+  const wrong = component
+    .locator(".m-opt")
+    .filter({ hasNotText: word.ru })
+    .filter({ hasNotText: word.pt });
+  await wrong.nth(0).click();
+  await wrong.nth(1).click();
+  await component.getByRole("button", { name: /Дальше|Завершить/ }).click();
+
+  // Финал: разбор «Споткнулся на» со строкой промаха и кнопкой повтора.
+  await expect(component.getByText("Споткнулся на")).toBeVisible();
+  await expect(component.locator(".m-mist-row")).toHaveCount(1);
+  await expect(component.locator(".m-mist-pt")).toHaveText(word.pt);
+  await component.getByRole("button", { name: "Повторить это слово" }).click();
+  expect(retried).toEqual([word]);
 });
 
 test("the progress bar exposes progressbar semantics", async ({ mount }) => {
@@ -104,7 +143,8 @@ test("the exit control bails out of the session", async ({ mount }) => {
       course={course}
       cards={{}}
       dueCountAll={0}
-      nextLesson={null}
+      heading="session"
+      nextStep={null}
       onScore={noop}
       onRestart={noop}
       onPickLesson={noop}
@@ -112,6 +152,7 @@ test("the exit control bails out of the session", async ({ mount }) => {
       onExit={() => {
         exited = true;
       }}
+      onRetryMistakes={noop}
     />,
   );
   await component.getByRole("button", { name: "Выйти из тренировки" }).click();
