@@ -8,6 +8,10 @@ import { TOPICS, CROSS_SENTENCES } from "./content";
 // Idempotent content seed. Upserts by natural key (topicKey / lessonKey /
 // (lessonKey,pt) / sentenceKey), so it is safe to run on every deploy:
 // new entries are inserted, edited ones are patched in place, no duplicates.
+// After the upserts a prune pass deletes CONTENT rows whose natural keys are
+// gone from content.ts (removed/renamed entries would otherwise linger as
+// stale rows forever). Per-user tables (progress/theorySeen/userStats) are
+// NEVER touched — user progress survives any re-seed.
 // `order` is captured from iteration order (TOPICS object order, lesson/word
 // array order) so content queries can restore the original ordering.
 //
@@ -20,8 +24,16 @@ export const seedContent = internalMutation({
     let lessonCount = 0;
     let wordCount = 0;
 
+    // Натуральные ключи, присутствующие в content.ts, — всё прочее в контентных
+    // таблицах будет удалено prune-фазой ниже.
+    const liveTopicKeys = new Set<string>();
+    const liveLessonKeys = new Set<string>();
+    const liveWordKeys = new Set<string>(); // `${lessonKey}||${pt}`
+    const liveSentenceKeys = new Set<string>();
+
     let ti = 0;
     for (const [topicKey, topic] of Object.entries(TOPICS)) {
+      liveTopicKeys.add(topicKey);
       const exT = await ctx.db
         .query("topics")
         .withIndex("by_topicKey", (q) => q.eq("topicKey", topicKey))
@@ -33,6 +45,7 @@ export const seedContent = internalMutation({
 
       let li = 0;
       for (const lesson of topic.lessons) {
+        liveLessonKeys.add(lesson.id);
         const exL = await ctx.db
           .query("lessons")
           .withIndex("by_lessonKey", (q) => q.eq("lessonKey", lesson.id))
@@ -50,6 +63,7 @@ export const seedContent = internalMutation({
 
         let wi = 0;
         for (const w of lesson.words) {
+          liveWordKeys.add(lesson.id + "||" + w.pt);
           const exW = await ctx.db
             .query("words")
             .withIndex("by_lessonKey_pt", (q) =>
@@ -75,6 +89,7 @@ export const seedContent = internalMutation({
     for (let i = 0; i < CROSS_SENTENCES.length; i++) {
       const s = CROSS_SENTENCES[i];
       const sentenceKey = `cs_${String(i + 1).padStart(4, "0")}`;
+      liveSentenceKeys.add(sentenceKey);
       const exS = await ctx.db
         .query("crossSentences")
         .withIndex("by_sentenceKey", (q) => q.eq("sentenceKey", sentenceKey))
@@ -91,11 +106,38 @@ export const seedContent = internalMutation({
       else await ctx.db.insert("crossSentences", doc);
     }
 
+    // ─── Prune: контентные строки, чьих натуральных ключей больше нет в
+    // content.ts. ТОЛЬКО контентные таблицы — progress/theorySeen/userStats не
+    // трогаем НИКОГДА: прогресс пользователей переживает любой ре-сид, а
+    // осиротевшие progress-строки просто лежат без вреда (их никто не читает).
+    const pruned = { topics: 0, lessons: 0, words: 0, crossSentences: 0 };
+    for (const t of await ctx.db.query("topics").collect())
+      if (!liveTopicKeys.has(t.topicKey)) {
+        await ctx.db.delete(t._id);
+        pruned.topics++;
+      }
+    for (const l of await ctx.db.query("lessons").collect())
+      if (!liveLessonKeys.has(l.lessonKey)) {
+        await ctx.db.delete(l._id);
+        pruned.lessons++;
+      }
+    for (const w of await ctx.db.query("words").collect())
+      if (!liveWordKeys.has(w.lessonKey + "||" + w.pt)) {
+        await ctx.db.delete(w._id);
+        pruned.words++;
+      }
+    for (const s of await ctx.db.query("crossSentences").collect())
+      if (!liveSentenceKeys.has(s.sentenceKey)) {
+        await ctx.db.delete(s._id);
+        pruned.crossSentences++;
+      }
+
     return {
       topics: topicCount,
       lessons: lessonCount,
       words: wordCount,
       crossSentences: CROSS_SENTENCES.length,
+      pruned,
     };
   },
 });
@@ -163,6 +205,7 @@ export const seedLocal = internalAction({
     lessons: number;
     words: number;
     crossSentences: number;
+    pruned: { topics: number; lessons: number; words: number; crossSentences: number };
   }> => {
     // Две независимые защиты держат это вне облака. Env читаем через
     // `globalThis.process` (не голый `process`), чтобы файл тайпчекался и под
