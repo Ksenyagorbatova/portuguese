@@ -1,6 +1,8 @@
 import { Password } from "@convex-dev/auth/providers/Password";
-import { convexAuth } from "@convex-dev/auth/server";
-import { ConvexError } from "convex/values";
+import { convexAuth, modifyAccountCredentials } from "@convex-dev/auth/server";
+import { ConvexError, v } from "convex/values";
+import { internalAction } from "./_generated/server";
+import type { DataModel } from "./_generated/dataModel";
 
 // Password (email + password) works out of the box — no external setup needed.
 //
@@ -36,8 +38,49 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
         if (!SIGNUP_ENABLED && params.flow === "signUp") {
           throw new ConvexError(REGISTRATION_DISABLED);
         }
-        return { email: params.email as string };
+        // Нормализация email (trim + lower). Password.authorize берёт email
+        // ИЗ РЕЗУЛЬТАТА profile() для всех флоу — и как account id при signUp,
+        // и для поиска аккаунта при signIn (см. dist/providers/Password.js:
+        // `const { email } = profile; … retrieveAccount({ account: { id: email } })`).
+        // Поэтому нормализации здесь достаточно: «Email@X.com» и «email@x.com»
+        // попадают в один аккаунт. Прод-аккаунты уже в нижнем регистре.
+        return { email: normalizeEmail(params.email as string) };
       },
     }) /*, GitHub, Google */,
   ],
+});
+
+// trim + lowercase — каноническая форма email, под которой хранятся аккаунты
+// (authAccounts.providerAccountId и users.email).
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+// ─── adminResetPassword — ручной сброс пароля через CLI ─────────────────────
+// Self-hosted-замена флоу «забыли пароль» (email-провайдера для reset-писем у
+// проекта нет): админ задаёт пользователю новый пароль напрямую.
+//
+//   npx convex run --prod auth:adminResetPassword '{"email":"...","newPassword":"..."}'
+//
+// internalAction — клиенту недоступна по построению (вызов только через CLI с
+// deploy-ключом или из серверного кода), это и есть гейт; работать должна и на
+// проде, поэтому env-гейтов как у seedLocal здесь нет. modifyAccountCredentials
+// хеширует новый секрет scrypt'ом провайдера Password и падает, если аккаунта
+// с таким email нет. Существующие сессии НЕ инвалидируются (владелец и есть
+// единственный пользователь).
+export const adminResetPassword = internalAction({
+  args: { email: v.string(), newPassword: v.string() },
+  handler: async (ctx, { email, newPassword }) => {
+    // Серверный минимум провайдера Password — 8 символов; короче зашить нельзя,
+    // иначе вход с этим паролем валиден, а «смена пароля» через signIn-флоу нет.
+    if (newPassword.length < 8) {
+      throw new ConvexError("password too short: minimum 8 characters");
+    }
+    const id = normalizeEmail(email);
+    await modifyAccountCredentials<DataModel>(ctx, {
+      provider: "password",
+      account: { id, secret: newPassword },
+    });
+    return { email: id };
+  },
 });

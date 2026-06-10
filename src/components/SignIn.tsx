@@ -66,7 +66,7 @@ export function SignIn() {
               placeholder="Пароль"
               autoComplete={flow === "signIn" ? "current-password" : "new-password"}
               required
-              minLength={6}
+              minLength={8}
             />
           </div>
           <button
