@@ -24,15 +24,20 @@
 | `mcCorrect`,`typeCorrect` | optional number | этапные счётчики (старые строки = 0) |
 
 Индексы: `by_user_lesson_pt`, `by_user`. Сопутствующие таблицы:
-`userStats` (streak/lastDay), `theorySeen` (userId, lessonKey).
+`userStats` (streak/lastDay; `lastDay` — новые значения `YYYY-MM-DD`,
+легаси-строки — `toDateString()`), `theorySeen` (userId, lessonKey).
 
 API ([`convex/progress.ts`](../../convex/progress.ts)):
 - `getSrsState()` — батч-query для всего дашборда; возвращает `streak`, `cards[]`,
   `tags[]`, `seenTheory[]`, `learnedPts[]`, `dueCountAll`, `lessonStats`, `topicStats`.
-- `recordAnswer({ lessonKey, pt, quality: 0|1|2, mode: "mc"|"type" })` → `{ card, streak }`.
-  Валидирует натуральный ключ: слова `(lessonKey, pt)` нет в контенте → `ConvexError`
-  «unknown word» (одно indexed-чтение `words.by_lessonKey_pt`) — опечатка клиента
-  не создаёт осиротевшую progress-строку.
+- `recordAnswer({ lessonKey, pt, quality: 0|1|2, mode: "mc"|"type", clientDay? })`
+  → `{ card, streak }`. Валидирует натуральный ключ: слова `(lessonKey, pt)` нет в
+  контенте → `ConvexError` «unknown word» (одно indexed-чтение
+  `words.by_lessonKey_pt`) — опечатка клиента не создаёт осиротевшую
+  progress-строку. `clientDay` (optional string `YYYY-MM-DD`) — локальный день
+  клиента для стрика; валидация — формат-regex И парсимость `Date.parse`
+  («2026-13-99» проходит regex, но непарсим); отсутствует/невалиден → fallback
+  на серверную UTC-дату (graceful для закэшированного старого фронта).
 - `markTheorySeen({ lessonKey })` — аналогично валидирует урок по
   `lessons.by_lessonKey` → `ConvexError` «unknown lesson».
 - `reclampSchedules()` — internalMutation, одноразовая миграция данных.
@@ -42,7 +47,13 @@ API ([`convex/progress.ts`](../../convex/progress.ts)):
 - `quality`: `0` — неверно обе попытки, `1` — верно со 2-й, `2` — верно с 1-й.
 - Классификация слова (тег): `new` (нет строки или `seen===0`), `due` (`due<=now`),
   `learned` (выучено и не due), `ongoing` (не выучено и не due).
-- `streak` растёт на **первом ответе за календарный день** (`lastDay` = `toDateString`).
+- **Честный `streak` по локальному дню клиента.** День = валидный `clientDay`
+  (`YYYY-MM-DD`, клиент шлёт `localDay()` из [`src/lib/day.ts`](../../src/lib/day.ts) —
+  `toLocaleDateString("en-CA")`), иначе серверная UTC-дата. Семантика по разнице
+  дней с `lastDay`: тот же день → без изменений; ровно вчера → `streak+1`;
+  пропуск ≥1 дня → сброс в `1`; `clientDay` РАНЬШЕ `lastDay` (смена пояса на
+  запад) → no-op (не сбрасываем, `lastDay` остаётся поздним). Раньше стрик рос
+  на любом первом ответе дня и никогда не сбрасывался.
 
 ## Ключевые решения и алгоритмы
 
@@ -62,8 +73,13 @@ due = now + interval*DAY
 - Иначе если слово ещё не выучено (`!nowLearned`) — короткий фикс-шаг обучения:
   `due = now + DAY` (через день). Так слово классифицируется как `ongoing`, а не
   застревает на `due=0`/«срочное», и БЕЗ умножения интервала.
-- Иначе (ранняя практика уже выученного, ещё не `due` слова) — расписание
-  (`interval`/`ef`/`due`) **не трогаем**: повтор ещё не наступил.
+- Иначе при **lapse на ранней практике** (выученное, `due>now`, `quality===0`) —
+  `interval = 1`, `due = now + DAY`; **`ef` не трогаем** (рационал: ef-штраф
+  остаётся на due-повторах, ранний lapse только приближает повтор — «забыл
+  сейчас» не должен ждать далёкого due). Это сужение интервала, анти-инфляционный
+  инвариант (про умножение на `ef` вне события повторения) не нарушается.
+- Иначе (ранняя практика уже выученного, ещё не `due` слова, `quality` 1/2) —
+  расписание (`interval`/`ef`/`due`) **не трогаем**: повтор ещё не наступил.
 
 **`MAX_INTERVAL = 120` дн (≈ «через 4 месяца»).** Чистый SM-2 интервал не
 ограничивает, но для A0–A1 даже знакомое слово полезно показывать хотя бы раз в
@@ -87,24 +103,52 @@ due = now + interval*DAY
 считаются на клиенте из карточки и текущего времени; большие интервалы округляются
 в недели/месяцы/«примерно через год» (а не «через 455 дн»).
 
+**Миграция формата `lastDay`.** Легаси-значения — `toDateString()`
+(«Mon Jun 09 2026»), новые — `YYYY-MM-DD`; сравнение — через `Date.parse` обоих
+форматов c округлением разницы до целых суток (легаси парсится в локальной
+полуночи рантайма, ISO — в UTC; `Math.round` гасит сдвиг TZ). Непарсимое значение
+→ ветка сброса. Перезапись новым форматом происходит при первом же сдвиге дня;
+отдельной миграции данных не требуется. Однократный побочный эффект на
+деплой-границе — смена БАЗИСА дня (легаси-день — UTC сервера, новый — локальный
+день клиента): пользователь восточнее UTC, чей последний до-деплойный ответ
+попал в первые часы после местной полуночи, при первом ответе после деплоя
+получит `diff=2` → ложный сброс (западнее UTC — симметрично пропущенный `+1`);
+самоизлечивается со следующим днём, кодом не чиним осознанно.
+
+**Пороги в backend-тестах пинятся К КЛИЕНТСКИМ константам.**
+[`convex/progress.test.ts`](../../convex/progress.test.ts) импортирует
+`MC_TARGET`/`TYPE_TARGET` из [`src/lib/learning.ts`](../../src/lib/learning.ts) и
+проверяет, что выпуск (interval 0→1) случается РОВНО на ответе, добирающем эти
+значения, — рассинхрон любой из двух копий констант (клиентской или серверной в
+`convex/progress.ts`) роняет тест.
+
 ## Тестирование
 
 - Backend [`convex/progress.test.ts`](../../convex/progress.test.ts): SM-2 с `mode`,
   «событие повторения» (интервал не инфлирует за сессию, потолок `MAX_INTERVAL`),
-  «выучено» по обоим навыкам, классификация `getSrsState`, streak, идемпотентность
-  `reclampSchedules`. Авторизация: `t.withIdentity({ subject: ` + "`${userId}|session`" + ` })`.
+  lapse при ранней практике (`quality=0` → interval 1/due≈завтра/ef прежний;
+  1/2 — no-op), «выучено» по обоим навыкам с порогами из `src/lib/learning`
+  (кросс-слойный пин), классификация `getSrsState`, валидация ключей, стрик
+  (тот же день / вчера / пропуск / legacy-формат / clientDay раньше lastDay /
+  невалидный — в т.ч. regex-валидный, но непарсимый — или отсутствующий
+  clientDay), идемпотентность `reclampSchedules`.
+  Авторизация: `t.withIdentity({ subject: ` + "`${userId}|session`" + ` })`.
 - Frontend [`src/lib/srs.test.ts`](../../src/lib/srs.test.ts): `adaptSrs` (массивы→Record),
-  подписи `nextDueLabel`/`intervalLabel` (время — `vi.spyOn(Date, "now")`).
+  подписи `nextDueLabel`/`intervalLabel` (время — `vi.spyOn(Date, "now")`);
+  [`src/lib/day.test.ts`](../../src/lib/day.test.ts): `localDay` (формат
+  `YYYY-MM-DD`, нули, локальная TZ).
 
 ## Карта файлов
 
 - [`convex/progress.ts`](../../convex/progress.ts) — `getSrsState`, `recordAnswer`, `markTheorySeen`, `reclampSchedules`.
 - [`convex/schema.ts`](../../convex/schema.ts) — таблицы `progress`, `userStats`, `theorySeen`.
 - [`src/lib/srs.ts`](../../src/lib/srs.ts) — `adaptSrs`, `wKey`, подписи времени.
+- [`src/lib/day.ts`](../../src/lib/day.ts) — `localDay()` (локальный день клиента для `clientDay`).
 
 ## Известные ограничения
 
-- Проверка ответа — на клиенте; сервер доверяет присланным `quality` и `mode`.
-- Streak растёт при первом ответе за день (без «заморозок»/восстановления).
+- Проверка ответа — на клиенте; сервер доверяет присланным `quality`, `mode`
+  и `clientDay` (день можно «подделать», но это личный тренажёр).
+- Стрик без «заморозок»/восстановления; день перерыва обнуляет серию до 1.
 - Порог «выучено» (`MC_TARGET`/`TYPE_TARGET`) живёт в модели освоения —
   см. [`word-learning-model.md`](word-learning-model.md).

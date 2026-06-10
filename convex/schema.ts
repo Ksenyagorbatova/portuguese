@@ -83,6 +83,10 @@ export default defineSchema({
   userStats: defineTable({
     userId: v.id("users"),
     streak: v.number(),
-    lastDay: v.string(), // new Date(now).toDateString()
+    // День последнего ответа. Новые значения — YYYY-MM-DD (локальный день
+    // клиента либо серверный UTC-fallback); легаси-строки — toDateString()
+    // («Mon Jun 09 2026»), recordAnswer парсит оба и перезаписывает новым
+    // форматом при первом же сдвиге дня.
+    lastDay: v.string(),
   }).index("by_user", ["userId"]),
 });

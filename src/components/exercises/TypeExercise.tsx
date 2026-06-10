@@ -3,6 +3,7 @@ import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { AnswerResult, BadgeTag, CardFields, WordView } from "../../lib/types";
 import { variantsMatch } from "../../lib/text";
+import { localDay } from "../../lib/day";
 import { nextDueLabel } from "../../lib/srs";
 import { speak } from "../../lib/speech";
 import { Badge } from "../Badge";
@@ -50,7 +51,13 @@ export function TypeExercise({
     // следующего повтора подтянется с ответом сервера; при отказе мутации
     // останется «—» с пометкой, что ответ не сохранился.
     setResolved({ ok, dueLabel: null });
-    void recordAnswer({ lessonKey: word.lessonKey, pt: word.pt, quality, mode: "type" }).then(
+    void recordAnswer({
+      lessonKey: word.lessonKey,
+      pt: word.pt,
+      quality,
+      mode: "type",
+      clientDay: localDay(),
+    }).then(
       (res) => setResolved({ ok, dueLabel: nextDueLabel(res.card) }),
       () => setResolved({ ok, dueLabel: null, saveFailed: true }),
     );
