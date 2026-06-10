@@ -3,6 +3,7 @@ import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { AnswerResult, BadgeTag, CardFields, WordView } from "../../lib/types";
 import { variantsMatch } from "../../lib/text";
+import { localDay } from "../../lib/day";
 import { nextDueLabel } from "../../lib/srs";
 import { speak } from "../../lib/speech";
 import { Badge } from "../Badge";
@@ -36,7 +37,13 @@ export function TypeExercise({
   async function finish(quality: 0 | 1 | 2, ok: boolean) {
     speak(word.pt);
     onAnswered({ mode: "type", correct: quality >= 1, firstTry: quality === 2 });
-    const res = await recordAnswer({ lessonKey: word.lessonKey, pt: word.pt, quality, mode: "type" });
+    const res = await recordAnswer({
+      lessonKey: word.lessonKey,
+      pt: word.pt,
+      quality,
+      mode: "type",
+      clientDay: localDay(),
+    });
     setResolved({ ok, dueLabel: nextDueLabel(res.card) });
   }
 

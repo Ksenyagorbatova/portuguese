@@ -4,6 +4,7 @@ import { api } from "../../../convex/_generated/api";
 import type { AnswerResult, BadgeTag, CardFields, Course, WordView } from "../../lib/types";
 import { shuffle } from "../../lib/shuffle";
 import { getWrong } from "../../lib/wrongOptions";
+import { localDay } from "../../lib/day";
 import { nextDueLabel } from "../../lib/srs";
 import { speak } from "../../lib/speech";
 import { Badge } from "../Badge";
@@ -45,7 +46,13 @@ export function McExercise({
   async function finish(quality: 0 | 1 | 2, ok: boolean) {
     speak(word.pt);
     onAnswered({ mode: "mc", correct: quality >= 1, firstTry: quality === 2 });
-    const res = await recordAnswer({ lessonKey: word.lessonKey, pt: word.pt, quality, mode: "mc" });
+    const res = await recordAnswer({
+      lessonKey: word.lessonKey,
+      pt: word.pt,
+      quality,
+      mode: "mc",
+      clientDay: localDay(),
+    });
     setResolved({ ok, dueLabel: nextDueLabel(res.card) });
   }
 
