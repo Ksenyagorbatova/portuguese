@@ -117,8 +117,12 @@ export function TypeExercise({
           autoComplete="off"
           placeholder="Ваш ответ…"
           onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.repeat) return; // удержание клавиши: авторепит шлёт повторные keydown
+          // Ответ — на keyUP, не keydown: после ответа фокус синхронно уезжает
+          // на autoFocus-«Дальше», и Chrome добивает ТО ЖЕ физическое нажатие
+          // кликом по свежесфокусированной кнопке на keyup — Enter «проскакивал»
+          // фидбэк к следующей карточке. На keyup нажатие потрачено целиком в
+          // инпуте; заодно не нужен e.repeat-гард (авторепит шлёт только keydown).
+          onKeyUp={(e) => {
             if (e.key === "Enter") check();
           }}
         />
