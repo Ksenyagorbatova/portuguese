@@ -30,7 +30,8 @@ npx @convex-dev/auth     # создаёт JWT_PRIVATE_KEY / JWKS в env депл
 npx convex run seed:seedContent
 
 # 4) Во втором терминале — фронтенд:
-npm run dev             # http://localhost:5173/portuguese/
+npm run dev             # http://localhost:5173/ (dev сервится с корня;
+                        # base /portuguese/ — только в прод-сборке, см. vite.config.ts)
 ```
 
 > Для локального входа по email/паролю на dev-деплое установи `SITE_URL`:
@@ -43,7 +44,32 @@ npm run dev             # http://localhost:5173/portuguese/
 | `npm run dev` | Vite dev-сервер |
 | `npm run dev:convex` | `convex dev` (бэкенд + кодоген) |
 | `npm run build` | `tsc -b` + `vite build` + копия `404.html` |
-| `npm run lint` | проверка типов (`tsc -b`) |
+| `npm run lint` | oxlint (конфиг `.oxlintrc.json`) |
+| `npm run typecheck` | типы: `tsc -b` + `convex/tsconfig.json` + `tsconfig.test.json` |
+| `npm run check` | typecheck + lint |
+| `npm run test` | Vitest: unit (jsdom) + backend (convex-test) |
+| `npm run test:backend` | только backend-проект Vitest |
+| `npm run test:frontend` | только frontend-проект Vitest |
+| `npm run test:ct` | Playwright Component Testing (`*.ct.tsx`) |
+| `npm run verify` | check + test + test:ct — то же, что форсит pre-push hook |
+| `npm run wt:setup` | настройка git-worktree: локальный Convex + сид (см. CLAUDE.md) |
+| `npm run wt:seed` | пере-сид локального деплоя worktree (контент + dev-аккаунт) |
+
+---
+
+## Тестирование
+
+Каждое изменение кода покрывается тестами в том же PR; перед push весь набор
+зелёный (`npm run verify`, форсится pre-push hook'ом). Три уровня:
+
+- **Бэкенд** — Vitest + `convex-test`, файлы `convex/*.test.ts`
+  (SM-2, счётчики освоения, классификация слов, сид, блокировка регистрации).
+- **Фронт-юнит** — Vitest + jsdom + Testing Library, файлы `src/**/*.test.ts(x)`
+  (чистая логика `src/lib`).
+- **Компонентное** — Playwright CT, файлы `src/**/*.ct.tsx`
+  (реальный Chromium; Convex-хуки подменяются стабами из `src/test/mocks`).
+
+Подробности — раздел «Тестирование» в [CLAUDE.md](CLAUDE.md).
 
 ---
 
@@ -95,7 +121,13 @@ npx convex env set SITE_URL https://ksenyagorbatova.github.io/portuguese --prod
 
 ## Как работает CI
 
-[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) на каждый пуш в `main`:
+Проверки на PR — [`.github/workflows/ci.yml`](.github/workflows/ci.yml): отдельные
+параллельные jobs (secret-scan через gitleaks, lint, typecheck, build,
+backend-/frontend-/компонентные тесты), без подключения к Convex
+(`convex/_generated` закоммичен).
+
+Деплой — [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) на каждый
+пуш в `main` (т.е. при мёрже PR):
 1. `npx convex deploy --cmd 'npm run build' --cmd-url-env-var-name VITE_CONVEX_URL`
    — деплоит функции/схему в прод, генерит `_generated`, собирает фронт с прод-URL.
 2. `npx convex run seed:seedContent --prod` — заливает/обновляет контент.
