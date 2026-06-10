@@ -88,7 +88,8 @@ export function TypeExercise({
         <Badge tag={tag} />
       </div>
       <div className="m-q-text">{word.ru}</div>
-      {word.note && <div className="m-q-note">{word.note}</div>}
+      {/* 💡-заметку ДО ответа не показываем (спойлерит ответ) — см. McExercise;
+          после ответа она остаётся в WordFeedback. */}
       {/* Только для реально просроченных (due) слов — см. McExercise. */}
       {tag === "due" && (
         <div className="m-q-srs">

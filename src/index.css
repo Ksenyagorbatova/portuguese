@@ -200,7 +200,7 @@ body{
 .m-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s2)}
 .m-stat{background:var(--surface);border-radius:var(--r-md);padding:12px 10px;box-shadow:var(--e1);border:1px solid var(--line-2);text-align:center}
 .m-stat-n{font-family:var(--font-display);font-size:22px;font-weight:700;color:var(--ink-900);font-variant-numeric:tabular-nums;line-height:1}
-.m-stat-l{font-size:11px;font-weight:500;color:var(--ink-400);margin-top:5px;letter-spacing:.01em}
+.m-stat-l{font-size:11px;font-weight:500;color:var(--ink-500);margin-top:5px;letter-spacing:.01em}
 
 /* ── Progress ring ─────────────────────────────────────────────────────── */
 .m-ring{transform:rotate(-90deg)}
@@ -212,7 +212,7 @@ body{
 .m-ring-wrap{position:relative;flex-shrink:0;width:96px;height:96px}
 .m-ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
 .m-ring-pct{font-family:var(--font-display);font-size:24px;font-weight:700;color:var(--ink-900);line-height:1;font-variant-numeric:tabular-nums}
-.m-ring-cap{font-size:10px;color:var(--ink-400);margin-top:2px;font-weight:500}
+.m-ring-cap{font-size:10px;color:var(--ink-500);margin-top:2px;font-weight:500}
 .m-hero-cols{display:flex;flex-direction:column;gap:var(--s3);flex:1}
 .m-hero-row{display:flex;align-items:center;gap:10px}
 .m-hero-row .m-dot{flex-shrink:0}
@@ -274,7 +274,7 @@ body{
 .m-lesson{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 12px 12px 14px;border-radius:var(--r-sm);cursor:pointer;transition:background var(--dur)}
 .m-lesson:hover{background:var(--surface-2)}
 .m-lesson-name{font-size:14px;font-weight:600;color:var(--ink-700)}
-.m-lesson-meta{font-size:12px;color:var(--ink-400);margin-top:3px;font-weight:500;display:flex;align-items:center;gap:6px}
+.m-lesson-meta{font-size:12px;color:var(--ink-500);margin-top:3px;font-weight:500;display:flex;align-items:center;gap:6px}
 .m-pill-new{display:inline-flex;align-items:center;gap:5px;color:var(--new-ink);background:var(--new-bg);border-radius:var(--r-full);padding:2px 8px;font-size:11px;font-weight:700}
 .m-pill-est{display:inline-flex;align-items:center;gap:5px;color:var(--ink-600);background:var(--surface-3);border-radius:var(--r-full);padding:2px 8px;font-size:11px;font-weight:700;white-space:nowrap}
 .m-lesson-done{color:var(--accent);display:flex}
@@ -311,7 +311,6 @@ body{
 .m-session .m-card{padding:16px}
 .m-session .m-q-head{margin-bottom:8px}
 .m-session .m-q-text{font-size:25px}
-.m-session .m-q-note{margin-top:4px}
 /* Строка «следующий повтор …» в сессии видна (текст укорочён до одной строки,
    без «· интервал …», см. McExercise/TypeExercise) — компактный отступ сверху. */
 .m-session .m-q-srs{margin-top:6px}
@@ -332,8 +331,7 @@ body{
 .m-audio:hover{background:var(--accent-100)}
 .m-audio:active{transform:scale(.92)}
 .m-audio .lucide{width:19px;height:19px}
-.m-q-note{font-size:14px;color:var(--ink-500);margin-top:8px;font-weight:500}
-.m-q-srs{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-400);margin-top:12px;font-weight:500}
+.m-q-srs{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-500);margin-top:12px;font-weight:500}
 .m-q-srs .lucide{width:14px;height:14px}
 .m-q-prompt{font-size:14px;color:var(--ink-500);font-weight:600;margin:18px 0 12px}
 
@@ -343,7 +341,7 @@ body{
 .m-opt:hover:not(:disabled){border-color:var(--ink-400);background:var(--surface-2)}
 .m-opt:active:not(:disabled){transform:scale(.99)}
 .m-opt:disabled{cursor:default}
-.m-opt-key{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:9px;background:transparent;color:var(--ink-400);font-weight:600;font-size:13px;flex-shrink:0;transition:all var(--dur)}
+.m-opt-key{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:9px;background:transparent;color:var(--ink-500);font-weight:600;font-size:13px;flex-shrink:0;transition:all var(--dur)}
 .m-opt-label{flex:1;min-width:0}
 .m-opt-mark{margin-left:auto;display:flex;opacity:0;transition:opacity var(--dur)}
 .m-opt-mark .lucide{width:20px;height:20px}
@@ -361,7 +359,7 @@ body{
 .m-input:focus{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-ring)}
 .m-input.ok{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-ring)}
 .m-input.err{border-color:var(--due-dot);box-shadow:0 0 0 4px var(--due-bg)}
-.m-hint{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-400);margin:10px 2px 0;font-weight:500}
+.m-hint{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-500);margin:10px 2px 0;font-weight:500}
 .m-hint .lucide{width:14px;height:14px}
 
 /* ── Feedback ──────────────────────────────────────────────────────────── */
@@ -418,7 +416,7 @@ body{
 .m-flip-f{background:var(--surface);border:1px solid var(--line)}
 .m-flip-b{background:var(--accent);transform:rotateY(180deg)}
 .m-flip-pt{font-size:15px;font-weight:700;color:var(--ink-900)}
-.m-flip-cue{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--ink-400);margin-top:7px;font-weight:500}
+.m-flip-cue{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--ink-500);margin-top:7px;font-weight:500}
 .m-flip-cue .lucide{width:13px;height:13px}
 .m-flip-ru{font-size:15px;font-weight:700;color:#fff}
 .m-flip-note{font-size:11.5px;color:rgba(255,255,255,.85);margin-top:4px;line-height:1.3}
@@ -452,7 +450,7 @@ body{
 .m-signin{margin-top:var(--s7);display:flex;flex-direction:column;gap:var(--s4)}
 .m-signin-brand{display:flex;flex-direction:column;align-items:center;gap:14px;margin-bottom:var(--s2)}
 .m-signin-logo{width:64px;height:64px;border-radius:19px;background:linear-gradient(90deg,var(--flag-green) 0 40%,var(--flag-red) 40% 100%);display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--font-display);font-weight:800;font-size:27px;box-shadow:var(--e-accent)}
-.m-signin-kicker{font-size:12px;font-weight:600;color:var(--ink-400);letter-spacing:.04em;text-align:center}
+.m-signin-kicker{font-size:12px;font-weight:600;color:var(--ink-500);letter-spacing:.04em;text-align:center}
 .m-signin-title{font-family:var(--font-display);font-size:27px;font-weight:700;color:var(--ink-900);text-align:center;letter-spacing:-.02em;margin-top:2px}
 .m-form{display:flex;flex-direction:column;gap:12px}
 .m-switch{text-align:center;font-size:13.5px;color:var(--ink-500);font-weight:500;margin-top:4px;cursor:pointer}
@@ -493,3 +491,24 @@ body{
 }
 button.m-topic-head{width:100%;text-align:left}
 button.m-flip{width:100%}
+
+/* ── A11y: единый язык клавиатурного фокуса ────────────────────────────────
+   То же кольцо, что у инпутов (.m-input:focus) — на ВСЕХ интерактивах, но
+   только при клавиатурном фокусе (:focus-visible, не :focus — мышь колец не
+   рисует). Особенно важно из-за autoFocus на «Дальше»: программный фокус
+   после ответа должен быть виден. :where() держит специфичность нулевой;
+   у элементов с собственной тенью кольцо добавляется К ней ниже. */
+:where(.m-btn,.m-opt,.m-icon-btn,.m-logo,.m-seg-btn,.m-audio,.m-atile,
+       .m-wtile,.m-flip,.m-topic-head,.m-lesson,.m-lesson-theory,
+       .m-session-exit,.m-theory-back,.m-mist-audio):focus-visible{
+  outline:none;
+  box-shadow:0 0 0 4px var(--accent-ring);
+}
+/* Свои тени (--e-accent / --e1) сохраняем под кольцом. */
+.m-btn--primary:focus-visible,.m-atile:focus-visible,.m-logo:focus-visible{
+  box-shadow:var(--e-accent),0 0 0 4px var(--accent-ring);
+}
+.m-btn--ghost:focus-visible,.m-opt:focus-visible,.m-wtile:focus-visible,
+.m-session-exit:focus-visible,.m-icon-btn:focus-visible{
+  box-shadow:var(--e1),0 0 0 4px var(--accent-ring);
+}

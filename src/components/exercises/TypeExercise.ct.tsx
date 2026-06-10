@@ -173,3 +173,46 @@ test.describe("устойчивость к сети", () => {
     await expect.poll(() => advanced).toBe(true);
   });
 });
+
+// ── П.4 (дизайн-ревью v2): 💡-заметка не спойлерит ответ ─────────────────────
+test("the 💡-note is hidden BEFORE the answer; the service hint stays", async ({ mount }) => {
+  const noted: WordView = { lessonKey: "l1", pt: "olá", ru: "привет", note: "ударение на á" };
+  const component = await mount(
+    <TypeExercise
+      word={noted}
+      tag="new"
+      card={undefined}
+      isLast={false}
+      onAnswered={() => {}}
+      onNext={() => {}}
+    />,
+  );
+
+  await expect(component.locator(".m-q-note")).toHaveCount(0);
+  await expect(component.getByText("ударение на á")).toHaveCount(0);
+  // Служебный хинт — не заметка, остаётся как был.
+  await expect(component.getByText(/Акценты и пунктуация необязательны/)).toBeVisible();
+
+  await component.getByPlaceholder("Ваш ответ…").fill("olá");
+  await component.getByRole("button", { name: "Проверить" }).click();
+  // После ответа заметка доступна в фидбэке.
+  await expect(component.getByText(/ударение на á/)).toBeVisible();
+});
+
+// ── П.6 (дизайн-ревью v2): контраст мелкого текста ───────────────────────────
+test("the ≤13px hint text uses --ink-500 (AA), not --ink-400", async ({ mount }) => {
+  const component = await mount(
+    <TypeExercise
+      word={word}
+      tag="new"
+      card={undefined}
+      isLast={false}
+      onAnswered={() => {}}
+      onNext={() => {}}
+    />,
+  );
+  const color = await component
+    .locator(".m-hint")
+    .evaluate((el) => getComputedStyle(el).color);
+  expect(color).toBe("rgb(111, 110, 102)"); // #6f6e66 — --ink-500 светлой темы
+});
