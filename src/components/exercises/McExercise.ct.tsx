@@ -502,5 +502,7 @@ test("the option keeps its own shadow under the focus ring", async ({ mount, pag
   await expect(opt).toBeFocused();
   const shadow = await opt.evaluate((el) => getComputedStyle(el).boxShadow);
   expect(shadow).toContain("0px 0px 0px 4px"); // кольцо…
-  expect(shadow).toContain(","); // …добавлено к собственной тени, не вместо неё
+  // …добавлено к собственной тени, не вместо неё: ДВА слоя = два цвета
+  // (запятую искать нельзя — она есть и внутри rgba()).
+  expect(shadow.match(/rgba?\(/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
 });

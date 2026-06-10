@@ -496,6 +496,6 @@ button.m-flip{width:100%}
   box-shadow:var(--e-accent),0 0 0 4px var(--accent-ring);
 }
 .m-btn--ghost:focus-visible,.m-opt:focus-visible,.m-wtile:focus-visible,
-.m-session-exit:focus-visible{
+.m-session-exit:focus-visible,.m-icon-btn:focus-visible{
   box-shadow:var(--e1),0 0 0 4px var(--accent-ring);
 }

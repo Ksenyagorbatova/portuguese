@@ -65,3 +65,21 @@ test("clicking the theme toggle cycles the choice", async ({ mount }) => {
   await c.getByRole("button", { name: "Тема: системная" }).click();
   expect(clicks).toBe(1);
 });
+
+// ── П.5 (дизайн-ревью v2): кольцо фокуса не съедает собственную тень ─────────
+test("icon buttons keep their own shadow under the keyboard-focus ring", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<Header streak={1} themeChoice="light" onCycleTheme={noop} onHome={noop} />);
+  // Tab: логотип → переключатель темы (.m-icon-btn с собственной тенью --e1).
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  const themeBtn = c.getByRole("button", { name: "Тема: светлая" });
+  await expect(themeBtn).toBeFocused();
+  const shadow = await themeBtn.evaluate((el) => getComputedStyle(el).boxShadow);
+  expect(shadow).toContain("0px 0px 0px 4px"); // кольцо…
+  // …добавлено к тени --e1, не вместо неё: в computed box-shadow ДВА слоя
+  // (= два цвета). Запятую искать нельзя — она есть и внутри rgba().
+  expect(shadow.match(/rgba?\(/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+});
