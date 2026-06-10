@@ -345,6 +345,9 @@ body{
 .m-opt:active:not(:disabled){transform:scale(.99)}
 .m-opt:disabled{cursor:default}
 .m-opt-key{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:9px;background:transparent;color:var(--ink-500);font-weight:600;font-size:13px;flex-shrink:0;transition:all var(--dur)}
+/* Чип-подсказка хоткея на кнопке (↵ Enter у «Проверить»): тот же язык, что
+   m-opt-key, но поверх primary-фона — полупрозрачный белый. */
+.m-btn-key{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;padding:0 7px;border-radius:8px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);font-size:14px;font-weight:600;line-height:1}
 .m-opt-label{flex:1;min-width:0}
 .m-opt-mark{margin-left:auto;display:flex;opacity:0;transition:opacity var(--dur)}
 .m-opt-mark .lucide{width:20px;height:20px}
@@ -500,9 +503,9 @@ body{
   .m-app{padding:var(--s3) var(--s3) calc(var(--s8) + 48px + env(safe-area-inset-bottom,0px))}
 }
 
-/* ── Touch: чипы хоткеев A–E не нужны без клавиатуры ───────────────────── */
+/* ── Touch: чипы хоткеев (A–E, ↵) не нужны без клавиатуры ──────────────── */
 @media (pointer:coarse){
-  .m-opt-key{display:none}
+  .m-opt-key,.m-btn-key{display:none}
 }
 
 /* ── A11y: бывшие div-интерактивы стали <button> ───────────────────────────

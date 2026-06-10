@@ -241,3 +241,102 @@ test("the accents hint fades out after HINT_SHOW_LIMIT mounts", async ({ mount }
   const c = await mount(<TypeExercise {...props} />);
   await expect(c.locator(".m-hint")).toHaveCount(0);
 });
+
+// ── Баг-репорт владельца: Enter «проскакивает» фидбэк ────────────────────────
+test.describe("Enter в инпуте НЕ проскакивает фидбэк", () => {
+  test("верный ответ Enter'ом: фидбэк виден, onNext не вызван", async ({ mount }) => {
+    let next = 0;
+    const component = await mount(
+      <TypeExercise
+        word={word}
+        tag="new"
+        card={undefined}
+        isLast={false}
+        onAnswered={() => {}}
+        onNext={() => {
+          next += 1;
+        }}
+      />,
+    );
+    const input = component.getByPlaceholder("Ваш ответ…");
+    await input.fill("olá");
+    await input.press("Enter");
+    await expect(component.getByText("Верно!")).toBeVisible();
+    // Фидбэк должен ПЕРЕЖИТЬ нажатие: тем же Enter'ом карточку не листает.
+    await component.page().waitForTimeout(400);
+    await expect(component.getByText("Верно!")).toBeVisible();
+    expect(next).toBe(0);
+  });
+
+  test("ПУСТОЙ Enter: ретрай-подсказка, никакого перехода", async ({ mount }) => {
+    let next = 0;
+    let answered = 0;
+    const component = await mount(
+      <TypeExercise
+        word={word}
+        tag="new"
+        card={undefined}
+        isLast={false}
+        onAnswered={() => {
+          answered += 1;
+        }}
+        onNext={() => {
+          next += 1;
+        }}
+      />,
+    );
+    await component.getByPlaceholder("Ваш ответ…").press("Enter");
+    await expect(component.getByText("Не совсем!")).toBeVisible();
+    expect(next).toBe(0);
+    expect(answered).toBe(0);
+  });
+
+  test("неверный ответ со 2-й попытки Enter'ом: фидбэк виден, onNext не вызван", async ({
+    mount,
+  }) => {
+    let next = 0;
+    const component = await mount(
+      <TypeExercise
+        word={word}
+        tag="new"
+        card={undefined}
+        isLast={false}
+        onAnswered={() => {}}
+        onNext={() => {
+          next += 1;
+        }}
+      />,
+    );
+    const input = component.getByPlaceholder("Ваш ответ…");
+    await input.fill("xxx");
+    await input.press("Enter"); // 1-я попытка → ретрай
+    await expect(component.getByText("Не совсем!")).toBeVisible();
+    await input.fill("yyy");
+    await input.press("Enter"); // 2-я попытка → resolved
+    await expect(component.getByText(/Правильно:/)).toBeVisible();
+    await component.page().waitForTimeout(400);
+    await expect(component.getByText(/Правильно:/)).toBeVisible();
+    expect(next).toBe(0);
+  });
+});
+
+test("кнопка «Проверить» несёт чип-подсказку Enter (aria-hidden, имя кнопки чистое)", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <TypeExercise
+      word={word}
+      tag="new"
+      card={undefined}
+      isLast={false}
+      onAnswered={() => {}}
+      onNext={() => {}}
+    />,
+  );
+  const chip = component.locator(".m-btn-key");
+  await expect(chip).toBeVisible();
+  await expect(chip).toHaveText("↵");
+  await expect(chip).toHaveAttribute("aria-hidden", "true");
+  // Имя кнопки не «Проверить ↵» — чип скрыт от скринридера.
+  await expect(component.getByRole("button", { name: "Проверить", exact: true })).toBeVisible();
+});
