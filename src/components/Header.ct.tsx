@@ -98,7 +98,7 @@ test("before the first session of the day the streak shows a grey day circle", a
   await expect(day).not.toHaveClass(/done/);
   await expect(c.locator(".m-streak")).toHaveAttribute(
     "aria-label",
-    "Стрик 4 дн., сегодня ещё не пройдено",
+    "Стрик 4 дня, сегодня ещё не пройдено",
   );
 });
 
@@ -111,6 +111,6 @@ test("after the first session of the day the circle turns into an accent check",
   await expect(c.locator(".m-streak-day")).toHaveClass(/done/);
   await expect(c.locator(".m-streak")).toHaveAttribute(
     "aria-label",
-    "Стрик 5 дн., сегодня пройдено",
+    "Стрик 5 дней, сегодня пройдено",
   );
 });

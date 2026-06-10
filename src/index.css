@@ -452,6 +452,8 @@ body{
 
 /* ── Confirm dialog (вместо window.confirm) ────────────────────────────── */
 .m-dialog-overlay{position:fixed;inset:0;z-index:50;background:rgba(26,26,23,.35);display:flex;align-items:center;justify-content:center;padding:var(--s5);animation:m-fade var(--dur) var(--ease)}
+/* На тёмном фоне тёплая полупрозрачная подложка почти неразличима — плотнее. */
+[data-theme="dark"] .m-dialog-overlay{background:rgba(0,0,0,.55)}
 .m-dialog{max-width:320px;width:100%;box-shadow:var(--e3);text-align:center;animation:m-rise var(--dur) var(--ease)}
 .m-dialog-title{font-family:var(--font-display);font-size:19px;font-weight:700;color:var(--ink-900)}
 .m-dialog-msg{font-size:14px;color:var(--ink-600);font-weight:500;margin-top:6px;margin-bottom:16px}

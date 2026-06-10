@@ -122,6 +122,32 @@ test("logo click during a session opens the in-app exit dialog; «Выйти» l
   await expect(c.getByRole("dialog")).toHaveCount(0);
 });
 
+test("the open dialog swallows MC hotkeys — no answering through the modal", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount<HooksConfig>(<Shell themeChoice="light" onCycleTheme={noop} />, {
+    hooksConfig: { queries: queries({ seenTheory: ["l1"] }) },
+  });
+  await c.getByRole("button", { name: "Темы", exact: true }).click();
+  await c.getByText("Урок 1").click();
+  // Первая карточка нового слова — всегда выбор (MC) с хоткеями 1–5/A–E.
+  await expect(c.locator(".m-q-kind")).toContainText("Выберите");
+
+  await c.getByRole("button", { name: "На главный экран" }).click();
+  await expect(c.getByRole("dialog")).toBeVisible();
+
+  // Хоткей при открытом диалоге НЕ отвечает на карточку под модалом.
+  await page.keyboard.press("1");
+  await expect(c.locator(".m-fb")).toHaveCount(0);
+  await expect(c.getByRole("dialog")).toBeVisible();
+
+  // После «Остаться» хоткеи снова работают.
+  await c.getByRole("button", { name: "Остаться" }).click();
+  await page.keyboard.press("1");
+  await expect(c.locator(".m-fb")).toBeVisible();
+});
+
 test("«Остаться» (and Esc) keep the session running", async ({ mount, page }) => {
   const c = await mount<HooksConfig>(<Shell themeChoice="light" onCycleTheme={noop} />, {
     hooksConfig: { queries: queries({ seenTheory: ["l1"] }) },

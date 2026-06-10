@@ -36,6 +36,20 @@ export function ConfirmDialog({
     return () => openerRef.current?.focus?.();
   }, []);
 
+  // Модал должен глушить ГЛОБАЛЬНЫЕ хоткеи фона: MC-упражнение слушает keydown
+  // на window (1–5/A–E выбирают опцию) — без глушителя нажатие буквы при
+  // открытом диалоге отвечало бы на карточку ПОД модалом. Capture-фаза на
+  // window срабатывает раньше bubble-слушателя упражнения; глушим только
+  // printable-клавиши (length === 1) — Tab/Escape/Enter идут диалогу, а
+  // нативную активацию кнопок stopPropagation не трогает.
+  useEffect(() => {
+    const swallowHotkeys = (e: KeyboardEvent) => {
+      if (e.key.length === 1) e.stopPropagation();
+    };
+    window.addEventListener("keydown", swallowHotkeys, true);
+    return () => window.removeEventListener("keydown", swallowHotkeys, true);
+  }, []);
+
   function onKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Escape") {
       e.stopPropagation();

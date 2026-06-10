@@ -1,4 +1,5 @@
 import { useAuthActions } from "@convex-dev/auth/react";
+import { pluralRu } from "../lib/srs";
 import { Icon, type IconName } from "./Icon";
 import type { ThemeChoice } from "../lib/useTheme";
 
@@ -28,7 +29,9 @@ export function Header({
 }) {
   const { signOut } = useAuthActions();
   const themeLabel = THEME_LABEL[themeChoice];
-  const streakLabel = `Стрик ${streak} дн., ${doneToday ? "сегодня пройдено" : "сегодня ещё не пройдено"}`;
+  const streakLabel = `Стрик ${streak} ${pluralRu(streak, "день", "дня", "дней")}, ${
+    doneToday ? "сегодня пройдено" : "сегодня ещё не пройдено"
+  }`;
   return (
     <div className="m-header">
       <div className="m-brand">
