@@ -1,8 +1,9 @@
 {
-  // Type-checks the test files (excluded from the build configs so the Convex
-  // deploy and `tsc -b` never see them). Run via `tsc -p tsconfig.test.json`
-  // as part of `npm run typecheck`. Does NOT cover Playwright CT (*.ct.tsx) —
-  // those are type-checked by the Playwright runner.
+  // Type-checks ALL test files (excluded from the build configs so the Convex
+  // deploy and `tsc -b` never see them): Vitest unit/backend tests AND the
+  // Playwright CT files — the Playwright runner only TRANSPILES *.ct.tsx via
+  // esbuild/Vite, it does not type-check them. Run via `tsc -p tsconfig.test.json`
+  // as part of `npm run typecheck`.
   "extends": "./tsconfig.app.json",
   "compilerOptions": {
     "composite": false,
@@ -11,10 +12,15 @@
     "noUnusedParameters": false,
     "types": ["node", "vite/client"]
   },
+  // Reset the exclude inherited from tsconfig.app.json — it removes exactly the
+  // test globs listed below (exclude filters include), silently skipping them.
+  "exclude": [],
   "include": [
     "src/**/*.test.ts",
     "src/**/*.test.tsx",
+    "src/**/*.ct.tsx",
     "src/test",
+    "playwright/index.tsx",
     "convex/**/*.test.ts",
     "scripts/**/*.test.ts",
     "vitest.config.ts"
