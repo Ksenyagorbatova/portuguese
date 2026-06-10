@@ -23,6 +23,7 @@ export function Complete({
   onRestart,
   onPickLesson,
   onGoReview,
+  onGoTopics,
   onRetryMistakes,
 }: {
   correct: number;
@@ -34,6 +35,7 @@ export function Complete({
   onRestart: () => void;
   onPickLesson: (topicKey: string, lessonKey: string) => void;
   onGoReview: () => void;
+  onGoTopics: () => void;
   onRetryMistakes: () => void;
 }) {
   const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
@@ -122,6 +124,10 @@ export function Complete({
             {Math.min(dueCountAll, REVIEW_DUE_LIMIT)})
           </button>
         )}
+        {/* Выход к списку тем — всегда последний, тише primary-трамплина. */}
+        <button className="m-btn m-btn--ghost m-btn--block" onClick={onGoTopics}>
+          <Icon name="book-open" size={18} /> К темам
+        </button>
       </div>
     </div>
   );

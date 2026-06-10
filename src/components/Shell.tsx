@@ -195,6 +195,7 @@ export function Shell({
         onRestart={onRestart}
         onPickLesson={onPickLesson}
         onGoReview={() => switchTab("review")}
+        onGoTopics={() => switchTab("topics")}
         onExit={() => setView({ kind: "home" })}
         onRetryMistakes={(words) => retryMistakes(view.origin, words)}
         onComplete={() => setSessionDone(true)}

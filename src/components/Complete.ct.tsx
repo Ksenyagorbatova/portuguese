@@ -14,8 +14,24 @@ const base = {
   onRestart: noop,
   onPickLesson: noop,
   onGoReview: noop,
+  onGoTopics: noop,
   onRetryMistakes: noop,
 };
+
+// Выход к списку тем — всегда доступен с финала (фидбэк владельца: с экрана
+// завершения не было пути «назад к темам», только лого-домой на «Повторение»).
+test("«К темам» is always available on the finale and routes to the topics tab", async ({
+  mount,
+}) => {
+  let wentTopics = 0;
+  const component = await mount(
+    <Complete {...base} dueCountAll={5} onGoTopics={() => (wentTopics += 1)} />,
+  );
+  await component.getByRole("button", { name: "К темам" }).click();
+  expect(wentTopics).toBe(1);
+  // Кнопка — последняя в колонке действий (тише primary-трамплина).
+  await expect(component.locator(".m-complete-actions > :last-child")).toContainText("К темам");
+});
 
 test("celebrates a perfect score and restarts (no step forward → primary «Ещё раз»)", async ({
   mount,

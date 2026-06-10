@@ -34,6 +34,7 @@ export function Session({
   onRestart,
   onPickLesson,
   onGoReview,
+  onGoTopics,
   onExit,
   onRetryMistakes,
   onComplete,
@@ -48,6 +49,7 @@ export function Session({
   onRestart: () => void;
   onPickLesson: (topicKey: string, lessonKey: string) => void;
   onGoReview: () => void;
+  onGoTopics: () => void;
   onExit: () => void;
   // Мини-сессия с финала: повторить промахнутые слова этой сессии.
   onRetryMistakes: (words: WordView[]) => void;
@@ -128,6 +130,7 @@ export function Session({
         onRestart={onRestart}
         onPickLesson={onPickLesson}
         onGoReview={onGoReview}
+        onGoTopics={onGoTopics}
         onRetryMistakes={() => onRetryMistakes(mistakes)}
       />
     );
