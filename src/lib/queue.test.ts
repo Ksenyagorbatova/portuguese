@@ -1,10 +1,22 @@
 import { describe, it, expect, vi } from "vitest";
-import { buildLessonQueue, buildReviewQueue, queueCounts, REVIEW_DUE_LIMIT } from "./queue";
+import { buildLessonQueue, buildReviewQueue, REVIEW_DUE_LIMIT } from "./queue";
 import { wKey } from "./srs";
-import type { Course, LessonView, SrsState, Stat } from "./types";
+import type { Course, LessonView, SessionItem, SrsState, Stat } from "./types";
 
 // shuffle → identity so queue order/slicing is deterministic to assert on.
 vi.mock("./shuffle", () => ({ shuffle: <T>(a: readonly T[]): T[] => [...a] }));
+
+// Local tally of queue items by badge (срочные · новые · повторения · сочетания).
+function queueCounts(queue: SessionItem[]): { due: number; nw: number; rv: number; cr: number } {
+  const c = { due: 0, nw: 0, rv: 0, cr: 0 };
+  for (const it of queue) {
+    if (it.kind === "sentence") c.cr++;
+    else if (it.tag === "due") c.due++;
+    else if (it.tag === "new") c.nw++;
+    else if (it.tag === "review") c.rv++;
+  }
+  return c;
+}
 
 function srsOf(over: Partial<SrsState> = {}): SrsState {
   return {
@@ -151,13 +163,5 @@ describe("cross-sentence gate (topic ≥80% + required learned)", () => {
   it("hides the sentence if a required word is not learned, even at 80%", () => {
     const srs = srsOf({ learnedPts: ["a"], topicStats: stat(4) }); // b missing
     expect(queueCounts(buildLessonQueue(gateLesson, srs, gateCourse)).cr).toBe(0);
-  });
-});
-
-describe("queueCounts", () => {
-  it("counts word items by tag", () => {
-    const q = buildLessonQueue(lesson, srsOf(), course);
-    const c = queueCounts(q);
-    expect(c.nw + c.due + c.rv).toBe(q.filter((i) => i.kind === "word").length);
   });
 });

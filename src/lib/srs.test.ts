@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { adaptSrs, wKey, nextDueLabel, intervalLabel, pluralRu } from "./srs";
+import { adaptSrs, wKey, nextDueLabel, pluralRu } from "./srs";
 
 describe("pluralRu", () => {
   const words = (n: number) => pluralRu(n, "слово", "слова", "слов");
@@ -82,15 +82,5 @@ describe("nextDueLabel", () => {
     // a year+ — including the legacy «through 455 days» case
     expect(nextDueLabel(card(330 * day))).toBe("примерно через год");
     expect(nextDueLabel(card(455 * day))).toBe("примерно через год");
-  });
-});
-
-describe("intervalLabel", () => {
-  it("formats the interval buckets", () => {
-    const base = { ef: 2.5, due: 0, seen: 1, correct: 1, lastSeen: 0, mcCorrect: 1, typeCorrect: 0 };
-    expect(intervalLabel(undefined)).toBe("");
-    expect(intervalLabel({ ...base, interval: 1 })).toBe("1 день");
-    expect(intervalLabel({ ...base, interval: 3 })).toBe("3 дня");
-    expect(intervalLabel({ ...base, interval: 10 })).toBe("10 дн.");
   });
 });

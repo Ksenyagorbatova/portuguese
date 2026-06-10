@@ -50,10 +50,11 @@ export function pluralRu(n: number, one: string, few: string, many: string): str
   return many;
 }
 
-// Display labels (ported from nextDueLabel/intervalLabel). Computed client-side
-// from the card + current time; purely presentational. Большие интервалы
-// округляем в недели/месяцы/«примерно через год» — «через 455 дн» читается как
-// сломанное (а на проде у части слов до миграции лежат именно такие легаси-due).
+// Display label for the next review (ported from the original nextDueLabel).
+// Computed client-side from the card + current time; purely presentational.
+// Большие интервалы округляем в недели/месяцы/«примерно через год» — «через
+// 455 дн» читается как сломанное (а на проде у части слов до миграции лежат
+// именно такие легаси-due).
 export function nextDueLabel(card: CardFields | undefined): string {
   if (!card || !card.seen) return "новое";
   const days = Math.round((card.due - Date.now()) / 86400000);
@@ -69,11 +70,4 @@ export function nextDueLabel(card: CardFields | undefined): string {
     return `через ${m} ${pluralRu(m, "месяц", "месяца", "месяцев")}`;
   }
   return "примерно через год";
-}
-
-export function intervalLabel(card: CardFields | undefined): string {
-  if (!card || !card.seen) return "";
-  if (card.interval <= 1) return "1 день";
-  if (card.interval < 7) return `${card.interval} дня`;
-  return `${card.interval} дн.`;
 }

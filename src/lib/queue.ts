@@ -109,23 +109,3 @@ export function buildReviewQueue(course: Course, srs: SrsState): SessionItem[] {
     });
   return q;
 }
-
-// Session status-chip counts (срочных · новых · повторений · сочетаний).
-export function queueCounts(
-  queue: SessionItem[],
-): { due: number; nw: number; rv: number; cr: number } {
-  let due = 0;
-  let nw = 0;
-  let rv = 0;
-  let cr = 0;
-  for (const it of queue) {
-    if (it.kind === "sentence") {
-      cr++;
-      continue;
-    }
-    if (it.tag === "due") due++;
-    else if (it.tag === "new") nw++;
-    else if (it.tag === "review") rv++;
-  }
-  return { due, nw, rv, cr };
-}

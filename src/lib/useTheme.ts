@@ -32,11 +32,6 @@ function prefersDark(): boolean {
   }
 }
 
-export function resolveTheme(choice: ThemeChoice): Theme {
-  if (choice === "light" || choice === "dark") return choice;
-  return prefersDark() ? "dark" : "light";
-}
-
 function initialChoice(): ThemeChoice {
   try {
     const saved = localStorage.getItem("theme");

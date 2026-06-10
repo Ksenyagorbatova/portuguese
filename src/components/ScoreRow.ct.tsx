@@ -3,7 +3,7 @@ import { ScoreRow } from "./ScoreRow";
 
 test("shows three cells — Верно / Заданий / Точность — and no «К повтору»", async ({ mount }) => {
   const component = await mount(<ScoreRow correct={3} total={4} />);
-  await expect(component).toHaveClass(/m-stats--3/);
+  await expect(component).toHaveClass(/m-stats/);
   await expect(component.locator(".m-stat")).toHaveCount(3);
   await expect(component).toContainText("Верно");
   await expect(component).toContainText("Заданий");

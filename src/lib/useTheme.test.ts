@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
-import { nextThemeChoice, resolveTheme, useTheme } from "./useTheme";
+import { nextThemeChoice, useTheme } from "./useTheme";
 
 // A controllable matchMedia stub: jsdom doesn't implement matchMedia, and the
 // hook follows the OS while on "system", so we drive it from the test.
@@ -66,21 +66,6 @@ describe("nextThemeChoice", () => {
     expect(nextThemeChoice("light")).toBe("dark");
     expect(nextThemeChoice("dark")).toBe("system");
     expect(nextThemeChoice("system")).toBe("light");
-  });
-});
-
-describe("resolveTheme", () => {
-  it("returns the explicit choice verbatim", () => {
-    stubMatchMedia(true);
-    expect(resolveTheme("light")).toBe("light");
-    expect(resolveTheme("dark")).toBe("dark");
-  });
-
-  it("follows the OS for system", () => {
-    stubMatchMedia(true);
-    expect(resolveTheme("system")).toBe("dark");
-    stubMatchMedia(false);
-    expect(resolveTheme("system")).toBe("light");
   });
 });
 
