@@ -1,5 +1,8 @@
 # Weekly dependency update PRs: npm packages and the GitHub Actions pinned by
 # commit SHA in .github/workflows (Dependabot bumps the SHA + `# vX` comment).
+# Cooldown delays VERSION updates after a release (supply-chain hygiene: malicious
+# npm versions are usually pulled within hours/days). Dependabot SECURITY updates
+# bypass cooldown — but only if enabled in repo Settings > Advanced Security.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -7,9 +10,14 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
 
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    cooldown:
+      default-days: 7
