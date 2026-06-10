@@ -1,7 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { convexTest } from "convex-test";
+import { convexTest, type TestConvex } from "convex-test";
 import { api, internal } from "./_generated/api";
 import schema from "./schema";
+// Кросс-слойный пин порогов: backend-тесты намеренно берут MC_TARGET/TYPE_TARGET
+// из КЛИЕНТСКОГО модуля (src/lib/learning — чистый TS без внешних API). Серверная
+// копия констант живёт в convex/progress.ts (Convex бандлится отдельно) — если
+// ЛЮБАЯ из двух копий разъедется, graduate-циклы ниже перестанут попадать в
+// серверный порог и тесты упадут.
+import { MC_TARGET, TYPE_TARGET } from "../src/lib/learning";
 
 const modules = import.meta.glob(["./**/*.*s", "!./**/*.test.ts"]);
 
@@ -39,14 +45,15 @@ async function seedLesson(t: ReturnType<typeof convexTest>) {
 
 type AuthCtx = Awaited<ReturnType<typeof asUser>>["as"];
 
-// Drive a word to «learned»: MC_TARGET (3) correct choices + TYPE_TARGET (3)
-// correct manual inputs. Returns the graduating answer's result. Mirrors what
-// the in-session rotation produces, all within one session.
+// Drive a word to «learned»: MC_TARGET correct choices + TYPE_TARGET correct
+// manual inputs (константы — из клиентского src/lib/learning, см. импорт выше).
+// Returns the graduating answer's result. Mirrors what the in-session rotation
+// produces, all within one session.
 async function graduate(as: AuthCtx) {
-  for (let i = 0; i < 3; i++)
+  for (let i = 0; i < MC_TARGET; i++)
     await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "mc" });
   let res!: Awaited<ReturnType<typeof as.mutation>>;
-  for (let i = 0; i < 3; i++)
+  for (let i = 0; i < TYPE_TARGET; i++)
     res = await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "type" });
   return res;
 }
@@ -66,17 +73,19 @@ describe("recordAnswer — SM-2 only advances on a review event", () => {
     const t = convexTest(schema, modules);
     const { as } = await asUser(t);
     await seedWordA(t);
-    // 3 MC + 2 Type — pre-mastery drilling. Counters grow but the interval must
-    // stay at 0 (no ladder-climbing): applying SM-2 on every rep is what blew
-    // the interval up to «4131 дн». `due` is only a short learning step.
-    for (let i = 0; i < 3; i++)
+    // MC_TARGET MC + (TYPE_TARGET−1) Type — pre-mastery drilling, на один ответ
+    // меньше выпуска. Counters grow but the interval must stay at 0 (no
+    // ladder-climbing): applying SM-2 on every rep is what blew the interval up
+    // to «4131 дн». `due` is only a short learning step.
+    for (let i = 0; i < MC_TARGET; i++)
       await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "mc" });
-    let res = await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "type" });
-    expect(res.card.interval).toBe(0);
-    res = await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "type" });
-    expect(res.card.interval).toBe(0);
-    expect(res.card.mcCorrect).toBe(3);
-    expect(res.card.typeCorrect).toBe(2);
+    let res!: Awaited<ReturnType<typeof as.mutation>>;
+    for (let i = 0; i < TYPE_TARGET - 1; i++) {
+      res = await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "type" });
+      expect(res.card.interval).toBe(0);
+    }
+    expect(res.card.mcCorrect).toBe(MC_TARGET);
+    expect(res.card.typeCorrect).toBe(TYPE_TARGET - 1);
     // due is a ~1-day learning step, never an exploded value.
     expect(res.card.due).toBeLessThanOrEqual(Date.now() + 2 * 86400000);
   });
@@ -87,9 +96,42 @@ describe("recordAnswer — SM-2 only advances on a review event", () => {
     await seedWordA(t);
     const res = await graduate(as);
     expect(res.card.interval).toBe(1);
-    expect(res.card.mcCorrect).toBe(3);
-    expect(res.card.typeCorrect).toBe(3);
+    expect(res.card.mcCorrect).toBe(MC_TARGET);
+    expect(res.card.typeCorrect).toBe(TYPE_TARGET);
     expect(res.card.due).toBeGreaterThan(0);
+  });
+
+  // Кросс-слойный пин порогов: «(MC_TARGET−1) верных MC недостаточно для
+  // learned» — и зеркально для Type. Выпуск (interval 0→1) обязан случиться
+  // РОВНО на ответе, добирающем клиентские константы: если серверная копия
+  // порога меньше — выпуск случится раньше (interval≠0 до добора), если больше —
+  // не случится на добирающем ответе (interval≠1). Любой рассинхрон — красный.
+  it("(MC_TARGET−1) верных MC недостаточно — выпуск ровно на доборе MC", async () => {
+    const t = convexTest(schema, modules);
+    const { as } = await asUser(t);
+    await seedWordA(t);
+    for (let i = 0; i < TYPE_TARGET; i++)
+      await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "type" });
+    for (let i = 0; i < MC_TARGET - 1; i++) {
+      const res = await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "mc" });
+      expect(res.card.interval).toBe(0); // ещё не выучено — расписание не двигалось
+    }
+    const grad = await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "mc" });
+    expect(grad.card.interval).toBe(1); // именно этот ответ выпускает
+  });
+
+  it("(TYPE_TARGET−1) верных вводов недостаточно — выпуск ровно на доборе Type", async () => {
+    const t = convexTest(schema, modules);
+    const { as } = await asUser(t);
+    await seedWordA(t);
+    for (let i = 0; i < MC_TARGET; i++)
+      await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "mc" });
+    for (let i = 0; i < TYPE_TARGET - 1; i++) {
+      const res = await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "type" });
+      expect(res.card.interval).toBe(0);
+    }
+    const grad = await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "type" });
+    expect(grad.card.interval).toBe(1);
   });
 
   it("does NOT move the schedule when a learned word is practised early (not due)", async () => {
@@ -103,6 +145,61 @@ describe("recordAnswer — SM-2 only advances on a review event", () => {
     expect(early.card.interval).toBe(grad.card.interval);
     expect(early.card.due).toBe(grad.card.due);
     expect(early.card.seen).toBe(grad.card.seen + 1);
+  });
+
+  describe("lapse выученного при ранней практике (quality=0)", () => {
+    const DAY = 86400000;
+
+    // Выученное слово с далёким due (≈30 дн): полный провал на ранней практике
+    // приближает повтор (interval=1, due≈завтра), ef не штрафуется.
+    async function learnedFarOut(t: ReturnType<typeof convexTest>, as: AuthCtx) {
+      await graduate(as);
+      await t.run(async (ctx) => {
+        const rows = await ctx.db.query("progress").collect();
+        for (const row of rows)
+          await ctx.db.patch(row._id, { interval: 30, due: Date.now() + 30 * DAY });
+      });
+      const row = await t.run(async (ctx) => (await ctx.db.query("progress").collect())[0]);
+      return row;
+    }
+
+    it("quality=0 → interval=1, due≈завтра, ef прежний", async () => {
+      const t = convexTest(schema, modules);
+      const { as } = await asUser(t);
+      await seedWordA(t);
+      const before = await learnedFarOut(t, as);
+
+      const lapse = await as.mutation(api.progress.recordAnswer, { ...W, quality: 0, mode: "type" });
+      expect(lapse.card.interval).toBe(1);
+      expect(lapse.card.due).toBeGreaterThan(Date.now());
+      expect(lapse.card.due).toBeLessThanOrEqual(Date.now() + DAY + 1000);
+      // ef-штраф остаётся на due-повторах — ранний lapse его не трогает.
+      expect(lapse.card.ef).toBe(before.ef);
+    });
+
+    it("quality=2 → расписание не тронуто (ранняя практика как раньше)", async () => {
+      const t = convexTest(schema, modules);
+      const { as } = await asUser(t);
+      await seedWordA(t);
+      const before = await learnedFarOut(t, as);
+
+      const ok = await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "type" });
+      expect(ok.card.interval).toBe(before.interval);
+      expect(ok.card.due).toBe(before.due);
+      expect(ok.card.ef).toBe(before.ef);
+    });
+
+    it("quality=1 → расписание не тронуто", async () => {
+      const t = convexTest(schema, modules);
+      const { as } = await asUser(t);
+      await seedWordA(t);
+      const before = await learnedFarOut(t, as);
+
+      const half = await as.mutation(api.progress.recordAnswer, { ...W, quality: 1, mode: "type" });
+      expect(half.card.interval).toBe(before.interval);
+      expect(half.card.due).toBe(before.due);
+      expect(half.card.ef).toBe(before.ef);
+    });
   });
 
   it("walks the interval ladder 1 → 6 on the next DUE review of a learned word", async () => {
@@ -139,7 +236,7 @@ describe("recordAnswer — SM-2 only advances on a review event", () => {
     const wrong = await as.mutation(api.progress.recordAnswer, { ...W, quality: 0, mode: "type" });
     expect(wrong.card.interval).toBe(1);
     // Still mastered — counters only grow, a single lapse doesn't unlearn it.
-    expect(wrong.card.typeCorrect).toBeGreaterThanOrEqual(3);
+    expect(wrong.card.typeCorrect).toBeGreaterThanOrEqual(TYPE_TARGET);
   });
 
   it("keeps the ease factor at or above the 1.3 floor on repeated lapses", async () => {
@@ -219,20 +316,20 @@ describe("getSrsState", () => {
     await seedWordA(t);
     await seedLesson(t);
 
-    // Three correct MC answers do NOT make it learned (recognition ≠ mastery).
-    for (let i = 0; i < 3; i++)
+    // MC_TARGET correct MC answers do NOT make it learned (recognition ≠ mastery).
+    for (let i = 0; i < MC_TARGET; i++)
       await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "mc" });
     let srs = await as.query(api.progress.getSrsState, {});
     expect(srs!.lessonStats["l1"].learned).toBe(0);
     expect(srs!.learnedPts).not.toContain("a");
 
-    // Two correct Type answers — still not learned (need 3).
-    await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "type" });
-    await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "type" });
+    // (TYPE_TARGET−1) correct Type answers — still not learned.
+    for (let i = 0; i < TYPE_TARGET - 1; i++)
+      await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "type" });
     srs = await as.query(api.progress.getSrsState, {});
     expect(srs!.lessonStats["l1"].learned).toBe(0);
 
-    // Third correct Type answer → both skills met → learned.
+    // Добирающий Type-ответ → both skills met → learned.
     await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "type" });
     srs = await as.query(api.progress.getSrsState, {});
     expect(srs!.lessonStats["l1"].learned).toBe(1);
@@ -245,8 +342,8 @@ describe("getSrsState", () => {
     const { as } = await asUser(t);
     await seedWordA(t);
     await seedLesson(t);
-    // Three correct Type answers but zero MC → recognition is still owed.
-    for (let i = 0; i < 3; i++)
+    // TYPE_TARGET correct Type answers but zero MC → recognition is still owed.
+    for (let i = 0; i < TYPE_TARGET; i++)
       await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "type" });
     const srs = await as.query(api.progress.getSrsState, {});
     expect(srs!.lessonStats["l1"].learned).toBe(0);
@@ -369,6 +466,119 @@ describe("recordAnswer — валидация натурального ключ�
       }),
     ).rejects.toThrow(/unknown word/);
     expect(await t.run((ctx) => ctx.db.query("progress").collect())).toHaveLength(0);
+  });
+});
+
+describe("recordAnswer — честный стрик по clientDay", () => {
+  type UserId = Awaited<ReturnType<typeof asUser>>["userId"];
+
+  // Перевести существующую строку userStats в нужное состояние «прошлого»
+  // (строка уже создана первым ответом — см. тесты ниже). Точный тип t (с
+  // дженериком схемы) нужен ради типизации withIndex.
+  async function setStats(
+    t: TestConvex<typeof schema>,
+    userId: UserId,
+    streak: number,
+    lastDay: string,
+  ) {
+    await t.run(async (ctx) => {
+      const row = await ctx.db
+        .query("userStats")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .unique();
+      if (row) await ctx.db.patch(row._id, { streak, lastDay });
+    });
+  }
+
+  async function readStats(t: ReturnType<typeof convexTest>) {
+    return await t.run(async (ctx) => (await ctx.db.query("userStats").collect())[0]);
+  }
+
+  function answer(as: AuthCtx, clientDay?: string) {
+    return as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "mc", clientDay });
+  }
+
+  it("тот же день — стрик не растёт", async () => {
+    const t = convexTest(schema, modules);
+    const { as } = await asUser(t);
+    await seedWordA(t);
+    const first = await answer(as, "2026-06-10");
+    expect(first.streak).toBe(1);
+    const second = await answer(as, "2026-06-10");
+    expect(second.streak).toBe(1);
+    expect((await readStats(t)).lastDay).toBe("2026-06-10");
+  });
+
+  it("вчера → +1", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, as } = await asUser(t);
+    await seedWordA(t);
+    await answer(as, "2026-06-09");
+    await setStats(t, userId, 4, "2026-06-09");
+
+    const res = await answer(as, "2026-06-10");
+    expect(res.streak).toBe(5);
+    expect((await readStats(t)).lastDay).toBe("2026-06-10");
+  });
+
+  it("пропуск ≥1 дня → сброс в 1", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, as } = await asUser(t);
+    await seedWordA(t);
+    await answer(as, "2026-06-05");
+    await setStats(t, userId, 9, "2026-06-05");
+
+    const res = await answer(as, "2026-06-10");
+    expect(res.streak).toBe(1);
+    expect((await readStats(t)).lastDay).toBe("2026-06-10");
+  });
+
+  it("legacy-формат lastDay (toDateString) мигрирует корректно: вчера → +1, формат становится YYYY-MM-DD", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, as } = await asUser(t);
+    await seedWordA(t);
+    // Сегодня/вчера — от одного и того же момента и в ОДНОЙ (локальной) TZ
+    // раннера, как их писал бы старый сервер и шлёт новый клиент.
+    const now = Date.now();
+    const todayLocal = new Date(now).toLocaleDateString("en-CA"); // YYYY-MM-DD
+    const yesterdayLegacy = new Date(now - 86400000).toDateString(); // «Mon Jun 09 2026»
+
+    await answer(as, todayLocal);
+    await setStats(t, userId, 6, yesterdayLegacy);
+
+    const res = await answer(as, todayLocal);
+    expect(res.streak).toBe(7);
+    expect((await readStats(t)).lastDay).toBe(todayLocal); // формат мигрировал
+  });
+
+  it("clientDay РАНЬШЕ lastDay (смена пояса) → no-op, не сбрасываем", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, as } = await asUser(t);
+    await seedWordA(t);
+    await answer(as, "2026-06-10");
+    await setStats(t, userId, 3, "2026-06-10");
+
+    const res = await answer(as, "2026-06-09");
+    expect(res.streak).toBe(3); // не сброшен и не увеличен
+    expect((await readStats(t)).lastDay).toBe("2026-06-10"); // остался поздний день
+  });
+
+  it("невалидный clientDay → fallback на серверную UTC-дату", async () => {
+    const t = convexTest(schema, modules);
+    const { as } = await asUser(t);
+    await seedWordA(t);
+    const res = await answer(as, "10.06.2026"); // не YYYY-MM-DD
+    expect(res.streak).toBe(1);
+    expect((await readStats(t)).lastDay).toBe(new Date().toISOString().slice(0, 10));
+  });
+
+  it("без clientDay (старый фронт) → серверная UTC-дата", async () => {
+    const t = convexTest(schema, modules);
+    const { as } = await asUser(t);
+    await seedWordA(t);
+    const res = await answer(as);
+    expect(res.streak).toBe(1);
+    expect((await readStats(t)).lastDay).toBe(new Date().toISOString().slice(0, 10));
   });
 });
 
