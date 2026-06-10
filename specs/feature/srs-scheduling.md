@@ -23,14 +23,18 @@
 | `lastSeen` | number | ms epoch |
 | `mcCorrect`,`typeCorrect` | optional number | этапные счётчики (старые строки = 0) |
 
-Индексы: `by_user_lesson_pt`, `by_user_lesson`, `by_user`. Сопутствующие таблицы:
+Индексы: `by_user_lesson_pt`, `by_user`. Сопутствующие таблицы:
 `userStats` (streak/lastDay), `theorySeen` (userId, lessonKey).
 
 API ([`convex/progress.ts`](../../convex/progress.ts)):
 - `getSrsState()` — батч-query для всего дашборда; возвращает `streak`, `cards[]`,
   `tags[]`, `seenTheory[]`, `learnedPts[]`, `dueCountAll`, `lessonStats`, `topicStats`.
 - `recordAnswer({ lessonKey, pt, quality: 0|1|2, mode: "mc"|"type" })` → `{ card, streak }`.
-- `markTheorySeen({ lessonKey })`.
+  Валидирует натуральный ключ: слова `(lessonKey, pt)` нет в контенте → `ConvexError`
+  «unknown word» (одно indexed-чтение `words.by_lessonKey_pt`) — опечатка клиента
+  не создаёт осиротевшую progress-строку.
+- `markTheorySeen({ lessonKey })` — аналогично валидирует урок по
+  `lessons.by_lessonKey` → `ConvexError` «unknown lesson».
 - `reclampSchedules()` — internalMutation, одноразовая миграция данных.
 
 ## Поведение
