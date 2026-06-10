@@ -5,7 +5,14 @@ import {
   remainingReps,
   MC_TARGET,
   TYPE_TARGET,
+  TYPE_TAIL_MC_CHANCE,
 } from "./learning";
+
+// Последовательность значений rnd для веток с несколькими бросками.
+const rndSeq = (...vals: number[]) => {
+  let i = 0;
+  return () => vals[Math.min(i++, vals.length - 1)];
+};
 
 describe("isWordLearned", () => {
   it("is false without a card or when either skill is below target", () => {
@@ -26,9 +33,24 @@ describe("isWordLearned", () => {
 describe("pickExerciseType (mixed MC/Type until learned)", () => {
   const r = (v: number) => () => v;
 
-  it("picks the manual input when only Type is still owed", () => {
-    expect(pickExerciseType({ mcCorrect: MC_TARGET, typeCorrect: 0 }, "new", r(0.1))).toBe("type_pt");
+  it("picks the manual input when only Type is still owed (вне relief-шанса)", () => {
+    // Первый бросок ≥ TYPE_TAIL_MC_CHANCE → ввод, как и раньше.
+    expect(pickExerciseType({ mcCorrect: MC_TARGET, typeCorrect: 0 }, "new", r(0.3))).toBe("type_pt");
     expect(pickExerciseType({ mcCorrect: MC_TARGET, typeCorrect: 1 }, "new", r(0.9))).toBe("type_pt");
+  });
+
+  it("«хвост из вводов» изредка разбавляется выбором СВЕРХ порога (relief)", () => {
+    // Узнавание набрано, остался ввод: бросок < TYPE_TAIL_MC_CHANCE → выбор,
+    // направление — вторым броском.
+    const tail = { mcCorrect: MC_TARGET, typeCorrect: 1 };
+    expect(pickExerciseType(tail, "new", rndSeq(0.1, 0.2))).toBe("mc_pt_ru");
+    expect(pickExerciseType(tail, "new", rndSeq(0.1, 0.8))).toBe("mc_ru_pt");
+    // Ровно на пороге — уже ввод (строгое <).
+    expect(pickExerciseType(tail, "new", r(TYPE_TAIL_MC_CHANCE))).toBe("type_pt");
+  });
+
+  it("relief не трогает обратный хвост: только MC в недоборе → всегда выбор", () => {
+    expect(pickExerciseType({ mcCorrect: 1, typeCorrect: TYPE_TARGET }, "new", r(0.1))).toBe("mc_pt_ru");
   });
 
   it("picks multiple-choice (direction by rnd) when only MC is still owed", () => {
