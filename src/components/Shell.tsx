@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { LessonView, SessionItem, SessionOrigin, TopicView } from "../lib/types";
@@ -30,7 +30,9 @@ export function Shell({
   const course = useQuery(api.courseQueries.getCourse);
   const rawSrs = useQuery(api.progress.getSrsState);
   const markTheorySeen = useMutation(api.progress.markTheorySeen);
-  const srs = rawSrs == null ? rawSrs : adaptSrs(rawSrs);
+  // adaptSrs rebuilds the keyed maps from the array payload — memoize so the
+  // rebuild happens per server update, not on every render.
+  const srs = useMemo(() => (rawSrs == null ? rawSrs : adaptSrs(rawSrs)), [rawSrs]);
 
   const [tab, setTab] = useState<Tab>("review");
   const [view, setView] = useState<View>({ kind: "home" });
@@ -76,6 +78,13 @@ export function Shell({
   function switchTab(t: Tab) {
     setTab(t);
     setView({ kind: "home" });
+  }
+  // Logo-«домой» during an active session would silently kill the progress —
+  // ask first. Other switchTab callers (Complete's «К повторению», Theory's
+  // «Назад») don't interrupt anything and stay confirm-free.
+  function goHome() {
+    if (view.kind === "session" && !window.confirm("Выйти из тренировки?")) return;
+    switchTab("review");
   }
   function findLesson(topicKey: string, lessonKey: string): LessonView | null {
     return (
@@ -160,7 +169,7 @@ export function Shell({
         streak={s.streak}
         themeChoice={themeChoice}
         onCycleTheme={onCycleTheme}
-        onHome={() => switchTab("review")}
+        onHome={goHome}
       />
       {!inSession && (
         <>

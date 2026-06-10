@@ -3,6 +3,9 @@
 // client. useMutation returns a no-op that resolves a value shaped like
 // progress.recordAnswer (card + streak), which the exercises read for the
 // "next review" label.
+import { getFunctionName } from "convex/server";
+import type { FunctionReference } from "convex/server";
+
 export function useMutation() {
   return async () => ({
     card: {
@@ -19,6 +22,17 @@ export function useMutation() {
   });
 }
 
-export function useQuery() {
-  return undefined;
+// Per-test query fixtures, keyed by "module:function" name (e.g.
+// "courseQueries:getCourse"). Tests pass them through mount's hooksConfig;
+// playwright/index.tsx feeds them here in beforeMount — both run in the same
+// browser bundle as this stub. Without fixtures every query returns undefined
+// (the Convex "loading" state), which is what the older CT tests rely on.
+let queryData: Record<string, unknown> = {};
+
+export function __setQueryData(data: Record<string, unknown>): void {
+  queryData = data;
+}
+
+export function useQuery(ref: FunctionReference<"query">): unknown {
+  return queryData[getFunctionName(ref)];
 }
