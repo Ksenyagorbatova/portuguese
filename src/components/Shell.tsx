@@ -5,6 +5,7 @@ import type { LessonView, SessionItem, SessionOrigin, TopicView } from "../lib/t
 import { buildLessonQueue, buildReviewQueue } from "../lib/queue";
 import { adaptSrs } from "../lib/srs";
 import { Header } from "./Header";
+import { OfflineBanner } from "./OfflineBanner";
 import { ScoreRow } from "./ScoreRow";
 import { TabBar } from "./TabBar";
 import { ReviewTab } from "./ReviewTab";
@@ -162,6 +163,7 @@ export function Shell({
         onCycleTheme={onCycleTheme}
         onHome={() => switchTab("review")}
       />
+      <OfflineBanner />
       {!inSession && (
         <>
           {score.total > 0 && <ScoreRow correct={score.correct} total={score.total} />}
