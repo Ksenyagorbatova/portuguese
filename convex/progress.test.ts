@@ -310,6 +310,28 @@ describe("getSrsState", () => {
     expect(await t.query(api.progress.getSrsState, {})).toBeNull();
   });
 
+  // П.7 (дизайн-ревью v2): сырьё для галочки «день закрыт». Сервер отдаёт
+  // lastDay (день стрика, локальный день клиента из clientDay); doneToday
+  // вычисляет КЛИЕНТ (adaptSrs) — «сегодня» в таймзоне пользователя знает
+  // только он, а у query нет аргументов.
+  it("exposes the streak's lastDay (null before the first answer)", async () => {
+    const t = convexTest(schema, modules);
+    const { as } = await asUser(t);
+    await seedWordA(t);
+
+    let srs = await as.query(api.progress.getSrsState, {});
+    expect(srs!.lastDay).toBeNull();
+
+    await as.mutation(api.progress.recordAnswer, {
+      ...W,
+      quality: 2,
+      mode: "mc",
+      clientDay: "2026-06-10",
+    });
+    srs = await as.query(api.progress.getSrsState, {});
+    expect(srs!.lastDay).toBe("2026-06-10");
+  });
+
   it("marks a word learned only once BOTH MC and Type targets are met", async () => {
     const t = convexTest(schema, modules);
     const { as } = await asUser(t);

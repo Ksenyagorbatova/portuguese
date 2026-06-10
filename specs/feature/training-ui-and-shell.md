@@ -31,14 +31,19 @@
   `TabBar` — остаётся «само поле тренировки». `ScoreRow` показывается только ПОСЛЕ
   сессии (`score.total > 0`).
 - **Выход по логотипу из активной сессии — через подтверждение**: `goHome`
-  спрашивает `window.confirm("Выйти из тренировки?")` и при отмене оставляет
-  сессию. «Активная» = `view.kind === "session"` и НЕ `sessionDone`: `Complete`
-  рендерится внутри `Session` (`view.kind` не меняется), поэтому Session
-  сигналит опциональным `onComplete?` из `advance()` при исчерпании очереди,
-  Shell ставит флаг `sessionDone` (сброс — в `startReview`/`startLesson`) — и
-  с экрана Complete логотип уходит домой без вопроса. Confirm только на пути
-  логотипа: «К повторению» с экрана `Complete` и «Назад» из теории уходят без
-  вопроса (там нечего терять).
+  открывает внутренний
+  [`ConfirmDialog`](../../src/components/ConfirmDialog.tsx) («Выйти из
+  тренировки?» / «Прогресс этой сессии не сохранится.»; `window.confirm`
+  заменён — системный диалог нестилизуем). Модальная семантика: `role="dialog"`
+  `aria-modal`, фокус при открытии на безопасной «Остаться», Esc и клик по
+  подложке = «остаться», Tab зациклен между кнопками; фейд+подъём за `--dur` с
+  гейтом `prefers-reduced-motion`. «Активная» = `view.kind === "session"` и НЕ
+  `sessionDone`: `Complete` рендерится внутри `Session` (`view.kind` не
+  меняется), поэтому Session сигналит опциональным `onComplete?` из `advance()`
+  при исчерпании очереди, Shell ставит флаг `sessionDone` (сброс — в
+  `startReview`/`startLesson`) — и с экрана Complete логотип уходит домой без
+  вопроса. Диалог только на пути логотипа: «К повторению» с экрана `Complete`
+  и «Назад» из теории уходят без вопроса (там нечего терять).
 - Под хедером — [`OfflineBanner`](../../src/components/OfflineBanner.tsx)
   (`useConvexConnectionState().isWebSocketConnected`): при разрыве соединения
   ненавязчивый баннер «Нет соединения — ответы сохранятся…» (класс `.m-offline`,
@@ -48,10 +53,13 @@
 
 **Хедер** ([`src/components/Header.tsx`](../../src/components/Header.tsx)): слева
 логотип-кнопка «на главный экран» (`onHome → вкладка «Повторение»`; во время
-сессии — с confirm, см. выше; фон — флаг Португалии, токены
+сессии — через ConfirmDialog, см. выше; фон — флаг Португалии, токены
 `--flag-green`/`--flag-red`, только в иконке). Справа по
-порядку: стрик 🔥, переключатель темы (3 режима, см.
-[`theme-system-mode.md`](theme-system-mode.md)), выход (`log-out`, крайний правый).
+порядку: стрик 🔥 со статусом «день закрыт» (кружок 16px `m-streak-day`:
+`--surface-3` + серая галочка до первой сессии дня, `--accent` + белая после —
+по `doneToday` из `adaptSrs`; `aria-label` пилюли проговаривает состояние),
+переключатель темы (3 режима, см. [`theme-system-mode.md`](theme-system-mode.md)),
+выход (`log-out`, крайний правый).
 
 **Сессия** ([`src/components/Session.tsx`](../../src/components/Session.tsx)): строка
 прогресса показывает **позицию** `idx+1/queue.length` (очередь статична —
@@ -122,7 +130,14 @@
 [`../fix/exercise-network-resilience.md`](../fix/exercise-network-resilience.md).
 
 **Озвучка** ([`src/lib/speech.ts`](../../src/lib/speech.ts)) — Web Speech API,
-чисто клиентская (`primeVoices`, `speak`).
+чисто клиентская (`primeVoices`, `speak(text, {rate?})` — обычная скорость 0.9,
+`speakSmart` — повторный тап по ТОМУ ЖЕ тексту в течение 4с играет медленно
+0.6, затем цикл заново; другой текст сбрасывает цикл). `speakSmart` подключён
+к кнопке 🔊 в MC (`aria-label`/`title` «Прослушать (второй тап — медленно)») и
+к флип-картам теории; авто-озвучка после ответа — обычный `speak`.
+
+**Тач**: чипы хоткеев `m-opt-key` скрыты на `pointer:coarse` (на телефоне они
+ничего не делают); раскладка `m-opt` остаётся ровной без чипа.
 
 **Клавиатура и a11y** (ветка `fix/a11y-keyboard`, см.
 [`../fix/a11y-keyboard.md`](../fix/a11y-keyboard.md)):
@@ -175,15 +190,17 @@
 `Shell` стаб `useQuery` отдаёт фикстуры по имени функции (`getFunctionName`),
 которые тест передаёт через `mount(..., { hooksConfig: { queries } })` →
 `beforeMount` в [`playwright/index.tsx`](../../playwright/index.tsx).
-`Shell.ct.tsx` покрывает онбординг теории (просмотрена/нет), confirm выхода
-из сессии (принял/отменил/на экране Complete без confirm/вне сессии) и перекат
-финального CTA на следующую тему при 100% темы.
+`Shell.ct.tsx` покрывает онбординг теории (просмотрена/нет), диалог выхода
+из сессии («Выйти»/«Остаться»+Esc/на экране Complete без диалога/вне сессии)
+и перекат финального CTA на следующую тему при 100% темы;
+`ConfirmDialog.ct.tsx` — модальную семантику (фокус на «Остаться», Esc,
+Tab-trap, подложка).
 
 ## Карта файлов
 
 - Оркестрация: [`Shell.tsx`](../../src/components/Shell.tsx), [`App.tsx`](../../src/App.tsx), [`main.tsx`](../../src/main.tsx), [`Splash.tsx`](../../src/components/Splash.tsx), [`ErrorBoundary.tsx`](../../src/components/ErrorBoundary.tsx), [`OfflineBanner.tsx`](../../src/components/OfflineBanner.tsx).
 - Хром/дашборд: [`Header.tsx`](../../src/components/Header.tsx), [`TabBar.tsx`](../../src/components/TabBar.tsx), [`ReviewTab.tsx`](../../src/components/ReviewTab.tsx), [`ScoreRow.tsx`](../../src/components/ScoreRow.tsx), [`TopicsTab.tsx`](../../src/components/TopicsTab.tsx).
-- Тренировка: [`Session.tsx`](../../src/components/Session.tsx), [`Theory.tsx`](../../src/components/Theory.tsx), [`exercises/`](../../src/components/exercises/), [`Feedback.tsx`](../../src/components/Feedback.tsx), [`Complete.tsx`](../../src/components/Complete.tsx).
+- Тренировка: [`Session.tsx`](../../src/components/Session.tsx), [`Theory.tsx`](../../src/components/Theory.tsx), [`exercises/`](../../src/components/exercises/), [`Feedback.tsx`](../../src/components/Feedback.tsx), [`Complete.tsx`](../../src/components/Complete.tsx), [`ConfirmDialog.tsx`](../../src/components/ConfirmDialog.tsx).
 - Утилиты: [`text.ts`](../../src/lib/text.ts), [`wrongOptions.ts`](../../src/lib/wrongOptions.ts), [`speech.ts`](../../src/lib/speech.ts).
 
 ## Известные ограничения

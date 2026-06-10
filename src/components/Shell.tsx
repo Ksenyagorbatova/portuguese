@@ -13,6 +13,7 @@ import type {
 import { buildLessonQueue, buildMistakesQueue, buildReviewQueue } from "../lib/queue";
 import { SENTENCE_TOPIC_THRESHOLD } from "../lib/learning";
 import { adaptSrs } from "../lib/srs";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { Header } from "./Header";
 import { OfflineBanner } from "./OfflineBanner";
 import { ScoreRow } from "./ScoreRow";
@@ -51,6 +52,8 @@ export function Shell({
   // Очередь дойдена до конца — Session уже показывает Complete (view.kind при
   // этом всё ещё "session"): прерывать нечего, goHome не спрашивает confirm.
   const [sessionDone, setSessionDone] = useState(false);
+  // Открыт ли диалог «Выйти из тренировки?» (свой вместо window.confirm).
+  const [confirmExit, setConfirmExit] = useState(false);
 
   // course === undefined → loading; srs === null → not authed yet (race)
   if (!course || !srs) return <Splash />;
@@ -95,12 +98,16 @@ export function Shell({
     setView({ kind: "home" });
   }
   // Logo-«домой» during an ACTIVE session would silently kill the progress —
-  // ask first. Once the session is complete (sessionDone, экран Complete) or
-  // outside a session there is nothing to interrupt. Other switchTab callers
-  // (Complete's «К повторению», Theory's «Назад») stay confirm-free too.
+  // ask first (свой ConfirmDialog вместо нестилизуемого window.confirm). Once
+  // the session is complete (sessionDone, экран Complete) or outside a session
+  // there is nothing to interrupt. Other switchTab callers (Complete's
+  // «К повторению», Theory's «Назад») stay confirm-free too.
   function goHome() {
     const active = view.kind === "session" && !sessionDone;
-    if (active && !window.confirm("Выйти из тренировки?")) return;
+    if (active) {
+      setConfirmExit(true);
+      return;
+    }
     switchTab("review");
   }
   function findLesson(topicKey: string, lessonKey: string): LessonView | null {
@@ -224,10 +231,24 @@ export function Shell({
     <>
       <Header
         streak={s.streak}
+        doneToday={s.doneToday}
         themeChoice={themeChoice}
         onCycleTheme={onCycleTheme}
         onHome={goHome}
       />
+      {confirmExit && (
+        <ConfirmDialog
+          title="Выйти из тренировки?"
+          message="Прогресс этой сессии не сохранится."
+          confirmLabel="Выйти"
+          cancelLabel="Остаться"
+          onConfirm={() => {
+            setConfirmExit(false);
+            switchTab("review");
+          }}
+          onCancel={() => setConfirmExit(false)}
+        />
+      )}
       <OfflineBanner />
       {!inSession && (
         <>

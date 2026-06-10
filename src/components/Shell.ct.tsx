@@ -34,6 +34,7 @@ function queries(
     "courseQueries:getCourse": course,
     "progress:getSrsState": {
       streak: 0,
+      lastDay: null,
       cards: over.cards ?? [],
       tags: over.tags ?? [],
       seenTheory: over.seenTheory ?? [],
@@ -97,15 +98,9 @@ test("a lesson with seen theory starts the session right away", async ({ mount }
   await expect(c.locator(".m-q-kind")).toBeVisible();
 });
 
-test("logo click during a session asks for confirmation before exiting", async ({
+test("logo click during a session opens the in-app exit dialog; «Выйти» leaves", async ({
   mount,
-  page,
 }) => {
-  const dialogs: string[] = [];
-  page.on("dialog", (d) => {
-    dialogs.push(d.message());
-    void d.accept();
-  });
   const c = await mount<HooksConfig>(<Shell themeChoice="light" onCycleTheme={noop} />, {
     hooksConfig: { queries: queries({ seenTheory: ["l1"] }) },
   });
@@ -114,18 +109,20 @@ test("logo click during a session asks for confirmation before exiting", async (
   await expect(c.locator(".m-q-kind")).toBeVisible();
 
   await c.getByRole("button", { name: "На главный экран" }).click();
-  expect(dialogs).toEqual(["Выйти из тренировки?"]);
-  // Confirmed → back to the review home (hero), session gone.
+  // Свой диалог (не window.confirm): role=dialog в стиле системы.
+  const dialog = c.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText("Выйти из тренировки?");
+
+  // «Выйти» именно в диалоге (в хедере есть одноимённая кнопка выхода из аккаунта).
+  await dialog.getByRole("button", { name: "Выйти" }).click();
+  // Confirmed → back to the review home (hero), session and dialog gone.
   await expect(c.locator(".m-hero")).toBeVisible();
   await expect(c.locator(".m-q-kind")).toHaveCount(0);
+  await expect(c.getByRole("dialog")).toHaveCount(0);
 });
 
-test("cancelling the confirm keeps the session running", async ({ mount, page }) => {
-  const dialogs: string[] = [];
-  page.on("dialog", (d) => {
-    dialogs.push(d.message());
-    void d.dismiss();
-  });
+test("«Остаться» (and Esc) keep the session running", async ({ mount, page }) => {
   const c = await mount<HooksConfig>(<Shell themeChoice="light" onCycleTheme={noop} />, {
     hooksConfig: { queries: queries({ seenTheory: ["l1"] }) },
   });
@@ -133,19 +130,22 @@ test("cancelling the confirm keeps the session running", async ({ mount, page })
   await c.getByText("Урок 1").click();
   await expect(c.locator(".m-q-kind")).toBeVisible();
 
+  // «Остаться» закрывает диалог, сессия на месте.
   await c.getByRole("button", { name: "На главный экран" }).click();
-  expect(dialogs).toEqual(["Выйти из тренировки?"]);
-  // Dismissed → the exercise is still on screen.
+  await c.getByRole("button", { name: "Остаться" }).click();
+  await expect(c.getByRole("dialog")).toHaveCount(0);
+  await expect(c.locator(".m-q-kind")).toBeVisible();
+
+  // Esc — то же самое.
+  await c.getByRole("button", { name: "На главный экран" }).click();
+  await expect(c.getByRole("dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(c.getByRole("dialog")).toHaveCount(0);
   await expect(c.locator(".m-q-kind")).toBeVisible();
   await expect(c.locator(".m-progress-count")).toHaveText("1/20");
 });
 
-test("logo click on the Complete screen leaves without any confirm", async ({ mount, page }) => {
-  const dialogs: string[] = [];
-  page.on("dialog", (d) => {
-    dialogs.push(d.message());
-    void d.dismiss();
-  });
+test("logo click on the Complete screen leaves without any confirm", async ({ mount }) => {
   const c = await mount<HooksConfig>(<Shell themeChoice="light" onCycleTheme={noop} />, {
     hooksConfig: { queries: oneLearnedWordQueries() },
   });
@@ -166,9 +166,9 @@ test("logo click on the Complete screen leaves without any confirm", async ({ mo
   await c.getByRole("button", { name: /Дальше|Завершить/ }).click();
   await expect(c.getByText("Сессия завершена!")).toBeVisible();
 
-  // Логотип с экрана Complete: прерывать нечего — уходим домой БЕЗ confirm.
+  // Логотип с экрана Complete: прерывать нечего — домой БЕЗ диалога.
   await c.getByRole("button", { name: "На главный экран" }).click();
-  expect(dialogs).toEqual([]);
+  await expect(c.getByRole("dialog")).toHaveCount(0);
   await expect(c.locator(".m-hero")).toBeVisible();
 });
 
@@ -217,6 +217,7 @@ test("a 100%-finished topic rolls the Complete CTA over to the next topic", asyn
         "courseQueries:getCourse": rolloverCourse,
         "progress:getSrsState": {
           streak: 0,
+          lastDay: null,
           cards: [
             {
               lessonKey: "l1",
@@ -267,12 +268,7 @@ test("a 100%-finished topic rolls the Complete CTA over to the next topic", asyn
   await expect(c.locator(".m-theory-title")).toHaveText("Числа 1–5");
 });
 
-test("logo click outside a session goes home without any confirm", async ({ mount, page }) => {
-  const dialogs: string[] = [];
-  page.on("dialog", (d) => {
-    dialogs.push(d.message());
-    void d.dismiss();
-  });
+test("logo click outside a session goes home without any confirm", async ({ mount }) => {
   const c = await mount<HooksConfig>(<Shell themeChoice="light" onCycleTheme={noop} />, {
     hooksConfig: { queries: queries() },
   });
@@ -280,5 +276,5 @@ test("logo click outside a session goes home without any confirm", async ({ moun
   await c.getByRole("button", { name: "На главный экран" }).click();
 
   await expect(c.locator(".m-hero")).toBeVisible();
-  expect(dialogs).toEqual([]);
+  await expect(c.getByRole("dialog")).toHaveCount(0);
 });

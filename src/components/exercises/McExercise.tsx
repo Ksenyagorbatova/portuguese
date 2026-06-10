@@ -6,7 +6,7 @@ import { shuffle } from "../../lib/shuffle";
 import { getWrong } from "../../lib/wrongOptions";
 import { localDay } from "../../lib/day";
 import { nextDueLabel, wKey } from "../../lib/srs";
-import { speak } from "../../lib/speech";
+import { speak, speakSmart } from "../../lib/speech";
 import { Badge } from "../Badge";
 import { Icon } from "../Icon";
 import { WordFeedback, RetryBox, NextButton } from "../Feedback";
@@ -145,7 +145,12 @@ export function McExercise({
           {question}
         </div>
         {mode === "pt_ru" && (
-          <button className="m-audio" onClick={() => speak(word.pt)} aria-label="Прослушать">
+          <button
+            className="m-audio"
+            onClick={() => speakSmart(word.pt)}
+            aria-label="Прослушать (второй тап — медленно)"
+            title="Прослушать (второй тап — медленно)"
+          >
             <Icon name="volume" />
           </button>
         )}

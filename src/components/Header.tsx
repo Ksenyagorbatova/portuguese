@@ -15,17 +15,20 @@ const THEME_LABEL: Record<ThemeChoice, string> = {
 
 export function Header({
   streak,
+  doneToday,
   themeChoice,
   onCycleTheme,
   onHome,
 }: {
   streak: number;
+  doneToday: boolean;
   themeChoice: ThemeChoice;
   onCycleTheme: () => void;
   onHome: () => void;
 }) {
   const { signOut } = useAuthActions();
   const themeLabel = THEME_LABEL[themeChoice];
+  const streakLabel = `Стрик ${streak} дн., ${doneToday ? "сегодня пройдено" : "сегодня ещё не пройдено"}`;
   return (
     <div className="m-header">
       <div className="m-brand">
@@ -34,9 +37,14 @@ export function Header({
         </button>
       </div>
       <div className="m-header-right">
-        <div className="m-streak">
+        <div className="m-streak" role="img" aria-label={streakLabel} title={streakLabel}>
           <span className="m-flame">🔥</span>
           <b>{streak}</b>
+          {/* Статус дня: галочка загорается после первой сессии дня (данные
+              перечитываются с сервера — без анимации, кроме transition). */}
+          <span className={"m-streak-day" + (doneToday ? " done" : "")} aria-hidden="true">
+            <Icon name="check" size={9} />
+          </span>
         </div>
         <button
           className="m-icon-btn"
