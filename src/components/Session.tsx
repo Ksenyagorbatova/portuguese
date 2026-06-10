@@ -30,6 +30,7 @@ export function Session({
   onPickLesson,
   onGoReview,
   onExit,
+  onComplete,
 }: {
   queue: SessionItem[];
   course: Course;
@@ -41,6 +42,9 @@ export function Session({
   onPickLesson: (topicKey: string, lessonKey: string) => void;
   onGoReview: () => void;
   onExit: () => void;
+  // Сессия дойдена до экрана Complete (очередь исчерпана) — Shell по этому
+  // флагу перестаёт спрашивать confirm при выходе по логотипу.
+  onComplete?: () => void;
 }) {
   // Mutable working queue: not-yet-learned words get re-inserted as the user
   // answers, so a new word is drilled within the same session (choosing →
@@ -104,6 +108,7 @@ export function Session({
     const it = items[ni];
     if (it && it.kind === "word")
       setType(pickExerciseType(stageCardOf(wKey(it.word.lessonKey, it.word.pt)), it.tag));
+    if (ni >= items.length) onComplete?.(); // очередь исчерпана → дальше Complete
     setIdx(ni);
   }
 

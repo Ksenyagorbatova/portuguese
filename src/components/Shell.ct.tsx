@@ -22,20 +22,51 @@ const course = {
 };
 
 // RAW getSrsState payload (cards/tags as ARRAYS — Shell adapts via adaptSrs).
-function queries(over: { seenTheory?: string[] } = {}): Record<string, unknown> {
+function queries(
+  over: {
+    seenTheory?: string[];
+    cards?: unknown[];
+    tags?: unknown[];
+    learnedPts?: string[];
+  } = {},
+): Record<string, unknown> {
   return {
     "courseQueries:getCourse": course,
     "progress:getSrsState": {
       streak: 0,
-      cards: [],
-      tags: [],
+      cards: over.cards ?? [],
+      tags: over.tags ?? [],
       seenTheory: over.seenTheory ?? [],
-      learnedPts: [],
+      learnedPts: over.learnedPts ?? [],
       dueCountAll: 0,
       lessonStats: {},
       topicStats: {},
     },
   };
+}
+
+// Review-сессия из ОДНОГО уже выученного слова (оба навыка на пороге): один
+// верный ответ исчерпывает очередь — кратчайший путь к экрану Complete.
+function oneLearnedWordQueries(): Record<string, unknown> {
+  return queries({
+    seenTheory: ["l1"],
+    cards: [
+      {
+        lessonKey: "l1",
+        pt: "olá",
+        interval: 6,
+        ef: 2.5,
+        due: Date.now() + 6 * 86400000,
+        seen: 6,
+        correct: 6,
+        lastSeen: Date.now(),
+        mcCorrect: 3,
+        typeCorrect: 3,
+      },
+    ],
+    tags: [{ lessonKey: "l1", pt: "olá", tag: "learned" }],
+    learnedPts: ["olá"],
+  });
 }
 
 const noop = () => {};
@@ -106,6 +137,38 @@ test("cancelling the confirm keeps the session running", async ({ mount, page })
   // Dismissed → the exercise is still on screen.
   await expect(c.locator(".m-q-kind")).toBeVisible();
   await expect(c.locator(".m-progress-count")).toHaveText("1/4");
+});
+
+test("logo click on the Complete screen leaves without any confirm", async ({ mount, page }) => {
+  const dialogs: string[] = [];
+  page.on("dialog", (d) => {
+    dialogs.push(d.message());
+    void d.dismiss();
+  });
+  const c = await mount<HooksConfig>(<Shell themeChoice="light" onCycleTheme={noop} />, {
+    hooksConfig: { queries: oneLearnedWordQueries() },
+  });
+  // due=0 → CTA «Тренировать все слова» запускает review-сессию из 1 слова.
+  await c.getByRole("button", { name: "Тренировать все слова" }).click();
+  await expect(c.locator(".m-progress-count")).toHaveText("1/1");
+
+  // Отвечаем верно (тип упражнения для выученного слова случайный — MC или ввод).
+  const kind = (await c.locator(".m-q-kind").textContent()) ?? "";
+  if (kind.includes("Напишите")) {
+    await c.locator(".m-input").fill("olá");
+    await c.getByRole("button", { name: "Проверить" }).click();
+  } else {
+    const ru = c.locator(".m-opt", { hasText: "привет" });
+    if ((await ru.count()) > 0) await ru.first().click();
+    else await c.locator(".m-opt", { hasText: "olá" }).first().click();
+  }
+  await c.getByRole("button", { name: /Дальше|Завершить/ }).click();
+  await expect(c.getByText("Сессия завершена!")).toBeVisible();
+
+  // Логотип с экрана Complete: прерывать нечего — уходим домой БЕЗ confirm.
+  await c.getByRole("button", { name: "На главный экран" }).click();
+  expect(dialogs).toEqual([]);
+  await expect(c.locator(".m-hero")).toBeVisible();
 });
 
 test("logo click outside a session goes home without any confirm", async ({ mount, page }) => {

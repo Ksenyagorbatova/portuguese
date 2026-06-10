@@ -38,6 +38,9 @@ export function Shell({
   const [view, setView] = useState<View>({ kind: "home" });
   const [score, setScore] = useState({ correct: 0, total: 0 });
   const [nonce, setNonce] = useState(0); // bump to remount Session on (re)start
+  // Очередь дойдена до конца — Session уже показывает Complete (view.kind при
+  // этом всё ещё "session"): прерывать нечего, goHome не спрашивает confirm.
+  const [sessionDone, setSessionDone] = useState(false);
 
   // course === undefined → loading; srs === null → not authed yet (race)
   if (!course || !srs) return <Splash />;
@@ -47,11 +50,13 @@ export function Shell({
   function startReview() {
     setScore({ correct: 0, total: 0 });
     setNonce((n) => n + 1);
+    setSessionDone(false);
     setView({ kind: "session", queue: buildReviewQueue(c, s), origin: "review" });
   }
   function startLesson(topicKey: string, lesson: LessonView) {
     setScore({ correct: 0, total: 0 });
     setNonce((n) => n + 1);
+    setSessionDone(false);
     setView({
       kind: "session",
       queue: buildLessonQueue(lesson, s, c),
@@ -79,11 +84,13 @@ export function Shell({
     setTab(t);
     setView({ kind: "home" });
   }
-  // Logo-«домой» during an active session would silently kill the progress —
-  // ask first. Other switchTab callers (Complete's «К повторению», Theory's
-  // «Назад») don't interrupt anything and stay confirm-free.
+  // Logo-«домой» during an ACTIVE session would silently kill the progress —
+  // ask first. Once the session is complete (sessionDone, экран Complete) or
+  // outside a session there is nothing to interrupt. Other switchTab callers
+  // (Complete's «К повторению», Theory's «Назад») stay confirm-free too.
   function goHome() {
-    if (view.kind === "session" && !window.confirm("Выйти из тренировки?")) return;
+    const active = view.kind === "session" && !sessionDone;
+    if (active && !window.confirm("Выйти из тренировки?")) return;
     switchTab("review");
   }
   function findLesson(topicKey: string, lessonKey: string): LessonView | null {
@@ -134,6 +141,7 @@ export function Shell({
         onPickLesson={onPickLesson}
         onGoReview={() => switchTab("review")}
         onExit={() => setView({ kind: "home" })}
+        onComplete={() => setSessionDone(true)}
       />
     );
   } else if (view.kind === "theory") {
