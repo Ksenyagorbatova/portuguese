@@ -9,7 +9,9 @@ import { Badge } from "../Badge";
 import { Icon } from "../Icon";
 import { WordFeedback, RetryBox, NextButton } from "../Feedback";
 
-type Resolved = { ok: boolean; dueLabel: string };
+// dueLabel: null — ответ сервера ещё не пришёл (или мутация упала), Feedback
+// покажет «—»; saveFailed — мутация отвергнута, ответ в расписание не попал.
+type Resolved = { ok: boolean; dueLabel: string | null; saveFailed?: boolean };
 
 export function TypeExercise({
   word,
@@ -32,27 +34,41 @@ export function TypeExercise({
   const [tries, setTries] = useState(0);
   const [retry, setRetry] = useState(false);
   const [resolved, setResolved] = useState<Resolved | null>(null);
+  // Синхронный guard от двойного ответа: проверка по state (resolved) не
+  // закрывает окно между событием и применением обновления — ref выставляется
+  // ДО любой асинхронщины, и повторный Enter/клик не даёт второго finish().
+  const pendingRef = useRef(false);
 
-  async function finish(quality: 0 | 1 | 2, ok: boolean) {
+  function finish(quality: 0 | 1 | 2, ok: boolean) {
+    if (pendingRef.current) return;
+    pendingRef.current = true;
     speak(word.pt);
     onAnswered({ mode: "type", correct: quality >= 1, firstTry: quality === 2 });
-    const res = await recordAnswer({ lessonKey: word.lessonKey, pt: word.pt, quality, mode: "type" });
-    setResolved({ ok, dueLabel: nextDueLabel(res.card) });
+    // UI резолвим сразу, НЕ дожидаясь сети: при разрыве соединения Convex
+    // не реджектит мутацию, а держит её в очереди до реконнекта (промис висит
+    // неограниченно долго) — ждать его значит подвесить упражнение. Метка
+    // следующего повтора подтянется с ответом сервера; при отказе мутации
+    // останется «—» с пометкой, что ответ не сохранился.
+    setResolved({ ok, dueLabel: null });
+    void recordAnswer({ lessonKey: word.lessonKey, pt: word.pt, quality, mode: "type" }).then(
+      (res) => setResolved({ ok, dueLabel: nextDueLabel(res.card) }),
+      () => setResolved({ ok, dueLabel: null, saveFailed: true }),
+    );
   }
 
   function check() {
-    if (resolved) return;
+    if (resolved || pendingRef.current) return;
     const ok = variantsMatch(value, word.pt);
     const first = tries === 0;
     if (ok) {
-      void finish(first ? 2 : 1, true);
+      finish(first ? 2 : 1, true);
     } else if (tries < 1) {
       setTries(1);
       setRetry(true);
       setValue("");
       setTimeout(() => inputRef.current?.focus(), 0);
     } else {
-      void finish(0, false);
+      finish(0, false);
     }
   }
 
@@ -84,12 +100,13 @@ export function TypeExercise({
           placeholder="Ваш ответ…"
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => {
+            if (e.repeat) return; // удержание клавиши: авторепит шлёт повторные keydown
             if (e.key === "Enter") check();
           }}
         />
       </div>
       <div className="m-hint">
-        <Icon name="info" /> Акценты необязательны — «ate logo» = «até logo»
+        <Icon name="info" /> Акценты и пунктуация необязательны — «ate logo» = «até logo»
       </div>
       {!resolved && (
         <button
@@ -107,7 +124,12 @@ export function TypeExercise({
       )}
       {resolved && (
         <>
-          <WordFeedback ok={resolved.ok} word={word} dueLabel={resolved.dueLabel} />
+          <WordFeedback
+            ok={resolved.ok}
+            word={word}
+            dueLabel={resolved.dueLabel}
+            saveFailed={resolved.saveFailed}
+          />
           <NextButton isLast={isLast} onClick={onNext} />
         </>
       )}
