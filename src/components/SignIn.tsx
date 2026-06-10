@@ -54,6 +54,7 @@ export function SignIn() {
               name="email"
               type="email"
               placeholder="Email"
+              aria-label="Email"
               autoComplete="email"
               required
             />
@@ -64,9 +65,10 @@ export function SignIn() {
               name="password"
               type="password"
               placeholder="Пароль"
+              aria-label="Пароль"
               autoComplete={flow === "signIn" ? "current-password" : "new-password"}
               required
-              minLength={6}
+              minLength={8}
             />
           </div>
           <button

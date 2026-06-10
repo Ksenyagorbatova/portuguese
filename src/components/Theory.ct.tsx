@@ -35,6 +35,21 @@ test("starts practice via the CTA", async ({ mount }) => {
   expect(began).toBe(true);
 });
 
+test("the flip card is a keyboard-operable button with pt-PT side", async ({ mount }) => {
+  const component = await mount(<Theory lesson={lesson} onBegin={() => {}} />);
+  const flip = component.locator(".m-flip");
+  await expect(flip).toHaveRole("button");
+  await expect(flip.locator(".m-flip-pt")).toHaveAttribute("lang", "pt-PT");
+  await expect(flip).toHaveAttribute("aria-pressed", "false");
+
+  await flip.press("Enter"); // фокус + Enter = переворот с клавиатуры
+  await expect(flip).toHaveClass(/flipped/);
+  await expect(flip).toHaveAttribute("aria-pressed", "true");
+
+  await flip.press("Space"); // Space переворачивает обратно
+  await expect(flip).not.toHaveClass(/flipped/);
+});
+
 test("shows no back button when onBack is omitted", async ({ mount }) => {
   const component = await mount(<Theory lesson={lesson} onBegin={() => {}} />);
   await expect(component.getByRole("button", { name: /Назад/ })).toHaveCount(0);

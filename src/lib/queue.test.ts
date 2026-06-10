@@ -164,4 +164,48 @@ describe("cross-sentence gate (topic ≥80% + required learned)", () => {
     const srs = srsOf({ learnedPts: ["a"], topicStats: stat(4) }); // b missing
     expect(queueCounts(buildLessonQueue(gateLesson, srs, gateCourse)).cr).toBe(0);
   });
+
+  // Дубль pt в двух темах (farmácia: city_1 и body_2; olho/cabelo аналогично):
+  // слово считается готовым, когда готова ХОТЯ БЫ ОДНА из его тем — иначе
+  // добавление дубля молча переносило бы гейт на последнюю тему по порядку.
+  it("treats a duplicated word as ready when ANY of its topics is ready", () => {
+    const lessonA: LessonView = {
+      lessonKey: "a1",
+      label: "A1",
+      theory: { intro: "", tip: "", sections: [] },
+      words: [
+        { lessonKey: "a1", pt: "x", ru: "х" },
+        { lessonKey: "a1", pt: "y", ru: "у" },
+      ],
+    };
+    const lessonB: LessonView = {
+      lessonKey: "b1",
+      label: "B1",
+      theory: { intro: "", tip: "", sections: [] },
+      words: [
+        { lessonKey: "b1", pt: "x", ru: "х" }, // дубль x во второй теме
+        { lessonKey: "b1", pt: "z", ru: "з" },
+      ],
+    };
+    const dupCourse: Course = {
+      topics: [
+        { topicKey: "tA", label: "A", icon: "x", lessons: [lessonA] },
+        { topicKey: "tB", label: "B", icon: "x", lessons: [lessonB] },
+      ],
+      crossSentences: [
+        { sentenceKey: "cs-dup", words: ["X"], answer: "X", ru: "—", required: ["x"] },
+      ],
+    };
+    // Тема A освоена полностью, тема B не начата: гейт должен открыться по A
+    // (старый last-wins смотрел только на B и прятал предложение).
+    const srs = srsOf({
+      learnedPts: ["x", "y"],
+      topicStats: {
+        tA: { total: 2, seen: 2, learned: 2, due: 0 },
+        tB: { total: 2, seen: 0, learned: 0, due: 0 },
+      },
+    });
+    const q = buildLessonQueue(lessonA, srs, dupCourse);
+    expect(q.filter((i) => i.kind === "sentence")).toHaveLength(1);
+  });
 });

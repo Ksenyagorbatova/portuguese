@@ -1,18 +1,35 @@
-import { useMemo, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { AnswerResult, BadgeTag, CardFields, Course, WordView } from "../../lib/types";
 import { shuffle } from "../../lib/shuffle";
 import { getWrong } from "../../lib/wrongOptions";
-import { nextDueLabel } from "../../lib/srs";
+import { localDay } from "../../lib/day";
+import { nextDueLabel, wKey } from "../../lib/srs";
 import { speak } from "../../lib/speech";
 import { Badge } from "../Badge";
 import { Icon } from "../Icon";
 import { WordFeedback, RetryBox, NextButton } from "../Feedback";
 
-type Resolved = { ok: boolean; dueLabel: string };
+// dueLabel: null — ответ сервера ещё не пришёл (или мутация упала), Feedback
+// покажет «—»; saveFailed — мутация отвергнута, ответ в расписание не попал.
+type Resolved = { ok: boolean; dueLabel: string | null; saveFailed?: boolean };
 
 const KEYS = ["A", "B", "C", "D", "E"];
+
+// Хоткей → индекс опции: «1»–«5» и латинские A–E (любой регистр) по e.key.
+// Для нелатинских раскладок (RU: физическая A печатает «ф») — ФОЛЛБЭК по
+// физической позиции e.code (KeyA–KeyE), именно фоллбэк, не замена: e.code
+// позиционный, и когда e.key — другая латинская буква (на AZERTY физическая
+// KeyA печатает «q»), это осознанный ввод другой буквы — фоллбэк не стреляет.
+function hotkeyIndex(key: string, code: string): number {
+  if (/^[1-5]$/.test(key)) return key.charCodeAt(0) - "1".charCodeAt(0);
+  if (/^[a-eA-E]$/.test(key)) return key.toLowerCase().charCodeAt(0) - "a".charCodeAt(0);
+  if (!/^[a-zA-Z]$/.test(key) && /^Key[A-E]$/.test(code)) {
+    return code.charCodeAt(3) - "A".charCodeAt(0);
+  }
+  return -1;
+}
 
 export function McExercise({
   word,
@@ -38,28 +55,69 @@ export function McExercise({
   const [wrongPicked, setWrongPicked] = useState<Set<string>>(new Set());
   const [tries, setTries] = useState(0);
   const [resolved, setResolved] = useState<Resolved | null>(null);
+  // Синхронный guard от двойного ответа: проверка по state (resolved) не
+  // закрывает окно между событием и применением обновления — ref выставляется
+  // ДО любой асинхронщины, и повторный клик/диспатч не даёт второго finish().
+  const pendingRef = useRef(false);
 
   const label = (o: WordView) => (mode === "pt_ru" ? o.ru : o.pt);
   const isCorrectOpt = (o: WordView) => o.pt === word.pt;
 
-  async function finish(quality: 0 | 1 | 2, ok: boolean) {
+  function finish(quality: 0 | 1 | 2, ok: boolean) {
+    if (pendingRef.current) return;
+    pendingRef.current = true;
     speak(word.pt);
     onAnswered({ mode: "mc", correct: quality >= 1, firstTry: quality === 2 });
-    const res = await recordAnswer({ lessonKey: word.lessonKey, pt: word.pt, quality, mode: "mc" });
-    setResolved({ ok, dueLabel: nextDueLabel(res.card) });
+    // UI резолвим сразу, НЕ дожидаясь сети: при разрыве соединения Convex
+    // не реджектит мутацию, а держит её в очереди до реконнекта (промис висит
+    // неограниченно долго) — ждать его значит подвесить упражнение. Метка
+    // следующего повтора подтянется с ответом сервера; при отказе мутации
+    // останется «—» с пометкой, что ответ не сохранился.
+    setResolved({ ok, dueLabel: null });
+    void recordAnswer({
+      lessonKey: word.lessonKey,
+      pt: word.pt,
+      quality,
+      mode: "mc",
+      clientDay: localDay(),
+    }).then(
+      (res) => setResolved({ ok, dueLabel: nextDueLabel(res.card) }),
+      () => setResolved({ ok, dueLabel: null, saveFailed: true }),
+    );
   }
 
   function choose(o: WordView) {
-    if (resolved) return;
+    if (resolved || pendingRef.current) return;
     const first = tries === 0;
     if (isCorrectOpt(o)) {
-      void finish(first ? 2 : 1, true);
+      finish(first ? 2 : 1, true);
     } else {
       setWrongPicked((prev) => new Set(prev).add(o.pt));
       if (tries < 1) setTries(1);
-      else void finish(0, false);
+      else finish(0, false);
     }
   }
+
+  // Хоткеи: 1–5 / A–E выбирают опцию, пока ответ не дан. useEffectEvent читает
+  // свежие resolved/wrongPicked/options без переподписки слушателя.
+  const onHotkey = useEffectEvent((e: KeyboardEvent) => {
+    if (resolved || e.repeat || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+    const t = e.target as HTMLElement | null;
+    // Не перехватываем набор текста (на будущее — в MC своих инпутов нет).
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+    const i = hotkeyIndex(e.key, e.code);
+    if (i < 0 || i >= options.length) return;
+    const o = options[i];
+    if (wrongPicked.has(o.pt)) return; // опция уже disabled после промаха
+    e.preventDefault();
+    choose(o);
+  });
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => onHotkey(e);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   function optClass(o: WordView): string {
     if (resolved) {
@@ -82,7 +140,10 @@ export function McExercise({
         <Badge tag={tag} />
       </div>
       <div className="m-q-row">
-        <div className="m-q-text">{question}</div>
+        {/* В pt→ru вопрос — португальский: размечаем для скринридеров. */}
+        <div className="m-q-text" lang={mode === "pt_ru" ? "pt-PT" : undefined}>
+          {question}
+        </div>
         {mode === "pt_ru" && (
           <button className="m-audio" onClick={() => speak(word.pt)} aria-label="Прослушать">
             <Icon name="volume" />
@@ -102,13 +163,17 @@ export function McExercise({
       <div className="m-opts">
         {options.map((o, i) => (
           <button
-            key={o.pt}
+            // wKey: в контенте есть дубли pt в разных уроках — один pt не уникален.
+            key={wKey(o.lessonKey, o.pt)}
             className={optClass(o)}
             disabled={resolved !== null || wrongPicked.has(o.pt)}
             onClick={() => choose(o)}
           >
-            <span className="m-opt-key">{KEYS[i]}</span>
-            <span className="m-opt-label">{label(o)}</span>
+            <span className="m-opt-key" aria-hidden="true">{KEYS[i]}</span>
+            {/* В ru→pt опции — португальские. */}
+            <span className="m-opt-label" lang={mode === "ru_pt" ? "pt-PT" : undefined}>
+              {label(o)}
+            </span>
             <span className="m-opt-mark">
               <Icon name={isCorrectOpt(o) ? "check" : "x"} size={20} />
             </span>
@@ -122,7 +187,12 @@ export function McExercise({
       )}
       {resolved && (
         <>
-          <WordFeedback ok={resolved.ok} word={word} dueLabel={resolved.dueLabel} />
+          <WordFeedback
+            ok={resolved.ok}
+            word={word}
+            dueLabel={resolved.dueLabel}
+            saveFailed={resolved.saveFailed}
+          />
           <NextButton isLast={isLast} onClick={onNext} />
         </>
       )}

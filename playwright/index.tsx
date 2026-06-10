@@ -4,14 +4,23 @@ import { beforeMount } from "@playwright/experimental-ct-react/hooks";
 import { __setQueryData } from "../src/test/mocks/convexReact";
 import "../src/index.css";
 
-// Convex query fixtures for components that call useQuery (Shell): a test
-// passes them via mount(..., { hooksConfig: { queries } }) and the aliased
-// "convex/react" stub (src/test/mocks/convexReact.ts) serves them by function
-// name, e.g. "courseQueries:getCourse".
+// Состояние, которое нужно подготовить в браузере ДО рендера компонента
+// (page.evaluate до mount ненадёжен: первый mount в воркере навигирует
+// страницу и стирает window). Стабы читают его из window/модуля — см.
+// src/test/mocks/convexReact.ts:
+//   • queries    — фикстуры Convex-query по имени функции (например,
+//     "courseQueries:getCourse") для компонентов с useQuery (Shell);
+//   • connection — состояние сокета для офлайн-баннера.
 export type HooksConfig = {
   queries?: Record<string, unknown>;
+  connection?: { isWebSocketConnected: boolean };
 };
 
 beforeMount<HooksConfig>(async ({ hooksConfig }) => {
-  if (hooksConfig?.queries) __setQueryData(hooksConfig.queries);
+  // Страница переиспользуется между тестами — каждый mount начинает с чистых
+  // стабов, чтобы конфиг одного теста не протекал в следующий.
+  delete window.__mutationMock;
+  __setQueryData(hooksConfig?.queries ?? {});
+  if (hooksConfig?.connection) window.__connectionMock = hooksConfig.connection;
+  else delete window.__connectionMock;
 });

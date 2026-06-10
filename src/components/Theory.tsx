@@ -6,8 +6,11 @@ import { Icon } from "./Icon";
 function FlipCard({ word }: { word: WordView }) {
   const [flipped, setFlipped] = useState(false);
   return (
-    <div
+    // <button>, чтобы карточка переворачивалась и с клавиатуры (Enter/Space).
+    <button
+      type="button"
       className={"m-flip" + (flipped ? " flipped" : "")}
+      aria-pressed={flipped}
       onClick={() => {
         setFlipped((f) => !f);
         speak(word.pt);
@@ -15,7 +18,7 @@ function FlipCard({ word }: { word: WordView }) {
     >
       <div className="m-flip-in">
         <div className="m-flip-f">
-          <div className="m-flip-pt">{word.pt}</div>
+          <div className="m-flip-pt" lang="pt-PT">{word.pt}</div>
           <div className="m-flip-cue">
             <Icon name="volume" size={13} /> нажми
           </div>
@@ -25,7 +28,7 @@ function FlipCard({ word }: { word: WordView }) {
           {word.note && <div className="m-flip-note">{word.note}</div>}
         </div>
       </div>
-    </div>
+    </button>
   );
 }
 

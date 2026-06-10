@@ -28,17 +28,25 @@ const sentenceItem = (sentence: CrossSentenceView): SessionItem => ({
   tag: "cross",
 });
 
-// Map each word's pt → its topicKey (for the per-topic sentence gate).
-function wordTopicMap(course: Course): Map<string, string> {
-  const m = new Map<string, string>();
+// Map each word's pt → EVERY topicKey it belongs to (the same pt may live in
+// several topics — farmácia, olho, cabelo…; the sentence gate below treats a
+// word as ready when ANY of its topics is ready, otherwise adding a duplicate
+// would silently move the gate to whichever topic happens to be last).
+function wordTopicMap(course: Course): Map<string, Set<string>> {
+  const m = new Map<string, Set<string>>();
   for (const t of course.topics)
-    for (const l of t.lessons) for (const w of l.words) m.set(w.pt, t.topicKey);
+    for (const l of t.lessons)
+      for (const w of l.words) {
+        const s = m.get(w.pt);
+        if (s) s.add(t.topicKey);
+        else m.set(w.pt, new Set([t.topicKey]));
+      }
   return m;
 }
 
 // A sentence appears only when (a) all its required words are learned AND
-// (b) every topic those words belong to is ≥80% learned. So combinations show
-// up once a topic is almost fully mastered — not before.
+// (b) every required word comes from at least one ≥80%-learned topic. So
+// combinations show up once a topic is almost fully mastered — not before.
 function eligibleSentences(course: Course, srs: SrsState): CrossSentenceView[] {
   const learned = new Set(srs.learnedPts);
   const wordTopic = wordTopicMap(course);
@@ -48,10 +56,10 @@ function eligibleSentences(course: Course, srs: SrsState): CrossSentenceView[] {
   };
   return course.crossSentences.filter((s) => {
     if (!s.required.every((r) => learned.has(r))) return false;
-    const topics = new Set(
-      s.required.map((r) => wordTopic.get(r)).filter((k): k is string => !!k),
-    );
-    return [...topics].every(topicReady);
+    return s.required.every((r) => {
+      const topics = wordTopic.get(r);
+      return !!topics && [...topics].some(topicReady);
+    });
   });
 }
 

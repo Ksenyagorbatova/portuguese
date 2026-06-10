@@ -20,7 +20,22 @@ function LessonRow({
   const ls = srs.lessonStats[lesson.lessonKey] ?? { ...EMPTY, total: lesson.words.length };
   const seen = srs.seenTheory.includes(lesson.lessonKey);
   return (
-    <div className="m-lesson" onClick={() => onOpen(topicKey, lesson)}>
+    // Не <button>: внутри строки живёт кнопка «Теория», а button-в-button
+    // невалиден. role="button" + tabIndex дают клавиатурный доступ (Enter/Space).
+    <div
+      className="m-lesson"
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpen(topicKey, lesson)}
+      onKeyDown={(e) => {
+        // Не перехватываем Enter/Space, прилетевшие с вложенной «Теории».
+        if (e.target !== e.currentTarget) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen(topicKey, lesson);
+        }
+      }}
+    >
       <div style={{ minWidth: 0 }}>
         <div className="m-lesson-name">{lesson.label}</div>
         <div className="m-lesson-meta">
@@ -80,7 +95,12 @@ function TopicBlock({
   const pct = ts.total > 0 ? Math.round((ts.learned / ts.total) * 100) : 0;
   return (
     <div className={"m-topic" + (open ? " open" : "")}>
-      <div className="m-topic-head" onClick={() => setOpen((o) => !o)}>
+      <button
+        type="button"
+        className="m-topic-head"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
         <div className="m-topic-ico">{topic.icon}</div>
         <div className="m-topic-info">
           <div className="m-topic-name">{topic.label}</div>
@@ -102,7 +122,7 @@ function TopicBlock({
             <Icon name="chevron-right" />
           </span>
         </div>
-      </div>
+      </button>
       {open && (
         <div className="m-lessons">
           {topic.lessons.map((l) => (

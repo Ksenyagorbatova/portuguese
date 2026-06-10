@@ -87,6 +87,15 @@ test("a not-yet-learned word re-queues within the same session", async ({ mount 
   await expect(component.locator(".m-card")).toBeVisible();
 });
 
+test("the progress bar exposes progressbar semantics", async ({ mount }) => {
+  const component = await mountSession(mount, { queue: [{ kind: "word", word, tag: "new" }] });
+  const bar = component.getByRole("progressbar");
+  await expect(bar).toHaveAttribute("aria-label", "Позиция в сессии");
+  await expect(bar).toHaveAttribute("aria-valuemin", "0");
+  await expect(bar).toHaveAttribute("aria-valuemax", "1");
+  await expect(bar).toHaveAttribute("aria-valuenow", "1");
+});
+
 test("the exit control bails out of the session", async ({ mount }) => {
   let exited = false;
   const component = await mount(

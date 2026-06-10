@@ -5,22 +5,36 @@ import schema from "./schema";
 
 const modules = import.meta.glob(["./**/*.*s", "!./**/*.test.ts"]);
 
+// Авторизованный контекст: getAuthUserId парсит subject как `${userId}|session`.
+async function asUser(t: ReturnType<typeof convexTest>) {
+  const userId = await t.run((ctx) => ctx.db.insert("users", {}));
+  return t.withIdentity({ subject: `${userId}|session` });
+}
+
 describe("getCourse", () => {
+  it("returns null when unauthenticated (как getSrsState)", async () => {
+    const t = convexTest(schema, modules);
+    await t.mutation(internal.seed.seedContent, {});
+    expect(await t.query(api.courseQueries.getCourse, {})).toBeNull();
+  });
+
   it("returns an empty tree when nothing is seeded", async () => {
     const t = convexTest(schema, modules);
-    const course = await t.query(api.courseQueries.getCourse, {});
-    expect(course.topics).toEqual([]);
-    expect(course.crossSentences).toEqual([]);
+    const as = await asUser(t);
+    const course = await as.query(api.courseQueries.getCourse, {});
+    expect(course!.topics).toEqual([]);
+    expect(course!.crossSentences).toEqual([]);
   });
 
   it("returns the seeded tree with nested lessons and words", async () => {
     const t = convexTest(schema, modules);
     await t.mutation(internal.seed.seedContent, {});
+    const as = await asUser(t);
 
-    const course = await t.query(api.courseQueries.getCourse, {});
-    expect(course.topics.length).toBeGreaterThan(0);
+    const course = await as.query(api.courseQueries.getCourse, {});
+    expect(course!.topics.length).toBeGreaterThan(0);
 
-    const firstTopic = course.topics[0];
+    const firstTopic = course!.topics[0];
     expect(firstTopic).toHaveProperty("topicKey");
     expect(firstTopic.lessons.length).toBeGreaterThan(0);
     expect(firstTopic.lessons[0].words.length).toBeGreaterThan(0);
@@ -30,6 +44,6 @@ describe("getCourse", () => {
       const topics = await ctx.db.query("topics").collect();
       return topics.length;
     });
-    expect(course.topics).toHaveLength(seedReport);
+    expect(course!.topics).toHaveLength(seedReport);
   });
 });

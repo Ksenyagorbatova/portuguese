@@ -11,9 +11,12 @@
 ## Поведение
 
 **Точка входа.** [`src/main.tsx`](../../src/main.tsx): `ConvexReactClient`,
-`primeVoices()`, `ConvexAuthProvider`. [`src/App.tsx`](../../src/App.tsx):
-`useTheme()` + развод `AuthLoading → Splash`, `Unauthenticated → SignIn`,
-`Authenticated → Shell`.
+`primeVoices()`, корневой
+[`ErrorBoundary`](../../src/components/ErrorBoundary.tsx) (внутри StrictMode,
+снаружи провайдеров: ошибка рендера/query → сообщение на русском + кнопка
+«Перезагрузить» вместо белого экрана), `ConvexAuthProvider`.
+[`src/App.tsx`](../../src/App.tsx): `useTheme()` + развод `AuthLoading → Splash`,
+`Unauthenticated → SignIn`, `Authenticated → Shell`.
 
 **Shell — оркестратор** ([`src/components/Shell.tsx`](../../src/components/Shell.tsx)):
 - `View = { home } | { theory } | { session }`; `tab = "review" | "topics"`.
@@ -36,6 +39,12 @@
   с экрана Complete логотип уходит домой без вопроса. Confirm только на пути
   логотипа: «К повторению» с экрана `Complete` и «Назад» из теории уходят без
   вопроса (там нечего терять).
+- Под хедером — [`OfflineBanner`](../../src/components/OfflineBanner.tsx)
+  (`useConvexConnectionState().isWebSocketConnected`): при разрыве соединения
+  ненавязчивый баннер «Нет соединения — ответы сохранятся…» (класс `.m-offline`,
+  амбер-токены `--rev-*`). Convex-клиент сам ставит мутации в очередь и
+  доотправляет при реконнекте — детали в
+  [`../fix/exercise-network-resilience.md`](../fix/exercise-network-resilience.md).
 
 **Хедер** ([`src/components/Header.tsx`](../../src/components/Header.tsx)): слева
 логотип-кнопка «на главный экран» (`onHome → вкладка «Повторение»`; во время
@@ -73,13 +82,50 @@
 проверка на клиенте, `quality`: первая попытка верно `2`, со 2-й `1`, провал `0`:
 - `McExercise` — выбор (`mc_pt_ru`/`mc_ru_pt`); неверные варианты из ТОГО ЖЕ урока
   (`getWrong`, [`src/lib/wrongOptions.ts`](../../src/lib/wrongOptions.ts)).
-- `TypeExercise` — ручной ввод (`type_pt`); сверка без диакритики/регистра
+- `TypeExercise` — ручной ввод (`type_pt`); сверка без диакритики/регистра и без
+  пунктуации (`.!?,` и многоточия необязательны с обеих сторон, как в
+  `sentenceMatch`; дефис значим); для слов-лейблов с вариантами («um / uma»)
+  принимается и каждый вариант, и весь лейбл целиком
   (`variantsMatch`, [`src/lib/text.ts`](../../src/lib/text.ts)).
 - `SentenceBuilder` — кросс-предложение из плиток (`sentenceMatch`); **на сервер НЕ
   пишется** (`recordAnswer` не вызывается), влияет только на счёт сессии.
 
+В Mc/Type `finish()` защищён от двойного ответа (синхронный `pendingRef` +
+`e.repeat`-guard у Enter) и **не блокирует UI на сетевом roundtrip**: фидбэк и
+«Дальше» появляются сразу, метка «следующий повтор» подтягивается с ответом
+сервера (до тех пор «—»; при отказе мутации — «—» + пометка «Не удалось
+сохранить ответ»). Подробно —
+[`../fix/exercise-network-resilience.md`](../fix/exercise-network-resilience.md).
+
 **Озвучка** ([`src/lib/speech.ts`](../../src/lib/speech.ts)) — Web Speech API,
 чисто клиентская (`primeVoices`, `speak`).
+
+**Клавиатура и a11y** (ветка `fix/a11y-keyboard`, см.
+[`../fix/a11y-keyboard.md`](../fix/a11y-keyboard.md)):
+
+- **Хоткеи в MC**: `1–5` и латинские `A–E` (без модификаторов, без `e.repeat`)
+  выбирают опцию, пока ответ не дан; для нелатинских раскладок — фоллбэк по
+  физической позиции `e.code` KeyA–KeyE (только когда `e.key` не латинская
+  буква: RU «ф» стреляет, AZERTY «q» — нет). Слушатель `keydown` на `window`
+  (`useEffectEvent` + `useEffect` с очисткой), не срабатывает при фокусе в
+  input/textarea. Кейкап `m-opt-key` — `aria-hidden`. После ответа фокус на
+  «Дальше» (autofocus в `NextButton`) → Enter ведёт к следующей карточке
+  (во всех упражнениях); зажатый Enter (autorepeat) гасится
+  `onKeyDown`-guard'ом кнопки и не проскакивает карточку мимо фидбэка.
+- **Навигация «Тем»**: шапка темы — `<button aria-expanded>`, строка урока —
+  `div role="button" tabIndex=0` (внутри — кнопка «Теория», button-в-button
+  невалиден) с Enter/Space и guard'ом `e.target === e.currentTarget`.
+- **Плитки `SentenceBuilder` и flip-карточки теории — `<button>`**
+  (использованные плитки — `aria-disabled` + guard'ы в onClick, НЕ `disabled`:
+  нативный disabled ронял бы фокус на body; у flip — `aria-pressed`). UA-стили
+  этих кнопок погашены `:where(...)`-reset'ом в конце `index.css` (нулевая
+  специфичность — классовые правила побеждают, имена классов не тронуты).
+- **Скринридер**: `ResultFeedback`/`RetryBox` — `role="status"` +
+  `aria-live="polite"`; полоса прогресса сессии — `role="progressbar"`
+  (`aria-label` «Позиция в сессии», `valuenow=idx+1`, `min=0`, `max=N`);
+  поля SignIn — `aria-label` Email/Пароль.
+- **`lang="pt-PT"`** точечно на португальском тексте: вопрос MC pt→ru, опции
+  MC ru→pt, pt-слово фидбэка, плитки конструктора, pt-сторона flip-карточки.
 
 ## Ключевые решения и алгоритмы
 
@@ -104,7 +150,7 @@
 
 ## Карта файлов
 
-- Оркестрация: [`Shell.tsx`](../../src/components/Shell.tsx), [`App.tsx`](../../src/App.tsx), [`main.tsx`](../../src/main.tsx), [`Splash.tsx`](../../src/components/Splash.tsx).
+- Оркестрация: [`Shell.tsx`](../../src/components/Shell.tsx), [`App.tsx`](../../src/App.tsx), [`main.tsx`](../../src/main.tsx), [`Splash.tsx`](../../src/components/Splash.tsx), [`ErrorBoundary.tsx`](../../src/components/ErrorBoundary.tsx), [`OfflineBanner.tsx`](../../src/components/OfflineBanner.tsx).
 - Хром/дашборд: [`Header.tsx`](../../src/components/Header.tsx), [`TabBar.tsx`](../../src/components/TabBar.tsx), [`ReviewTab.tsx`](../../src/components/ReviewTab.tsx), [`ScoreRow.tsx`](../../src/components/ScoreRow.tsx), [`TopicsTab.tsx`](../../src/components/TopicsTab.tsx).
 - Тренировка: [`Session.tsx`](../../src/components/Session.tsx), [`Theory.tsx`](../../src/components/Theory.tsx), [`exercises/`](../../src/components/exercises/), [`Feedback.tsx`](../../src/components/Feedback.tsx), [`Complete.tsx`](../../src/components/Complete.tsx).
 - Утилиты: [`text.ts`](../../src/lib/text.ts), [`wrongOptions.ts`](../../src/lib/wrongOptions.ts), [`speech.ts`](../../src/lib/speech.ts).
@@ -112,4 +158,6 @@
 ## Известные ограничения
 
 - Проверка ответов — на клиенте; `SentenceBuilder` вообще не пишет прогресс.
-- До первой загрузки курса/SRS — экран `Splash` (офлайна нет, Convex требует сети).
+- До первой загрузки курса/SRS — экран `Splash` (холодного офлайн-старта нет,
+  Convex требует сети; при разрыве УЖЕ загруженной сессии тренировка продолжает
+  работать — мутации копятся в очереди клиента, баннер предупреждает).
