@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/experimental-ct-react";
+import { test, expect, type MountResult } from "@playwright/experimental-ct-react";
 import { McExercise } from "./McExercise";
 import type { CardFields, Course, WordView } from "../../lib/types";
 
@@ -94,6 +94,195 @@ test("a non-due word (early practice) hides the pre-answer SRS line", async ({ m
     />,
   );
   await expect(component.locator(".m-q-srs")).toHaveCount(0);
+});
+
+// ── Хоткеи и клавиатура ──────────────────────────────────────────────────────
+
+// Опции перемешаны — находим индекс правильной («привет») и жмём её клавишу.
+async function correctIndex(component: MountResult) {
+  const labels = await component.locator(".m-opt .m-opt-label").allTextContents();
+  const i = labels.findIndex((l) => l.trim() === "привет");
+  expect(i).toBeGreaterThanOrEqual(0);
+  return i;
+}
+
+test("digit hotkey (1–5) picks the matching option", async ({ mount, page }) => {
+  let firstTryCorrect: boolean | null = null;
+  const component = await mount(
+    <McExercise
+      word={word}
+      mode="pt_ru"
+      tag="new"
+      card={undefined}
+      course={course}
+      isLast={false}
+      onAnswered={(r) => {
+        firstTryCorrect = r.firstTry;
+      }}
+      onNext={() => {}}
+    />,
+  );
+  const i = await correctIndex(component);
+  await page.keyboard.press(String(i + 1));
+  await expect(component.getByText("Верно!")).toBeVisible();
+  expect(firstTryCorrect).toBe(true);
+});
+
+test("Latin letter hotkey (A–E) picks the matching option", async ({ mount, page }) => {
+  let answered = 0;
+  const component = await mount(
+    <McExercise
+      word={word}
+      mode="pt_ru"
+      tag="new"
+      card={undefined}
+      course={course}
+      isLast={false}
+      onAnswered={() => {
+        answered += 1;
+      }}
+      onNext={() => {}}
+    />,
+  );
+  const i = await correctIndex(component);
+  // С модификатором (Shift тоже модификатор) хоткей молчит…
+  await page.keyboard.press(`Shift+${"abcde"[i]}`);
+  await expect(component.getByText("Верно!")).toHaveCount(0);
+  expect(answered).toBe(0);
+  // …а голая буква выбирает опцию.
+  await page.keyboard.press("abcde"[i]);
+  await expect(component.getByText("Верно!")).toBeVisible();
+  expect(answered).toBe(1);
+});
+
+test("RU layout: physical A–E keys (e.code) pick options via the code fallback", async ({
+  mount,
+  page,
+}) => {
+  let answered = 0;
+  const component = await mount(
+    <McExercise
+      word={word}
+      mode="pt_ru"
+      tag="new"
+      card={undefined}
+      course={course}
+      isLast={false}
+      onAnswered={() => {
+        answered += 1;
+      }}
+      onNext={() => {}}
+    />,
+  );
+  const i = await correctIndex(component);
+  // В русской раскладке физические KeyA–KeyE печатают кириллицу — e.key не
+  // матчится, должен сработать фоллбэк по e.code (синтезируем настоящую пару
+  // key/code этой раскладки: KeyA→«ф», KeyB→«и», KeyC→«с», KeyD→«в», KeyE→«у»).
+  await page.evaluate(
+    ([key, code]) => {
+      document.body.dispatchEvent(new KeyboardEvent("keydown", { key, code, bubbles: true }));
+    },
+    [["ф", "и", "с", "в", "у"][i], "Key" + "ABCDE"[i]] as const,
+  );
+  await expect(component.getByText("Верно!")).toBeVisible();
+  expect(answered).toBe(1);
+});
+
+test("hotkeys are inert for an already-missed (disabled) option and after resolve", async ({
+  mount,
+  page,
+}) => {
+  let answered = 0;
+  const component = await mount(
+    <McExercise
+      word={word}
+      mode="pt_ru"
+      tag="new"
+      card={undefined}
+      course={course}
+      isLast={false}
+      onAnswered={() => {
+        answered += 1;
+      }}
+      onNext={() => {}}
+    />,
+  );
+  const labels = await component.locator(".m-opt .m-opt-label").allTextContents();
+  const wrong = labels.findIndex((l) => l.trim() !== "привет");
+  const right = labels.findIndex((l) => l.trim() === "привет");
+
+  await page.keyboard.press(String(wrong + 1)); // промах → ретрай
+  await expect(component.getByText("Не совсем!")).toBeVisible();
+  await page.keyboard.press(String(wrong + 1)); // та же опция disabled — игнор
+  await expect(component.getByText("Не совсем!")).toBeVisible();
+  expect(answered).toBe(0); // второй промах НЕ засчитан — ответа ещё нет
+
+  await page.keyboard.press(String(right + 1)); // со второй попытки — верно
+  await expect(component.getByText("Верно!")).toBeVisible();
+  expect(answered).toBe(1);
+
+  await page.keyboard.press(String(wrong + 1)); // после ответа хоткеи молчат
+  expect(answered).toBe(1);
+});
+
+test("Enter after the answer presses the autofocused «Дальше»", async ({ mount, page }) => {
+  let next = 0;
+  const component = await mount(
+    <McExercise
+      word={word}
+      mode="pt_ru"
+      tag="new"
+      card={undefined}
+      course={course}
+      isLast={false}
+      onAnswered={() => {}}
+      onNext={() => {
+        next += 1;
+      }}
+    />,
+  );
+  const i = await correctIndex(component);
+  await page.keyboard.press(String(i + 1));
+  const nextBtn = component.getByRole("button", { name: /Дальше/ });
+  await expect(nextBtn).toBeFocused();
+  await page.keyboard.press("Enter");
+  expect(next).toBe(1);
+});
+
+test("marks Portuguese text with lang=pt-PT (question in pt→ru, options in ru→pt)", async ({
+  mount,
+}) => {
+  const ptRu = await mount(
+    <McExercise
+      word={word}
+      mode="pt_ru"
+      tag="new"
+      card={undefined}
+      course={course}
+      isLast={false}
+      onAnswered={() => {}}
+      onNext={() => {}}
+    />,
+  );
+  await expect(ptRu.locator(".m-q-text")).toHaveAttribute("lang", "pt-PT");
+  await expect(ptRu.locator(".m-opt-label").first()).not.toHaveAttribute("lang");
+  await ptRu.unmount();
+
+  const ruPt = await mount(
+    <McExercise
+      word={word}
+      mode="ru_pt"
+      tag="new"
+      card={undefined}
+      course={course}
+      isLast={false}
+      onAnswered={() => {}}
+      onNext={() => {}}
+    />,
+  );
+  await expect(ruPt.locator(".m-q-text")).not.toHaveAttribute("lang");
+  for (const label of await ruPt.locator(".m-opt-label").all())
+    await expect(label).toHaveAttribute("lang", "pt-PT");
 });
 
 test("reveals the answer after two wrong picks", async ({ mount }) => {

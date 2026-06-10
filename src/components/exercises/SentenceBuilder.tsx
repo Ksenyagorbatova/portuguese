@@ -70,28 +70,37 @@ export function SentenceBuilder({
         {selected.length === 0 ? (
           <span className="m-ans-ph">нажимай слова снизу…</span>
         ) : (
+          // aria-disabled (не disabled): нативный disabled на активированной
+          // плитке роняет фокус на body — Tab-пользователь начинал бы сначала.
+          // Действие гасит guard в onClick (Enter/Space синтезируют click).
           selected.map((id, idx) => (
-            <div
+            <button
               key={idx}
+              type="button"
               className="m-atile"
+              lang="pt-PT"
+              aria-disabled={resolved !== null}
               onClick={() => !resolved && setSelected((s) => s.filter((_, i) => i !== idx))}
             >
               {wordById.get(id)}
               {!resolved && <Icon name="x" size={13} className="m-atile-x" />}
-            </div>
+            </button>
           ))
         )}
       </div>
 
       <div className="m-bank">
         {tiles.map((t) => (
-          <div
+          <button
             key={t.id}
+            type="button"
             className={"m-wtile" + (used.has(t.id) ? " used" : "")}
+            lang="pt-PT"
+            aria-disabled={used.has(t.id) || resolved !== null}
             onClick={() => !resolved && !used.has(t.id) && setSelected((s) => [...s, t.id])}
           >
             {t.w}
-          </div>
+          </button>
         ))}
       </div>
 
@@ -115,7 +124,7 @@ export function SentenceBuilder({
         <>
           <ResultFeedback ok={resolved.ok}>
             <b>{resolved.ok ? "Верно!" : "Правильно:"}</b>{" "}
-            <span className="m-fb-pt">{sentence.answer}</span>
+            <span className="m-fb-pt" lang="pt-PT">{sentence.answer}</span>
             <div className="m-fb-sub">{sentence.ru}</div>
           </ResultFeedback>
           <NextButton isLast={isLast} onClick={onNext} />
