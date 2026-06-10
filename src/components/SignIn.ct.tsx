@@ -17,4 +17,10 @@ test.describe("SignIn with registration disabled", () => {
     await expect(component.getByText("Зарегистрироваться")).toHaveCount(0);
     await expect(component.getByText("Нет аккаунта?")).toHaveCount(0);
   });
+
+  test("the fields carry accessible labels, not only placeholders", async ({ mount }) => {
+    const component = await mount(<SignIn />);
+    await expect(component.getByLabel("Email")).toBeVisible();
+    await expect(component.getByLabel("Пароль")).toBeVisible();
+  });
 });

@@ -179,7 +179,14 @@ export function Session({
         >
           <Icon name="x" size={18} />
         </button>
-        <div className="m-progress">
+        <div
+          className="m-progress"
+          role="progressbar"
+          aria-label="Позиция в сессии"
+          aria-valuemin={0}
+          aria-valuemax={items.length}
+          aria-valuenow={idx + 1}
+        >
           <div className="m-progress-fill" style={{ width: `${posPct}%` }} />
         </div>
         <span className="m-progress-count">

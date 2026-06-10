@@ -71,27 +71,33 @@ export function SentenceBuilder({
           <span className="m-ans-ph">нажимай слова снизу…</span>
         ) : (
           selected.map((id, idx) => (
-            <div
+            <button
               key={idx}
+              type="button"
               className="m-atile"
+              lang="pt-PT"
+              disabled={resolved !== null}
               onClick={() => !resolved && setSelected((s) => s.filter((_, i) => i !== idx))}
             >
               {wordById.get(id)}
               {!resolved && <Icon name="x" size={13} className="m-atile-x" />}
-            </div>
+            </button>
           ))
         )}
       </div>
 
       <div className="m-bank">
         {tiles.map((t) => (
-          <div
+          <button
             key={t.id}
+            type="button"
             className={"m-wtile" + (used.has(t.id) ? " used" : "")}
+            lang="pt-PT"
+            disabled={used.has(t.id) || resolved !== null}
             onClick={() => !resolved && !used.has(t.id) && setSelected((s) => [...s, t.id])}
           >
             {t.w}
-          </div>
+          </button>
         ))}
       </div>
 
@@ -115,7 +121,7 @@ export function SentenceBuilder({
         <>
           <ResultFeedback ok={resolved.ok}>
             <b>{resolved.ok ? "Верно!" : "Правильно:"}</b>{" "}
-            <span className="m-fb-pt">{sentence.answer}</span>
+            <span className="m-fb-pt" lang="pt-PT">{sentence.answer}</span>
             <div className="m-fb-sub">{sentence.ru}</div>
           </ResultFeedback>
           <NextButton isLast={isLast} onClick={onNext} />

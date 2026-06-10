@@ -42,6 +42,43 @@ test("accepts the correctly built sentence", async ({ mount }) => {
   await expect(component.locator(".m-atile-x")).toHaveCount(0);
 });
 
+test("builds and checks the sentence with the keyboard only", async ({ mount }) => {
+  let answeredFirstTry: boolean | null = null;
+  const component = await mount(
+    <SentenceBuilder
+      sentence={sentence}
+      isLast={false}
+      onAnswered={(r) => {
+        answeredFirstTry = r.firstTry;
+      }}
+      onNext={() => {}}
+    />,
+  );
+
+  // Плитки — настоящие <button>: press фокусирует и активирует Enter'ом.
+  await component.locator(".m-bank .m-wtile").filter({ hasText: "Bom" }).press("Enter");
+  await component.locator(".m-bank .m-wtile").filter({ hasText: "dia" }).press("Enter");
+  await expect(component.locator(".m-answer .m-atile")).toHaveCount(2);
+  await component.getByRole("button", { name: "Проверить" }).press("Enter");
+
+  await expect(component.getByText("Верно!")).toBeVisible();
+  expect(answeredFirstTry).toBe(true);
+});
+
+test("tiles are buttons and carry lang=pt-PT", async ({ mount }) => {
+  const component = await mount(
+    <SentenceBuilder sentence={sentence} isLast={false} onAnswered={() => {}} onNext={() => {}} />,
+  );
+  for (const tile of await component.locator(".m-bank .m-wtile").all()) {
+    await expect(tile).toHaveRole("button");
+    await expect(tile).toHaveAttribute("lang", "pt-PT");
+  }
+  await component.locator(".m-bank .m-wtile").filter({ hasText: "Bom" }).click();
+  const picked = component.locator(".m-answer .m-atile");
+  await expect(picked).toHaveRole("button");
+  await expect(picked).toHaveAttribute("lang", "pt-PT");
+});
+
 test("answer tiles show a removable ✕ and clicking a tile removes it", async ({ mount }) => {
   const component = await mount(
     <SentenceBuilder sentence={sentence} isLast={false} onAnswered={() => {}} onNext={() => {}} />,

@@ -1,10 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { AnswerResult, BadgeTag, CardFields, Course, WordView } from "../../lib/types";
 import { shuffle } from "../../lib/shuffle";
 import { getWrong } from "../../lib/wrongOptions";
-import { nextDueLabel } from "../../lib/srs";
+import { nextDueLabel, wKey } from "../../lib/srs";
 import { speak } from "../../lib/speech";
 import { Badge } from "../Badge";
 import { Icon } from "../Icon";
@@ -13,6 +13,14 @@ import { WordFeedback, RetryBox, NextButton } from "../Feedback";
 type Resolved = { ok: boolean; dueLabel: string };
 
 const KEYS = ["A", "B", "C", "D", "E"];
+
+// Хоткей → индекс опции: «1»–«5» и латинские A–E (любой регистр). Кириллица и
+// прочие клавиши не матчатся (раскладка RU не должна стрелять случайно).
+function hotkeyIndex(key: string): number {
+  if (/^[1-5]$/.test(key)) return key.charCodeAt(0) - "1".charCodeAt(0);
+  if (/^[a-eA-E]$/.test(key)) return key.toLowerCase().charCodeAt(0) - "a".charCodeAt(0);
+  return -1;
+}
 
 export function McExercise({
   word,
@@ -61,6 +69,27 @@ export function McExercise({
     }
   }
 
+  // Хоткеи: 1–5 / A–E выбирают опцию, пока ответ не дан. useEffectEvent читает
+  // свежие resolved/wrongPicked/options без переподписки слушателя.
+  const onHotkey = useEffectEvent((e: KeyboardEvent) => {
+    if (resolved || e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+    const t = e.target as HTMLElement | null;
+    // Не перехватываем набор текста (на будущее — в MC своих инпутов нет).
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+    const i = hotkeyIndex(e.key);
+    if (i < 0 || i >= options.length) return;
+    const o = options[i];
+    if (wrongPicked.has(o.pt)) return; // опция уже disabled после промаха
+    e.preventDefault();
+    choose(o);
+  });
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => onHotkey(e);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   function optClass(o: WordView): string {
     if (resolved) {
       if (isCorrectOpt(o)) return "m-opt correct";
@@ -82,7 +111,10 @@ export function McExercise({
         <Badge tag={tag} />
       </div>
       <div className="m-q-row">
-        <div className="m-q-text">{question}</div>
+        {/* В pt→ru вопрос — португальский: размечаем для скринридеров. */}
+        <div className="m-q-text" lang={mode === "pt_ru" ? "pt-PT" : undefined}>
+          {question}
+        </div>
         {mode === "pt_ru" && (
           <button className="m-audio" onClick={() => speak(word.pt)} aria-label="Прослушать">
             <Icon name="volume" />
@@ -102,13 +134,17 @@ export function McExercise({
       <div className="m-opts">
         {options.map((o, i) => (
           <button
-            key={o.pt}
+            // wKey: в контенте есть дубли pt в разных уроках — один pt не уникален.
+            key={wKey(o.lessonKey, o.pt)}
             className={optClass(o)}
             disabled={resolved !== null || wrongPicked.has(o.pt)}
             onClick={() => choose(o)}
           >
-            <span className="m-opt-key">{KEYS[i]}</span>
-            <span className="m-opt-label">{label(o)}</span>
+            <span className="m-opt-key" aria-hidden="true">{KEYS[i]}</span>
+            {/* В ru→pt опции — португальские. */}
+            <span className="m-opt-label" lang={mode === "ru_pt" ? "pt-PT" : undefined}>
+              {label(o)}
+            </span>
             <span className="m-opt-mark">
               <Icon name={isCorrectOpt(o) ? "check" : "x"} size={20} />
             </span>
