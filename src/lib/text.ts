@@ -15,11 +15,26 @@ export function normStr(s: string): string {
     .replace(/\s+/g, " ");
 }
 
+// Type-in answer normalization: on top of normStr, punctuation ([.!?,] and
+// ellipses — "…" is already dropped by normStr, "..." by the class below) is
+// optional, mirroring sentenceMatch. Hyphens stay significant ("bem-vindo"),
+// digits and slashes are kept; slash spacing is canonicalized so the full
+// label "um / uma" can be compared regardless of spaces around "/".
+function normAnswer(s: string): string {
+  return normStr(s)
+    .replace(/[.!?,]/g, "")
+    .replace(/\s*\/\s*/g, "/")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function variantsMatch(input: string, correctPt: string): boolean {
-  const inp = normStr(input);
+  const inp = normAnswer(input);
+  // The user sees the label verbatim, so the whole "um / uma" is accepted too.
+  if (inp === normAnswer(correctPt)) return true;
   return correctPt
     .split("/")
-    .map((v) => normStr(v.trim()))
+    .map((v) => normAnswer(v))
     .some((v) => inp === v);
 }
 

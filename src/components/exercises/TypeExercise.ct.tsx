@@ -84,3 +84,92 @@ test("offers a retry on a wrong answer", async ({ mount }) => {
   await component.getByRole("button", { name: "Проверить" }).click();
   await expect(component.getByText("Не совсем!")).toBeVisible();
 });
+
+// ── Устойчивость к сети ──────────────────────────────────────────────────────
+// См. McExercise.ct.tsx: мутация управляется window.__mutationMock
+// (src/test/mocks/convexReact.ts); конфиг ставится ПОСЛЕ mount и чистится
+// после теста (CT переиспользует страницу); «окно roundtrip» держится
+// открытым manual-режимом.
+test.describe("устойчивость к сети", () => {
+  test.afterEach(async ({ page }) => {
+    await page.evaluate(() => {
+      window.__mutationMock?.release?.(); // не оставлять зависших промисов
+      delete window.__mutationMock;
+    });
+  });
+
+  test("удержание Enter (авторепит) в окне roundtrip — один ответ, одна мутация", async ({
+    mount,
+    page,
+  }) => {
+    let answered = 0;
+    const component = await mount(
+      <TypeExercise
+        word={word}
+        tag="new"
+        card={undefined}
+        isLast={false}
+        onAnswered={() => {
+          answered += 1;
+        }}
+        onNext={() => {}}
+      />,
+    );
+    await page.evaluate(() => {
+      window.__mutationMock = { manual: true };
+    });
+
+    const input = component.getByPlaceholder("Ваш ответ…");
+    await input.fill("olá");
+    await input.press("Enter"); // первый keydown (repeat=false) — настоящий ответ
+    // Мутация ещё висит (manual). Удержание клавиши: авторепит шлёт повторные
+    // keydown с repeat=true, плюс «двойной Enter» (repeat=false) — всё в окне
+    // ожидания. Диспатчим напрямую, чтобы пройти мимо disabled-семантики
+    // браузера и проверить guard.
+    await input.evaluate((el) => {
+      for (let i = 0; i < 3; i++)
+        el.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", repeat: true, bubbles: true }));
+      el.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    });
+    await page.waitForTimeout(150); // дать возможным дублям докатиться до Node
+
+    expect(answered).toBe(1);
+    expect(await page.evaluate(() => window.__mutationMock?.calls ?? 0)).toBe(1);
+
+    // Отпускаем «сеть» — упражнение доводится до конца как обычно.
+    await page.evaluate(() => window.__mutationMock?.release?.());
+    await expect(component.getByText("Верно!")).toBeVisible();
+    expect(answered).toBe(1);
+    expect(await page.evaluate(() => window.__mutationMock?.calls ?? 0)).toBe(1);
+  });
+
+  test("reject мутации не подвешивает упражнение: фидбэк, «—» и «Дальше» на месте", async ({
+    mount,
+    page,
+  }) => {
+    let advanced = false;
+    const component = await mount(
+      <TypeExercise
+        word={word}
+        tag="new"
+        card={undefined}
+        isLast={false}
+        onAnswered={() => {}}
+        onNext={() => {
+          advanced = true;
+        }}
+      />,
+    );
+    await page.evaluate(() => {
+      window.__mutationMock = { reject: true };
+    });
+
+    await component.getByPlaceholder("Ваш ответ…").fill("olá");
+    await component.getByRole("button", { name: "Проверить" }).click();
+    await expect(component.getByText("Верно!")).toBeVisible();
+    await expect(component.getByText(/следующий повтор: —/)).toBeVisible();
+    await expect(component.getByText("Не удалось сохранить ответ.")).toBeVisible();
+    await component.getByRole("button", { name: /Дальше/ }).click();
+    await expect.poll(() => advanced).toBe(true);
+  });
+});
