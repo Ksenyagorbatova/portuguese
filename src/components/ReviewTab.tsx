@@ -1,6 +1,10 @@
 import type { Course, SrsState } from "../lib/types";
+import { pluralRu } from "../lib/srs";
+import { REVIEW_DUE_LIMIT } from "../lib/queue";
 import { Icon } from "./Icon";
 import { ProgressRing } from "./ProgressRing";
+
+const words = (n: number) => pluralRu(n, "слово", "слова", "слов");
 
 export function ReviewTab({
   course,
@@ -41,7 +45,10 @@ export function ReviewTab({
       <div className="m-banner due">
         <Icon name="circle-alert" />
         <span>
-          <b>{due} слов</b> пора повторить по методу Эббингауза
+          <b>
+            {due} {words(due)}
+          </b>{" "}
+          пора повторить по методу Эббингауза
         </span>
       </div>
     );
@@ -96,7 +103,10 @@ export function ReviewTab({
       >
         {due > 0 ? (
           <>
-            <Icon name="repeat" size={18} /> Повторить ({due} слов)
+            <Icon name="repeat" size={18} /> Повторить (
+            {/* Сессия берёт не больше REVIEW_DUE_LIMIT срочных слов — кнопка
+                обещает фактический размер, а не весь хвост. */}
+            {due > REVIEW_DUE_LIMIT ? `${REVIEW_DUE_LIMIT} из ${due}` : `${due} ${words(due)}`})
           </>
         ) : seenCount > 0 ? (
           <>

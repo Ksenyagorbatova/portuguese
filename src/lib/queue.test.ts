@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { buildLessonQueue, buildReviewQueue, queueCounts } from "./queue";
+import { buildLessonQueue, buildReviewQueue, queueCounts, REVIEW_DUE_LIMIT } from "./queue";
 import { wKey } from "./srs";
 import type { Course, LessonView, SrsState, Stat } from "./types";
 
@@ -97,6 +97,27 @@ describe("buildReviewQueue", () => {
       tags: { [wKey("l1", "a")]: "due", [wKey("l1", "b")]: "due" },
     });
     expect(queueCounts(buildReviewQueue(course, srs)).due).toBe(2);
+  });
+
+  it("caps the due words at REVIEW_DUE_LIMIT (the review button shows «N из M»)", () => {
+    const many: LessonView = {
+      ...lesson,
+      lessonKey: "ld",
+      words: Array.from({ length: REVIEW_DUE_LIMIT + 5 }, (_, i) => ({
+        lessonKey: "ld",
+        pt: `w${i}`,
+        ru: `п${i}`,
+      })),
+    };
+    const manyCourse: Course = {
+      topics: [{ topicKey: "t", label: "T", icon: "x", lessons: [many] }],
+      crossSentences: [],
+    };
+    const srs = srsOf({
+      seenTheory: ["ld"],
+      tags: Object.fromEntries(many.words.map((w) => [wKey("ld", w.pt), "due"] as const)),
+    });
+    expect(queueCounts(buildReviewQueue(manyCourse, srs)).due).toBe(REVIEW_DUE_LIMIT);
   });
 });
 

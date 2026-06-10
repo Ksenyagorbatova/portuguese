@@ -1,5 +1,23 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { adaptSrs, wKey, nextDueLabel, intervalLabel } from "./srs";
+import { adaptSrs, wKey, nextDueLabel, intervalLabel, pluralRu } from "./srs";
+
+describe("pluralRu", () => {
+  const words = (n: number) => pluralRu(n, "слово", "слова", "слов");
+
+  it("picks the Russian plural form: 1 слово / 2 слова / 5 слов", () => {
+    expect(words(1)).toBe("слово");
+    expect(words(2)).toBe("слова");
+    expect(words(5)).toBe("слов");
+  });
+
+  it("handles the teens and the 21/22 wrap-around", () => {
+    expect(words(11)).toBe("слов");
+    expect(words(14)).toBe("слов");
+    expect(words(21)).toBe("слово");
+    expect(words(22)).toBe("слова");
+    expect(words(0)).toBe("слов");
+  });
+});
 
 describe("wKey", () => {
   it("joins lessonKey and pt with the '||' separator", () => {

@@ -16,6 +16,11 @@ import { SENTENCE_TOPIC_THRESHOLD } from "./learning";
 // inject cross-sentences — the non-deterministic, presentational half. Ported
 // from the original buildLessonQueue/buildReviewQueue.
 
+// Review session cap: at most this many due words per run (the review button
+// in ReviewTab shows «15 из N» when more are waiting — keep these in sync by
+// importing the constant, not by re-hardcoding the number).
+export const REVIEW_DUE_LIMIT = 15;
+
 const wordItem = (word: WordView, tag: BadgeTag): SessionItem => ({ kind: "word", word, tag });
 const sentenceItem = (sentence: CrossSentenceView): SessionItem => ({
   kind: "sentence",
@@ -91,7 +96,7 @@ export function buildReviewQueue(course: Course, srs: SrsState): SessionItem[] {
   const learnedWords = allWords.filter((w) => tagOf(w) === "learned");
 
   let q: SessionItem[] = [];
-  q.push(...shuffle(due).slice(0, 15).map((w) => wordItem(w, "due")));
+  q.push(...shuffle(due).slice(0, REVIEW_DUE_LIMIT).map((w) => wordItem(w, "due")));
   q.push(...shuffle(ongoing).slice(0, 8).map((w) => wordItem(w, "review")));
   q.push(...shuffle(learnedWords).slice(0, 3).map((w) => wordItem(w, "review")));
   if (q.length === 0) q = shuffle(allWords).slice(0, 10).map((w) => wordItem(w, "review"));

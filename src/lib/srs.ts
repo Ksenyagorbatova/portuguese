@@ -41,7 +41,8 @@ export function adaptSrs(raw: RawSrsState): SrsState {
 }
 
 // Russian plural picker: one (1, 21…), few (2–4, 22–24…), many (0, 5–20…).
-function pluralRu(n: number, one: string, few: string, many: string): string {
+// Exported for UI strings («1 слово», «2 слова», «5 слов» и т.п.).
+export function pluralRu(n: number, one: string, few: string, many: string): string {
   const mod10 = n % 10;
   const mod100 = n % 100;
   if (mod10 === 1 && mod100 !== 11) return one;

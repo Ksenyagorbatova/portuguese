@@ -40,7 +40,24 @@ test("surfaces pending reviews and routes to them", async ({ mount }) => {
     />,
   );
 
-  await expect(component).toContainText("ждут повторения");
+  await expect(component).toContainText("Ещё 5 слов ждут повторения");
   await component.getByRole("button", { name: /К повторению/ }).click();
   expect(wentReview).toBe(true);
+});
+
+test("pluralizes the pending-review note: 1 слово ждёт / 2 слова ждут", async ({ mount }) => {
+  const props = {
+    correct: 1,
+    total: 1,
+    nextLesson: null,
+    onRestart: () => {},
+    onPickLesson: () => {},
+    onGoReview: () => {},
+  };
+  const one = await mount(<Complete {...props} dueCountAll={1} />);
+  await expect(one).toContainText("Ещё 1 слово ждёт повторения");
+
+  await one.unmount();
+  const few = await mount(<Complete {...props} dueCountAll={2} />);
+  await expect(few).toContainText("Ещё 2 слова ждут повторения");
 });
