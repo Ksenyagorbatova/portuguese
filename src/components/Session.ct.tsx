@@ -50,6 +50,7 @@ function mountSession(
       onRestart={noop}
       onPickLesson={noop}
       onGoReview={noop}
+      onGoTopics={noop}
       onExit={noop}
       onRetryMistakes={over.onRetryMistakes ?? noop}
     />,
@@ -149,6 +150,7 @@ test("the exit control bails out of the session", async ({ mount }) => {
       onRestart={noop}
       onPickLesson={noop}
       onGoReview={noop}
+      onGoTopics={noop}
       onExit={() => {
         exited = true;
       }}
