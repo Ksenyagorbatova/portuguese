@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { LessonView, WordView } from "../lib/types";
+import { FLIP_HINT_KEY, useFadingHint } from "../lib/hints";
 import { speakSmart } from "../lib/speech";
 import { Icon } from "./Icon";
 
@@ -43,6 +44,8 @@ export function Theory({
   onBack?: () => void;
 }) {
   const t = lesson.theory;
+  // «Нажми на карточку…» гаснет, когда приём флипа уже усвоен.
+  const showFlipHint = useFadingHint(FLIP_HINT_KEY);
   return (
     <div className="m-card">
       {onBack && (
@@ -59,9 +62,11 @@ export function Theory({
         <span className="m-tip-flag">🇵🇹</span>
         <span>{t.tip}</span>
       </div>
-      <div className="m-hint" style={{ marginBottom: 16 }}>
-        <Icon name="volume" /> Нажми на карточку — услышишь произношение и увидишь перевод
-      </div>
+      {showFlipHint && (
+        <div className="m-hint" style={{ marginBottom: 16 }}>
+          <Icon name="volume" /> Нажми на карточку — услышишь произношение и увидишь перевод
+        </div>
+      )}
       {t.sections.map((sec, i) => (
         <div className="m-sec" key={i}>
           <div className="m-sec-head">{sec.heading}</div>

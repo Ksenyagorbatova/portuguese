@@ -39,7 +39,7 @@ export const TOPICS: Record<string, Topic> = {
         theory: {
           intro:
             "Приветствия зависят от времени суток. «Спасибо» меняется по полу говорящего: obrigado — мужчина, obrigada — женщина.",
-          tip: "🇵🇹 Bom dia — до ~13:00. Boa tarde — после полудня. Boa noite — вечером и уходя спать.",
+          tip: "Bom dia — до ~13:00. Boa tarde — после полудня. Boa noite — вечером и уходя спать.",
           sections: [
             { heading: "По времени суток", words: ["Olá", "Bom dia", "Boa tarde", "Boa noite"] },
             { heading: "Благодарность", words: ["Obrigado", "Obrigada", "Por favor", "De nada"] },
@@ -65,7 +65,7 @@ export const TOPICS: Record<string, Topic> = {
         theory: {
           intro:
             "Вежливые фразы для повседневного общения. Com licença — когда надо пройти. Desculpe — когда извиняешься.",
-          tip: "🇵🇹 Como está? — вежливое «как дела?». Como estás? — неформальное (другу). Estou bem! — «Я в порядке!»",
+          tip: "Como está? — вежливое «как дела?». Como estás? — неформальное (другу). Estou bem! — «Я в порядке!»",
           sections: [
             { heading: "Вежливость", words: ["Com licença", "Desculpe", "Com certeza", "Claro"] },
             {
@@ -100,7 +100,7 @@ export const TOPICS: Record<string, Topic> = {
         theory: {
           intro:
             "Числа 1 и 2 имеют мужской и женский род: um/uma, dois/duas. Остальные неизменяемые.",
-          tip: "🇵🇹 Um café — один кофе. Uma água — одна вода. Dois copos — два стакана.",
+          tip: "Um café — один кофе. Uma água — одна вода. Dois copos — два стакана.",
           sections: [
             {
               heading: "0–10",
@@ -128,7 +128,7 @@ export const TOPICS: Record<string, Topic> = {
         theory: {
           intro:
             "11–15 надо просто запомнить. 16–19: dez + seis/sete... → dezasseis. 20 — vinte, 30 — trinta, 100 — cem.",
-          tip: "🇵🇹 «Tenho vinte anos» — «Мне двадцать лет». Возраст всегда с глаголом ter (иметь).",
+          tip: "«Tenho vinte anos» — «Мне двадцать лет». Возраст всегда с глаголом ter (иметь).",
           sections: [
             {
               heading: "11–20",
@@ -168,7 +168,7 @@ export const TOPICS: Record<string, Topic> = {
         theory: {
           intro:
             "Прилагательные согласуются с родом: bom/boa, mau/má, pequeno/pequena. Исключения: grande, simples — для обоих родов.",
-          tip: "🇵🇹 muito (очень) перед прилагательным не меняется: muito bom, muito boa. Перед существительным: muito calor, muita água.",
+          tip: "muito (очень) перед прилагательным не меняется: muito bom, muito boa. Перед существительным: muito calor, muita água.",
           sections: [
             { heading: "Да / нет / союзы", words: ["sim", "não", "e", "ou", "mas", "porque"] },
             {
@@ -202,7 +202,7 @@ export const TOPICS: Record<string, Topic> = {
         theory: {
           intro:
             "Слова для описания размера, расположения во времени и пространстве. Muito важное слово — запомни первым!",
-          tip: "🇵🇹 Сегодня/завтра/вчера: hoje/amanhã/ontem. Ontem foi bom. — Вчера было хорошо.",
+          tip: "Сегодня/завтра/вчера: hoje/amanhã/ontem. Ontem foi bom. — Вчера было хорошо.",
           sections: [
             {
               heading: "Размер и вид",
@@ -246,7 +246,7 @@ export const TOPICS: Record<string, Topic> = {
         theory: {
           intro:
             "Два глагола «быть»: ser — постоянное (профессия, национальность), estar — временное (состояние, место).",
-          tip: "🇵🇹 Sou russo. — Я русский. (ser)\nEstou cansado. — Я устал. (estar)\nEstou em Lisboa. — Я в Лиссабоне. (estar)",
+          tip: "Sou russo. — Я русский. (ser)\nEstou cansado. — Я устал. (estar)\nEstou em Lisboa. — Я в Лиссабоне. (estar)",
           sections: [
             { heading: "Два глагола «быть»", words: ["ser", "estar"] },
             { heading: "Самые важные", words: ["ter", "fazer", "ir", "vir", "falar", "comer", "beber"] },
@@ -271,7 +271,7 @@ export const TOPICS: Record<string, Topic> = {
         theory: {
           intro:
             "Глаголы poder (мочь), saber (знать/уметь), gostar (нравиться). Gostar всегда с «de»: Gosto de café. — Мне нравится кофе.",
-          tip: "🇵🇹 trabalhar (работать) → eu trabalho. morar (жить) → eu moro em... Эти глаголы правильные, легко спрягаются.",
+          tip: "trabalhar (работать) → eu trabalho. morar (жить) → eu moro em... Эти глаголы правильные, легко спрягаются.",
           sections: [
             { heading: "Модальные", words: ["poder", "saber", "querer", "precisar"] },
             {
@@ -307,7 +307,7 @@ export const TOPICS: Record<string, Topic> = {
         theory: {
           intro:
             "Слова для членов семьи. У многих мужская и женская форма: pai/mãe, irmão/irmã, filho/filha.",
-          tip: "🇵🇹 Tenho um irmão. — У меня есть брат. Não tenho filhos. — У меня нет детей. Глагол ter (иметь) для семьи.",
+          tip: "Tenho um irmão. — У меня есть брат. Não tenho filhos. — У меня нет детей. Глагол ter (иметь) для семьи.",
           sections: [
             {
               heading: "Ближайшие",
@@ -346,7 +346,7 @@ export const TOPICS: Record<string, Topic> = {
         theory: {
           intro:
             "Цвета согласуются с родом: carro vermelho (красная машина), casa vermelha. Исключения без изменений: azul, verde, laranja, cor-de-rosa.",
-          tip: "🇵🇹 Ele é alto e magro. — Он высокий и худой. Ela tem olhos azuis. — У неё голубые глаза. (ter = иметь)",
+          tip: "Ele é alto e magro. — Он высокий и худой. Ela tem olhos azuis. — У неё голубые глаза. (ter = иметь)",
           sections: [
             {
               heading: "Цвета",
@@ -373,7 +373,7 @@ export const TOPICS: Record<string, Topic> = {
         theory: {
           intro:
             "Описание внешности. Alto/baixo — рост, gordo/magro — телосложение. Прилагательные согласуются с родом человека.",
-          tip: "🇵🇹 Ele é alto. — Он высокий. Ela é alta. — Она высокая. Обратите внимание на окончание!",
+          tip: "Ele é alto. — Он высокий. Ela é alta. — Она высокая. Обратите внимание на окончание!",
           sections: [
             {
               heading: "Внешность",
@@ -407,7 +407,7 @@ export const TOPICS: Record<string, Topic> = {
         theory: {
           intro:
             "В кафе: «Quero...» + слово из меню работает везде. Um/uma = одна порция. A conta — счёт.",
-          tip: "🇵🇹 Um café = эспрессо. Galão = большой кофе с молоком. Pastel de nata — обязательно попробуй!",
+          tip: "Um café = эспрессо. Galão = большой кофе с молоком. Pastel de nata — обязательно попробуй!",
           sections: [
             {
               heading: "Еда",
@@ -434,7 +434,7 @@ export const TOPICS: Record<string, Topic> = {
         theory: {
           intro:
             "В ресторане: pequeno-almoço (завтрак), almoço (обед), jantar (ужин). Sobremesa — десерт.",
-          tip: "🇵🇹 Vinho verde — молодое белое вино, символ Португалии. Cerveja — пиво. «A conta, por favor» — счёт.",
+          tip: "Vinho verde — молодое белое вино, символ Португалии. Cerveja — пиво. «A conta, por favor» — счёт.",
           sections: [
             { heading: "Напитки", words: ["vinho", "cerveja", "sumo", "chá", "água com gás"] },
             {
@@ -469,7 +469,7 @@ export const TOPICS: Record<string, Topic> = {
         theory: {
           intro:
             "Дни недели не пишутся с заглавной буквы. Название от числа: segunda (второй), terça (третий)... feira = ярмарочный день.",
-          tip: "🇵🇹 «Que dia é hoje?» — Какой сегодня день? «Hoje é quarta-feira.» — Сегодня среда.",
+          tip: "«Que dia é hoje?» — Какой сегодня день? «Hoje é quarta-feira.» — Сегодня среда.",
           sections: [
             {
               heading: "Дни недели",
@@ -496,7 +496,7 @@ export const TOPICS: Record<string, Topic> = {
         theory: {
           intro:
             "Время: São três horas. (три часа). É meio-dia. (полдень). É meia-noite. (полночь). Que horas são? — Который час?",
-          tip: "🇵🇹 Manhã = утро. Tarde = день/вечер. Noite = ночь. De manhã = утром. À tarde = днём/вечером.",
+          tip: "Manhã = утро. Tarde = день/вечер. Noite = ночь. De manhã = утром. À tarde = днём/вечером.",
           sections: [
             { heading: "Части суток", words: ["manhã", "tarde", "noite", "meio-dia", "meia-noite"] },
             { heading: "Время", words: ["hora", "minuto", "mês", "ano", "cedo", "tarde", "logo"] },
@@ -529,7 +529,7 @@ export const TOPICS: Record<string, Topic> = {
         theory: {
           intro:
             "Onde é...? — Где...? Для направлений: à direita (направо), à esquerda (налево), em frente (прямо).",
-          tip: "🇵🇹 В Лиссабоне: Baixa — центр, Alfama — старый квартал, Belém — район с башней.",
+          tip: "В Лиссабоне: Baixa — центр, Alfama — старый квартал, Belém — район с башней.",
           sections: [
             {
               heading: "Места",
@@ -556,7 +556,7 @@ export const TOPICS: Record<string, Topic> = {
         theory: {
           intro:
             "«Ir de» + транспорт: Vou de metro. — Еду на метро. «A pé» — пешком (пешком = de pé — на ногах).",
-          tip: "🇵🇹 В Лиссабоне: eléctrico (трамвай 28!), metro, autocarro, ferry через реку Тежу.",
+          tip: "В Лиссабоне: eléctrico (трамвай 28!), metro, autocarro, ferry через реку Тежу.",
           sections: [
             { heading: "Транспорт", words: ["autocarro", "metro", "comboio", "táxi", "carro", "avião", "barco"] },
             {
@@ -595,7 +595,7 @@ export const TOPICS: Record<string, Topic> = {
         theory: {
           intro:
             "Dói-me a cabeça. — У меня болит голова. Tenho dores de... — У меня боли в... (dores = боли, мн.ч.)",
-          tip: "🇵🇹 112 — номер скорой в Португалии. Preciso de um médico. — Мне нужен врач. Chame uma ambulância! — Вызовите скорую!",
+          tip: "112 — номер скорой в Португалии. Preciso de um médico. — Мне нужен врач. Chame uma ambulância! — Вызовите скорую!",
           sections: [
             {
               heading: "Части тела",
@@ -622,7 +622,7 @@ export const TOPICS: Record<string, Topic> = {
         theory: {
           intro:
             "Состояния: estou cansado (устал), estou doente (болен). Tenho febre (есть температура). Глагол estar для временных состояний.",
-          tip: "🇵🇹 В аптеке (farmácia): Tem aspirina? — Есть аспирин? Tenho dores de cabeça. — У меня болит голова.",
+          tip: "В аптеке (farmácia): Tem aspirina? — Есть аспирин? Tenho dores de cabeça. — У меня болит голова.",
           sections: [
             {
               heading: "Здоровье",
@@ -657,7 +657,7 @@ export const TOPICS: Record<string, Topic> = {
         theory: {
           intro:
             "Estar em casa — быть дома. O livro está na mesa — книга на столе. Na = em + a (в/на + артикль жен.р.). No = em + o (муж.р.).",
-          tip: "🇵🇹 rés-do-chão = ground floor (первый этаж у нас). primeiro andar = второй этаж. Важно в отелях!",
+          tip: "rés-do-chão = ground floor (первый этаж у нас). primeiro andar = второй этаж. Важно в отелях!",
           sections: [
             {
               heading: "Помещения",
@@ -689,7 +689,7 @@ export const TOPICS: Record<string, Topic> = {
         theory: {
           intro:
             "Предметы в доме. Ter (иметь) для описания вещей: Tenho um computador. — У меня есть компьютер.",
-          tip: "🇵🇹 Слова совпадают с русским: computador, televisão, telefone. Португальский близок к другим Romance языкам.",
+          tip: "Слова совпадают с русским: computador, televisão, telefone. Португальский близок к другим Romance языкам.",
           sections: [
             {
               heading: "Предметы",
@@ -723,7 +723,7 @@ export const TOPICS: Record<string, Topic> = {
         theory: {
           intro:
             "Estar + прилагательное для погоды: Está sol. (солнечно), Está frio. (холодно). Или Faz calor/frio — тоже правильно.",
-          tip: "🇵🇹 Лиссабон — 2800+ солнечных часов в год. Que dia bonito! — Какой красивый день! Está a chover. — Идёт дождь.",
+          tip: "Лиссабон — 2800+ солнечных часов в год. Que dia bonito! — Какой красивый день! Está a chover. — Идёт дождь.",
           sections: [
             {
               heading: "Погода",
@@ -763,7 +763,7 @@ export const TOPICS: Record<string, Topic> = {
         theory: {
           intro:
             "Фразы для непонимания и просьб о помощи. Запоминай целиком — разбор структуры придёт потом.",
-          tip: "🇵🇹 Португальцы очень ценят попытки говорить по-португальски. Улыбнись и скажи «Não percebo» — обязательно помогут.",
+          tip: "Португальцы очень ценят попытки говорить по-португальски. Улыбнись и скажи «Não percebo» — обязательно помогут.",
           sections: [
             {
               heading: "Непонимание",

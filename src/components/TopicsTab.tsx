@@ -45,11 +45,6 @@ function LessonRow({
               <Icon name="book-open" size={11} /> новая
             </span>
           )}
-          {/* Ожидание объёма: сессии каппированы (SESSION_SIZE), оценка честная
-              и статичная. У добитых уроков пилюли нет. */}
-          {ls.total > 0 && ls.learned < ls.total && (
-            <span className="m-pill-est">сессия ≈ 5 мин</span>
-          )}
         </div>
       </div>
       <div className="m-lesson-actions">

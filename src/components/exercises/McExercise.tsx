@@ -6,6 +6,7 @@ import { shuffle } from "../../lib/shuffle";
 import { getWrong } from "../../lib/wrongOptions";
 import { localDay } from "../../lib/day";
 import { nextDueLabel, wKey } from "../../lib/srs";
+import { predictCardAfterAnswer } from "../../lib/srsPredict";
 import { speak, speakSmart } from "../../lib/speech";
 import { Badge } from "../Badge";
 import { Icon } from "../Icon";
@@ -68,12 +69,11 @@ export function McExercise({
     pendingRef.current = true;
     speak(word.pt);
     onAnswered({ mode: "mc", correct: quality >= 1, firstTry: quality === 2 });
-    // UI резолвим сразу, НЕ дожидаясь сети: при разрыве соединения Convex
-    // не реджектит мутацию, а держит её в очереди до реконнекта (промис висит
-    // неограниченно долго) — ждать его значит подвесить упражнение. Метка
-    // следующего повтора подтянется с ответом сервера; при отказе мутации
-    // останется «—» с пометкой, что ответ не сохранился.
-    setResolved({ ok, dueLabel: null });
+    // UI резолвим сразу, НЕ дожидаясь сети (Convex при разрыве держит мутацию
+    // в очереди — промис может висеть неограниченно долго). Метка «следующий
+    // повтор» считается мгновенно зеркалом планировщика (srsPredict, пин-тест
+    // сверяет с сервером) — без «—» → «завтра»-дёргания после roundtrip'а.
+    setResolved({ ok, dueLabel: nextDueLabel(predictCardAfterAnswer(card, quality, "mc")) });
     void recordAnswer({
       lessonKey: word.lessonKey,
       pt: word.pt,
@@ -81,7 +81,14 @@ export function McExercise({
       mode: "mc",
       clientDay: localDay(),
     }).then(
-      (res) => setResolved({ ok, dueLabel: nextDueLabel(res.card) }),
+      // Сервер — истина: при расхождении (устаревший card-проп) тихо поправим.
+      (res) =>
+        setResolved((prev) => {
+          const dueLabel = nextDueLabel(res.card);
+          return prev && prev.dueLabel === dueLabel ? prev : { ok, dueLabel };
+        }),
+      // Мутация отвергнута — расписание НЕ изменилось, предсказание ложно:
+      // честные «—» и пометка о несохранённом ответе.
       () => setResolved({ ok, dueLabel: null, saveFailed: true }),
     );
   }
