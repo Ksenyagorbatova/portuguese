@@ -72,7 +72,7 @@ export function McExercise({
   // Хоткеи: 1–5 / A–E выбирают опцию, пока ответ не дан. useEffectEvent читает
   // свежие resolved/wrongPicked/options без переподписки слушателя.
   const onHotkey = useEffectEvent((e: KeyboardEvent) => {
-    if (resolved || e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (resolved || e.repeat || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
     const t = e.target as HTMLElement | null;
     // Не перехватываем набор текста (на будущее — в MC своих инпутов нет).
     if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;

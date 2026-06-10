@@ -145,6 +145,11 @@ test("Latin letter hotkey (A–E) picks the matching option", async ({ mount, pa
     />,
   );
   const i = await correctIndex(component);
+  // С модификатором (Shift тоже модификатор) хоткей молчит…
+  await page.keyboard.press(`Shift+${"abcde"[i]}`);
+  await expect(component.getByText("Верно!")).toHaveCount(0);
+  expect(answered).toBe(0);
+  // …а голая буква выбирает опцию.
   await page.keyboard.press("abcde"[i]);
   await expect(component.getByText("Верно!")).toBeVisible();
   expect(answered).toBe(1);
