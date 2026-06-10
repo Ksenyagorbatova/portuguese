@@ -57,6 +57,14 @@ API и схема не менялись. В `content.ts` добавлено **30
   `ru` дублей идентичен существующим записям.
 - **`note` только где реально полезен** (нюанс употребления): querer, logo,
   perto/longe. Остальные — без note, как их прототипы в соседних уроках.
+- **Гейт кросс-предложений учитывает дубли тем (фикс по code-review).**
+  `wordTopicMap` ([`src/lib/queue.ts`](../../src/lib/queue.ts)) строил `Map<pt,
+  topicKey>` по принципу «последняя тема побеждает» — добавление `farmácia` в
+  `body_2` молча переносило гейт cs_0007 («Onde é a farmácia?») с освоенной темы
+  city на тему body. Теперь карта — `Map<pt, Set<topicKey>>`, и required-слово
+  считается готовым, когда готова **хотя бы одна** из его тем (заодно чинит
+  унаследованный кейс olho/cabelo для cs_0013). Для слов без дублей поведение
+  не изменилось.
 - **Новый [`convex/content.test.ts`](../../convex/content.test.ts)** — чистые
   инварианты поверх импорта `TOPICS`/`CROSS_SENTENCES`, без convex-test
   (подхватывается backend-проектом Vitest по маске `convex/**/*.test.ts`):
@@ -79,6 +87,8 @@ API и схема не менялись. В `content.ts` добавлено **30
   **нет**, только 30 добавленных.
 - `convex/seed.test.ts` и `convex/courseQueries.test.ts` правок не потребовали —
   они ассертят относительные/самосогласованные счётчики, без хардкода.
+- Новый юнит в `src/lib/queue.test.ts`: слово-дубль в двух темах + одна тема
+  готова на 100% → предложение доступно (на старом last-wins коде тест красный).
 - `npm run verify` зелёный (typecheck, oxlint, 104 Vitest unit+backend,
   47 Playwright CT), `npm run build` зелёный.
 
@@ -87,8 +97,11 @@ API и схема не менялись. В `content.ts` добавлено **30
 - **Добавлено:** [`convex/content.test.ts`](../../convex/content.test.ts) (9
   тестов-инвариантов) · `convex/__snapshots__/content.test.ts.snap` (golden, 271 пара).
 - **Изменено:** [`convex/content.ts`](../../convex/content.ts) (+30 слов в 10
-  уроках) · [`specs/feature/content-and-seed.md`](../feature/content-and-seed.md)
-  (инварианты-тесты, счётчики).
+  уроках) · [`src/lib/queue.ts`](../../src/lib/queue.ts) (`wordTopicMap` →
+  `Map<pt, Set<topicKey>>`, any-topic гейт) · [`src/lib/queue.test.ts`](../../src/lib/queue.test.ts)
+  (тест дубля) · [`specs/feature/content-and-seed.md`](../feature/content-and-seed.md)
+  (инварианты-тесты, счётчики) · [`specs/feature/session-queue-and-rotation.md`](../feature/session-queue-and-rotation.md)
+  (формулировка гейта).
 
 ## Известные ограничения / дальнейшие шаги
 
