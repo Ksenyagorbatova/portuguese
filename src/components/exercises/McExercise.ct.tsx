@@ -423,3 +423,84 @@ test.describe("устойчивость к сети", () => {
     await expect(component.getByText(/следующий повтор: завтра/)).toBeVisible();
   });
 });
+
+// ── П.4 (дизайн-ревью v2): 💡-заметка не спойлерит ответ ─────────────────────
+test("the 💡-note is hidden BEFORE the answer and shown in the feedback after", async ({
+  mount,
+}) => {
+  // Заметка часто пересказывает перевод — до ответа её быть не должно.
+  const noted: WordView = { lessonKey: "l1", pt: "olá", ru: "привет", note: "ударение на á" };
+  const component = await mount(
+    <McExercise
+      word={noted}
+      mode="pt_ru"
+      tag="new"
+      card={undefined}
+      course={course}
+      isLast={false}
+      onAnswered={() => {}}
+      onNext={() => {}}
+    />,
+  );
+
+  await expect(component.locator(".m-q-note")).toHaveCount(0);
+  await expect(component.getByText("ударение на á")).toHaveCount(0);
+
+  await component.getByRole("button", { name: "привет" }).click();
+  // После ответа заметка по-прежнему доступна — в фидбэке (WordFeedback).
+  await expect(component.getByText(/ударение на á/)).toBeVisible();
+});
+
+// ── П.5 (дизайн-ревью v2): кольцо ТОЛЬКО на клавиатурном фокусе ──────────────
+test("keyboard focus draws the accent ring; mouse click does not", async ({ mount, page }) => {
+  const component = await mount(
+    <McExercise
+      word={word}
+      mode="pt_ru"
+      tag="new"
+      card={undefined}
+      course={course}
+      isLast={false}
+      onAnswered={() => {}}
+      onNext={() => {}}
+    />,
+  );
+
+  // Мышиный клик кольца не рисует (:focus-visible, не :focus). Мышь — первое
+  // взаимодействие: после Tab браузер удерживал бы focus-visible на элементе.
+  const audio = component.locator(".m-audio");
+  await audio.click();
+  await expect(audio).toBeFocused();
+  const clicked = await audio.evaluate((el) => getComputedStyle(el).boxShadow);
+  expect(clicked).not.toContain("0px 0px 0px 4px");
+
+  // Клавиатурный фокус (Tab с 🔊 на первую опцию) кольцо рисует.
+  await page.keyboard.press("Tab");
+  const opt = component.locator(".m-opt").first();
+  await expect(opt).toBeFocused();
+  const focused = await opt.evaluate((el) => getComputedStyle(el).boxShadow);
+  expect(focused).toContain("0px 0px 0px 4px"); // кольцо --accent-ring
+});
+
+test("the option keeps its own shadow under the focus ring", async ({ mount, page }) => {
+  const component = await mount(
+    <McExercise
+      word={word}
+      mode="pt_ru"
+      tag="new"
+      card={undefined}
+      course={course}
+      isLast={false}
+      onAnswered={() => {}}
+      onNext={() => {}}
+    />,
+  );
+  // Tab: 🔊 → первая опция (.m-opt с собственной тенью --e1).
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  const opt = component.locator(".m-opt").first();
+  await expect(opt).toBeFocused();
+  const shadow = await opt.evaluate((el) => getComputedStyle(el).boxShadow);
+  expect(shadow).toContain("0px 0px 0px 4px"); // кольцо…
+  expect(shadow).toContain(","); // …добавлено к собственной тени, не вместо неё
+});
