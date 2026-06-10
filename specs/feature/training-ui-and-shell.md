@@ -1,6 +1,6 @@
 # UI тренировки: Shell, хедер, сессия, теория, упражнения
 
-Статус: baseline (отгружено) · 2026-06-09
+Статус: baseline (отгружено) · 2026-06-10
 
 ## Цель
 
@@ -63,6 +63,29 @@ segmented «Повторение»/«Темы». `ScoreRow` — верно/за�
 
 **Озвучка** ([`src/lib/speech.ts`](../../src/lib/speech.ts)) — Web Speech API,
 чисто клиентская (`primeVoices`, `speak`).
+
+**Клавиатура и a11y** (ветка `fix/a11y-keyboard`, см.
+[`../fix/a11y-keyboard.md`](../fix/a11y-keyboard.md)):
+
+- **Хоткеи в MC**: `1–5` и латинские `A–E` (без модификаторов, без `e.repeat`)
+  выбирают опцию, пока ответ не дан; слушатель `keydown` на `window`
+  (`useEffectEvent` + `useEffect` с очисткой), не срабатывает при фокусе в
+  input/textarea. Кейкап `m-opt-key` — `aria-hidden`. После ответа фокус на
+  «Дальше» (autofocus в `NextButton`) → Enter ведёт к следующей карточке
+  (во всех упражнениях).
+- **Навигация «Тем»**: шапка темы — `<button aria-expanded>`, строка урока —
+  `div role="button" tabIndex=0` (внутри — кнопка «Теория», button-в-button
+  невалиден) с Enter/Space и guard'ом `e.target === e.currentTarget`.
+- **Плитки `SentenceBuilder` и flip-карточки теории — `<button>`**
+  (использованные плитки `disabled`; у flip — `aria-pressed`). UA-стили этих
+  кнопок погашены `:where(...)`-reset'ом в конце `index.css` (нулевая
+  специфичность — классовые правила побеждают, имена классов не тронуты).
+- **Скринридер**: `ResultFeedback`/`RetryBox` — `role="status"` +
+  `aria-live="polite"`; полоса прогресса сессии — `role="progressbar"`
+  (`aria-label` «Позиция в сессии», `valuenow=idx+1`, `min=0`, `max=N`);
+  поля SignIn — `aria-label` Email/Пароль.
+- **`lang="pt-PT"`** точечно на португальском тексте: вопрос MC pt→ru, опции
+  MC ru→pt, pt-слово фидбэка, плитки конструктора, pt-сторона flip-карточки.
 
 ## Ключевые решения и алгоритмы
 
