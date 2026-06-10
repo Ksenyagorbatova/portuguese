@@ -21,8 +21,12 @@
 [`convex/schema.ts`](../../convex/schema.ts), у каждой натуральный ключ и поле `order`.
 
 API:
-- `seed:seedContent` ([`convex/seed.ts`](../../convex/seed.ts)) — internalMutation, идемпотентный upsert.
-- `getCourse` ([`convex/courseQueries.ts`](../../convex/courseQueries.ts)) — всё дерево курса.
+- `seed:seedContent` ([`convex/seed.ts`](../../convex/seed.ts)) — internalMutation,
+  идемпотентный upsert + prune контентных сирот; возвращает счётчики, включая
+  `pruned: { topics, lessons, words, crossSentences }`.
+- `getCourse` ([`convex/courseQueries.ts`](../../convex/courseQueries.ts)) — всё дерево
+  курса; **auth-gated**: неавторизованному возвращает `null` (как `getSrsState`;
+  клиентский Shell показывает Splash при любом falsy).
 
 ## Поведение
 
@@ -38,6 +42,14 @@ API:
 (`topicKey` / `lessonKey=lesson.id` / `(lessonKey, pt)` / `sentenceKey`) и
 `patch`-ит её, иначе `insert`. Поэтому повторный запуск безопасен: новое
 вставляется, изменённое правится на месте, дублей нет.
+
+**Prune-фаза после upsert.** Сид собирает множества «живых» натуральных ключей
+из `content.ts` и удаляет из КОНТЕНТНЫХ таблиц (`topics`/`lessons`/`words`/
+`crossSentences`) строки, чьих ключей в контенте больше нет (убранные или
+переименованные темы/уроки/слова/предложения раньше зависали в БД навсегда).
+Per-user таблицы (`progress`/`theorySeen`/`userStats`) prune НЕ трогает никогда:
+прогресс переживает любой ре-сид, осиротевшие progress-строки просто лежат без
+вреда. Идемпотентность сохраняется: повторный сид на чистой БД — `pruned` нули.
 
 **`order` захватывается из порядка итерации** (порядок ключей `TOPICS`, порядок
 массивов lessons/words) — чтобы `getCourse` восстановил исходный порядок.
@@ -63,9 +75,12 @@ insert, а `patch({ note: undefined })` чистит устаревшую зам
 ## Тестирование
 
 - [`convex/seed.test.ts`](../../convex/seed.test.ts): идемпотентность (повторный
-  `seedContent` не плодит дубли), корректность upsert.
+  `seedContent` не плодит дубли), корректность upsert; prune (мусорные контентные
+  строки удаляются, per-user строки с осиротевшими ключами не тронуты, повторный
+  сид — no-op).
 - [`convex/courseQueries.test.ts`](../../convex/courseQueries.test.ts): форма и
-  порядок дерева `getCourse`.
+  порядок дерева `getCourse` (в авторизованном контексте), `null` для
+  неавторизованного.
 - [`convex/content.test.ts`](../../convex/content.test.ts): инварианты целостности
   самих данных (чистые тесты поверх `TOPICS`/`CROSS_SENTENCES`, без convex-test):
   - **golden-снапшот всех пар `(lessonKey, pt)`** — защита прогресса: исчезновение

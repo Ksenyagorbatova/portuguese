@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { query, mutation, internalMutation } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
@@ -164,6 +164,16 @@ export const recordAnswer = mutation({
   handler: async (ctx, { lessonKey, pt, quality, mode }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
+
+    // Валидация натурального ключа: слово обязано существовать в контенте.
+    // Иначе опечатка/рассинхрон клиента молча создал бы осиротевшую
+    // progress-строку, которую никто никогда не прочитает. Одно indexed-чтение.
+    const word = await ctx.db
+      .query("words")
+      .withIndex("by_lessonKey_pt", (q) => q.eq("lessonKey", lessonKey).eq("pt", pt))
+      .first();
+    if (!word) throw new ConvexError("unknown word");
+
     const now = Date.now();
 
     const existing = await ctx.db
@@ -251,6 +261,15 @@ export const markTheorySeen = mutation({
   handler: async (ctx, { lessonKey }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
+
+    // Валидация ключа: урок обязан существовать (см. recordAnswer — та же
+    // защита от осиротевших строк по опечатке клиента).
+    const lesson = await ctx.db
+      .query("lessons")
+      .withIndex("by_lessonKey", (q) => q.eq("lessonKey", lessonKey))
+      .first();
+    if (!lesson) throw new ConvexError("unknown lesson");
+
     const existing = await ctx.db
       .query("theorySeen")
       .withIndex("by_user_lesson", (q) => q.eq("userId", userId).eq("lessonKey", lessonKey))

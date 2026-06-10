@@ -14,6 +14,29 @@ async function asUser(t: ReturnType<typeof convexTest>) {
 
 const W = { lessonKey: "l1", pt: "a" };
 
+// recordAnswer валидирует (lessonKey, pt) по контенту — тестовое слово W
+// должно существовать в words до первого ответа.
+async function seedWordA(t: ReturnType<typeof convexTest>) {
+  await t.run(async (ctx) => {
+    await ctx.db.insert("words", { lessonKey: "l1", pt: "a", ru: "а", order: 0 });
+  });
+}
+
+// Только строка урока — слово (l1, a) сеется отдельным seedWordA, чтобы не
+// плодить дублей words в тестах, где он уже вызван. markTheorySeen валидирует
+// lessonKey по этой таблице.
+async function seedLesson(t: ReturnType<typeof convexTest>) {
+  await t.run(async (ctx) => {
+    await ctx.db.insert("lessons", {
+      lessonKey: "l1",
+      topicKey: "t1",
+      label: "L1",
+      order: 0,
+      theory: { intro: "", tip: "", sections: [] },
+    });
+  });
+}
+
 type AuthCtx = Awaited<ReturnType<typeof asUser>>["as"];
 
 // Drive a word to «learned»: MC_TARGET (3) correct choices + TYPE_TARGET (3)
@@ -42,6 +65,7 @@ describe("recordAnswer — SM-2 only advances on a review event", () => {
   it("does NOT compound the interval on in-session drilling answers", async () => {
     const t = convexTest(schema, modules);
     const { as } = await asUser(t);
+    await seedWordA(t);
     // 3 MC + 2 Type — pre-mastery drilling. Counters grow but the interval must
     // stay at 0 (no ladder-climbing): applying SM-2 on every rep is what blew
     // the interval up to «4131 дн». `due` is only a short learning step.
@@ -60,6 +84,7 @@ describe("recordAnswer — SM-2 only advances on a review event", () => {
   it("the graduating answer sets interval 1 (first real review)", async () => {
     const t = convexTest(schema, modules);
     const { as } = await asUser(t);
+    await seedWordA(t);
     const res = await graduate(as);
     expect(res.card.interval).toBe(1);
     expect(res.card.mcCorrect).toBe(3);
@@ -70,6 +95,7 @@ describe("recordAnswer — SM-2 only advances on a review event", () => {
   it("does NOT move the schedule when a learned word is practised early (not due)", async () => {
     const t = convexTest(schema, modules);
     const { as } = await asUser(t);
+    await seedWordA(t);
     const grad = await graduate(as); // interval 1, due ~tomorrow (future)
     // Practise it again immediately — it is NOT due yet, so the spaced schedule
     // must stay put (early practice still counts toward seen, just not SM-2).
@@ -82,6 +108,7 @@ describe("recordAnswer — SM-2 only advances on a review event", () => {
   it("walks the interval ladder 1 → 6 on the next DUE review of a learned word", async () => {
     const t = convexTest(schema, modules);
     const { as } = await asUser(t);
+    await seedWordA(t);
     await graduate(as); // interval 1, learned
     await makeDue(t); // a day passes → the word is due
     const review = await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "type" });
@@ -91,6 +118,7 @@ describe("recordAnswer — SM-2 only advances on a review event", () => {
   it("caps the interval at MAX_INTERVAL (120 дн) however many perfect reviews", async () => {
     const t = convexTest(schema, modules);
     const { as } = await asUser(t);
+    await seedWordA(t);
     await graduate(as);
     let res!: Awaited<ReturnType<typeof as.mutation>>;
     for (let i = 0; i < 10; i++) {
@@ -103,6 +131,7 @@ describe("recordAnswer — SM-2 only advances on a review event", () => {
   it("resets a learned word's interval to 1 on a wrong DUE review", async () => {
     const t = convexTest(schema, modules);
     const { as } = await asUser(t);
+    await seedWordA(t);
     await graduate(as);
     await makeDue(t);
     await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "type" }); // interval 6
@@ -116,6 +145,7 @@ describe("recordAnswer — SM-2 only advances on a review event", () => {
   it("keeps the ease factor at or above the 1.3 floor on repeated lapses", async () => {
     const t = convexTest(schema, modules);
     const { as } = await asUser(t);
+    await seedWordA(t);
     await graduate(as);
     let res!: Awaited<ReturnType<typeof as.mutation>>;
     for (let i = 0; i < 6; i++) {
@@ -128,6 +158,7 @@ describe("recordAnswer — SM-2 only advances on a review event", () => {
   it("first answer bumps the daily streak to 1", async () => {
     const t = convexTest(schema, modules);
     const { userId, as } = await asUser(t);
+    await seedWordA(t);
     const res = await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "mc" });
     expect(res.streak).toBe(1);
     expect(res.card.seen).toBe(1);
@@ -156,6 +187,7 @@ describe("staged-learning counters", () => {
   it("grows mcCorrect on correct MC answers and typeCorrect on correct Type answers", async () => {
     const t = convexTest(schema, modules);
     const { as } = await asUser(t);
+    await seedWordA(t);
     const a = await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "mc" });
     expect(a.card.mcCorrect).toBe(1);
     expect(a.card.typeCorrect).toBe(0);
@@ -167,6 +199,7 @@ describe("staged-learning counters", () => {
   it("does not grow stage counters on a wrong answer", async () => {
     const t = convexTest(schema, modules);
     const { as } = await asUser(t);
+    await seedWordA(t);
     await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "mc" });
     const wrong = await as.mutation(api.progress.recordAnswer, { ...W, quality: 0, mode: "type" });
     expect(wrong.card.mcCorrect).toBe(1);
@@ -180,22 +213,10 @@ describe("getSrsState", () => {
     expect(await t.query(api.progress.getSrsState, {})).toBeNull();
   });
 
-  async function seedLesson(t: ReturnType<typeof convexTest>) {
-    await t.run(async (ctx) => {
-      await ctx.db.insert("lessons", {
-        lessonKey: "l1",
-        topicKey: "t1",
-        label: "L1",
-        order: 0,
-        theory: { intro: "", tip: "", sections: [] },
-      });
-      await ctx.db.insert("words", { lessonKey: "l1", pt: "a", ru: "а", order: 0 });
-    });
-  }
-
   it("marks a word learned only once BOTH MC and Type targets are met", async () => {
     const t = convexTest(schema, modules);
     const { as } = await asUser(t);
+    await seedWordA(t);
     await seedLesson(t);
 
     // Three correct MC answers do NOT make it learned (recognition ≠ mastery).
@@ -222,6 +243,7 @@ describe("getSrsState", () => {
   it("does NOT mark a word learned from Type answers alone (MC still required)", async () => {
     const t = convexTest(schema, modules);
     const { as } = await asUser(t);
+    await seedWordA(t);
     await seedLesson(t);
     // Three correct Type answers but zero MC → recognition is still owed.
     for (let i = 0; i < 3; i++)
@@ -234,6 +256,7 @@ describe("getSrsState", () => {
   it("classifies a partially-drilled word as ongoing (not due) — a learning step, not due=0", async () => {
     const t = convexTest(schema, modules);
     const { as } = await asUser(t);
+    await seedWordA(t);
     await seedLesson(t);
     // A couple of correct drilling answers — seen, but not learned. The word
     // must read as «ongoing» (in-progress), NOT pile onto the urgent «due»
@@ -251,6 +274,7 @@ describe("getSrsState", () => {
   it("treats a legacy progress row (no stage counters) as not learned", async () => {
     const t = convexTest(schema, modules);
     const { userId, as } = await asUser(t);
+    await seedWordA(t);
     await seedLesson(t);
     // A row predating the staged-learning fields: high seen/correct, but no
     // mcCorrect/typeCorrect — must read as 0 and classify as ongoing, not learned.
@@ -278,6 +302,7 @@ describe("markTheorySeen", () => {
   it("records a lesson's theory as seen, idempotently", async () => {
     const t = convexTest(schema, modules);
     const { userId, as } = await asUser(t);
+    await seedLesson(t);
     await as.mutation(api.progress.markTheorySeen, { lessonKey: "l1" });
     await as.mutation(api.progress.markTheorySeen, { lessonKey: "l1" });
 
@@ -291,6 +316,59 @@ describe("markTheorySeen", () => {
 
     const srs = await as.query(api.progress.getSrsState, {});
     expect(srs!.seenTheory).toContain("l1");
+  });
+
+  it("rejects an unknown lessonKey and writes nothing", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, as } = await asUser(t);
+    // Урок «l1» существует, мусорный ключ — нет.
+    await seedLesson(t);
+    await expect(
+      as.mutation(api.progress.markTheorySeen, { lessonKey: "no-such-lesson" }),
+    ).rejects.toThrow(/unknown lesson/);
+
+    const rows = await t.run((ctx) =>
+      ctx.db
+        .query("theorySeen")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .collect(),
+    );
+    expect(rows).toHaveLength(0);
+  });
+});
+
+describe("recordAnswer — валидация натурального ключа", () => {
+  // Мусорный (lessonKey, pt) не должен молча создавать осиротевшую
+  // progress-строку — мутация отказывает до записи.
+  it("rejects an unknown (lessonKey, pt) and creates no progress row", async () => {
+    const t = convexTest(schema, modules);
+    const { as } = await asUser(t);
+    await seedWordA(t);
+    await expect(
+      as.mutation(api.progress.recordAnswer, {
+        lessonKey: "no-such-lesson",
+        pt: "ghost",
+        quality: 2,
+        mode: "mc",
+      }),
+    ).rejects.toThrow(/unknown word/);
+
+    expect(await t.run((ctx) => ctx.db.query("progress").collect())).toHaveLength(0);
+  });
+
+  it("rejects a known lessonKey with a wrong pt (the pair must match)", async () => {
+    const t = convexTest(schema, modules);
+    const { as } = await asUser(t);
+    await seedWordA(t); // существует только (l1, a)
+    await expect(
+      as.mutation(api.progress.recordAnswer, {
+        lessonKey: "l1",
+        pt: "b",
+        quality: 2,
+        mode: "mc",
+      }),
+    ).rejects.toThrow(/unknown word/);
+    expect(await t.run((ctx) => ctx.db.query("progress").collect())).toHaveLength(0);
   });
 });
 

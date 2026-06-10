@@ -34,9 +34,7 @@ export default defineSchema({
         }),
       ),
     }),
-  })
-    .index("by_lessonKey", ["lessonKey"])
-    .index("by_topicKey", ["topicKey"]),
+  }).index("by_lessonKey", ["lessonKey"]),
 
   words: defineTable({
     lessonKey: v.string(),
@@ -44,9 +42,7 @@ export default defineSchema({
     ru: v.string(),
     note: v.optional(v.string()),
     order: v.number(),
-  })
-    .index("by_lessonKey_pt", ["lessonKey", "pt"])
-    .index("by_lessonKey", ["lessonKey"]),
+  }).index("by_lessonKey_pt", ["lessonKey", "pt"]),
 
   crossSentences: defineTable({
     sentenceKey: v.string(),
@@ -75,7 +71,6 @@ export default defineSchema({
     typeCorrect: v.optional(v.number()),
   })
     .index("by_user_lesson_pt", ["userId", "lessonKey", "pt"])
-    .index("by_user_lesson", ["userId", "lessonKey"])
     .index("by_user", ["userId"]),
 
   theorySeen: defineTable({
