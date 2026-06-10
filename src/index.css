@@ -186,6 +186,10 @@ body{
 .m-icon-btn:active{transform:scale(.94)}
 .m-icon-btn .lucide{width:18px;height:18px}
 
+/* ── Offline banner (нет соединения) ───────────────────────────────────── */
+.m-offline{display:flex;align-items:center;gap:8px;background:var(--rev-bg);color:var(--rev-ink);border-radius:var(--r-sm);padding:10px 14px;font-size:13px;font-weight:600;box-shadow:var(--e1)}
+.m-offline .lucide{width:15px;height:15px;flex-shrink:0}
+
 /* ── Segmented control (tabs) ──────────────────────────────────────────── */
 .m-seg{position:relative;display:grid;grid-template-columns:1fr 1fr;background:var(--surface-3);border-radius:var(--r-md);padding:4px;gap:0}
 .m-seg-thumb{position:absolute;top:4px;bottom:4px;left:4px;width:calc(50% - 4px);background:var(--surface);border-radius:12px;box-shadow:var(--e1);transition:transform .32s var(--spring)}
