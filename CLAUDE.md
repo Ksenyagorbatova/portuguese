@@ -237,6 +237,7 @@ src/lib/        types, queue (interleaved-сборка), srs (+adaptSrs), learni
                 *.test.ts — unit-тесты (Vitest)
 src/components/ Shell (оркестратор) → Header/ScoreRow/TabBar → ReviewTab/TopicsTab/
                 Theory → Session → exercises/{Mc,Type,SentenceBuilder} → Feedback/Complete
+                + ConfirmDialog (модалка выхода из сессии вместо window.confirm)
                 *.ct.tsx — компонентные тесты (Playwright CT)
 src/test/       setup.ts (jest-dom), mocks/ (стабы для CT)
 playwright/     index.html/index.tsx — точка монтирования Playwright CT
