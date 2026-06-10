@@ -1,16 +1,19 @@
-import { useEffect, useEffectEvent, useMemo, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { AnswerResult, BadgeTag, CardFields, Course, WordView } from "../../lib/types";
 import { shuffle } from "../../lib/shuffle";
 import { getWrong } from "../../lib/wrongOptions";
+import { localDay } from "../../lib/day";
 import { nextDueLabel, wKey } from "../../lib/srs";
 import { speak } from "../../lib/speech";
 import { Badge } from "../Badge";
 import { Icon } from "../Icon";
 import { WordFeedback, RetryBox, NextButton } from "../Feedback";
 
-type Resolved = { ok: boolean; dueLabel: string };
+// dueLabel: null — ответ сервера ещё не пришёл (или мутация упала), Feedback
+// покажет «—»; saveFailed — мутация отвергнута, ответ в расписание не попал.
+type Resolved = { ok: boolean; dueLabel: string | null; saveFailed?: boolean };
 
 const KEYS = ["A", "B", "C", "D", "E"];
 
@@ -52,26 +55,46 @@ export function McExercise({
   const [wrongPicked, setWrongPicked] = useState<Set<string>>(new Set());
   const [tries, setTries] = useState(0);
   const [resolved, setResolved] = useState<Resolved | null>(null);
+  // Синхронный guard от двойного ответа: проверка по state (resolved) не
+  // закрывает окно между событием и применением обновления — ref выставляется
+  // ДО любой асинхронщины, и повторный клик/диспатч не даёт второго finish().
+  const pendingRef = useRef(false);
 
   const label = (o: WordView) => (mode === "pt_ru" ? o.ru : o.pt);
   const isCorrectOpt = (o: WordView) => o.pt === word.pt;
 
-  async function finish(quality: 0 | 1 | 2, ok: boolean) {
+  function finish(quality: 0 | 1 | 2, ok: boolean) {
+    if (pendingRef.current) return;
+    pendingRef.current = true;
     speak(word.pt);
     onAnswered({ mode: "mc", correct: quality >= 1, firstTry: quality === 2 });
-    const res = await recordAnswer({ lessonKey: word.lessonKey, pt: word.pt, quality, mode: "mc" });
-    setResolved({ ok, dueLabel: nextDueLabel(res.card) });
+    // UI резолвим сразу, НЕ дожидаясь сети: при разрыве соединения Convex
+    // не реджектит мутацию, а держит её в очереди до реконнекта (промис висит
+    // неограниченно долго) — ждать его значит подвесить упражнение. Метка
+    // следующего повтора подтянется с ответом сервера; при отказе мутации
+    // останется «—» с пометкой, что ответ не сохранился.
+    setResolved({ ok, dueLabel: null });
+    void recordAnswer({
+      lessonKey: word.lessonKey,
+      pt: word.pt,
+      quality,
+      mode: "mc",
+      clientDay: localDay(),
+    }).then(
+      (res) => setResolved({ ok, dueLabel: nextDueLabel(res.card) }),
+      () => setResolved({ ok, dueLabel: null, saveFailed: true }),
+    );
   }
 
   function choose(o: WordView) {
-    if (resolved) return;
+    if (resolved || pendingRef.current) return;
     const first = tries === 0;
     if (isCorrectOpt(o)) {
-      void finish(first ? 2 : 1, true);
+      finish(first ? 2 : 1, true);
     } else {
       setWrongPicked((prev) => new Set(prev).add(o.pt));
       if (tries < 1) setTries(1);
-      else void finish(0, false);
+      else finish(0, false);
     }
   }
 
@@ -164,7 +187,12 @@ export function McExercise({
       )}
       {resolved && (
         <>
-          <WordFeedback ok={resolved.ok} word={word} dueLabel={resolved.dueLabel} />
+          <WordFeedback
+            ok={resolved.ok}
+            word={word}
+            dueLabel={resolved.dueLabel}
+            saveFailed={resolved.saveFailed}
+          />
           <NextButton isLast={isLast} onClick={onNext} />
         </>
       )}

@@ -29,14 +29,20 @@ export function RetryBox({ children }: { children: ReactNode }) {
 
 // Word-answer feedback shared by the multiple-choice and type exercises:
 // verdict + «pt — ru», optional note, and the real next-review interval.
+// dueLabel приходит с ответом сервера; null — ответа ещё нет (мутация в пути
+// или офлайн-очереди) либо мутация упала — показываем «—». saveFailed
+// добавляет ненавязчивую пометку: ответ сервером отвергнут и в расписание
+// повторов не попал.
 export function WordFeedback({
   ok,
   word,
   dueLabel,
+  saveFailed,
 }: {
   ok: boolean;
   word: WordView;
-  dueLabel: string;
+  dueLabel: string | null;
+  saveFailed?: boolean;
 }) {
   return (
     <ResultFeedback ok={ok}>
@@ -44,8 +50,13 @@ export function WordFeedback({
       <span className="m-fb-pt" lang="pt-PT">{word.pt}</span> — {word.ru}
       {word.note && <div className="m-fb-sub">💡 {word.note}</div>}
       <div className="m-fb-sub">
-        <Icon name="clock" /> следующий повтор: {dueLabel}
+        <Icon name="clock" /> следующий повтор: {dueLabel ?? "—"}
       </div>
+      {saveFailed && (
+        <div className="m-fb-sub">
+          <Icon name="circle-alert" /> Не удалось сохранить ответ.
+        </div>
+      )}
     </ResultFeedback>
   );
 }

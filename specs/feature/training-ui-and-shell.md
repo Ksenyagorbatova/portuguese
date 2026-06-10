@@ -11,9 +11,12 @@
 ## Поведение
 
 **Точка входа.** [`src/main.tsx`](../../src/main.tsx): `ConvexReactClient`,
-`primeVoices()`, `ConvexAuthProvider`. [`src/App.tsx`](../../src/App.tsx):
-`useTheme()` + развод `AuthLoading → Splash`, `Unauthenticated → SignIn`,
-`Authenticated → Shell`.
+`primeVoices()`, корневой
+[`ErrorBoundary`](../../src/components/ErrorBoundary.tsx) (внутри StrictMode,
+снаружи провайдеров: ошибка рендера/query → сообщение на русском + кнопка
+«Перезагрузить» вместо белого экрана), `ConvexAuthProvider`.
+[`src/App.tsx`](../../src/App.tsx): `useTheme()` + развод `AuthLoading → Splash`,
+`Unauthenticated → SignIn`, `Authenticated → Shell`.
 
 **Shell — оркестратор** ([`src/components/Shell.tsx`](../../src/components/Shell.tsx)):
 - `View = { home } | { theory } | { session }`; `tab = "review" | "topics"`.
@@ -26,6 +29,12 @@
 - **Во время сессии** (`view.kind==="session"`) Shell скрывает `ScoreRow` и
   `TabBar` — остаётся «само поле тренировки». `ScoreRow` показывается только ПОСЛЕ
   сессии (`score.total > 0`).
+- Под хедером — [`OfflineBanner`](../../src/components/OfflineBanner.tsx)
+  (`useConvexConnectionState().isWebSocketConnected`): при разрыве соединения
+  ненавязчивый баннер «Нет соединения — ответы сохранятся…» (класс `.m-offline`,
+  амбер-токены `--rev-*`). Convex-клиент сам ставит мутации в очередь и
+  доотправляет при реконнекте — детали в
+  [`../fix/exercise-network-resilience.md`](../fix/exercise-network-resilience.md).
 
 **Хедер** ([`src/components/Header.tsx`](../../src/components/Header.tsx)): слева
 логотип-кнопка «на главный экран» (`onHome → вкладка «Повторение»`; фон — флаг
@@ -56,10 +65,20 @@ segmented «Повторение»/«Темы». `ScoreRow` — верно/за�
 проверка на клиенте, `quality`: первая попытка верно `2`, со 2-й `1`, провал `0`:
 - `McExercise` — выбор (`mc_pt_ru`/`mc_ru_pt`); неверные варианты из ТОГО ЖЕ урока
   (`getWrong`, [`src/lib/wrongOptions.ts`](../../src/lib/wrongOptions.ts)).
-- `TypeExercise` — ручной ввод (`type_pt`); сверка без диакритики/регистра
+- `TypeExercise` — ручной ввод (`type_pt`); сверка без диакритики/регистра и без
+  пунктуации (`.!?,` и многоточия необязательны с обеих сторон, как в
+  `sentenceMatch`; дефис значим); для слов-лейблов с вариантами («um / uma»)
+  принимается и каждый вариант, и весь лейбл целиком
   (`variantsMatch`, [`src/lib/text.ts`](../../src/lib/text.ts)).
 - `SentenceBuilder` — кросс-предложение из плиток (`sentenceMatch`); **на сервер НЕ
   пишется** (`recordAnswer` не вызывается), влияет только на счёт сессии.
+
+В Mc/Type `finish()` защищён от двойного ответа (синхронный `pendingRef` +
+`e.repeat`-guard у Enter) и **не блокирует UI на сетевом roundtrip**: фидбэк и
+«Дальше» появляются сразу, метка «следующий повтор» подтягивается с ответом
+сервера (до тех пор «—»; при отказе мутации — «—» + пометка «Не удалось
+сохранить ответ»). Подробно —
+[`../fix/exercise-network-resilience.md`](../fix/exercise-network-resilience.md).
 
 **Озвучка** ([`src/lib/speech.ts`](../../src/lib/speech.ts)) — Web Speech API,
 чисто клиентская (`primeVoices`, `speak`).
@@ -109,7 +128,7 @@ segmented «Повторение»/«Темы». `ScoreRow` — верно/за�
 
 ## Карта файлов
 
-- Оркестрация: [`Shell.tsx`](../../src/components/Shell.tsx), [`App.tsx`](../../src/App.tsx), [`main.tsx`](../../src/main.tsx), [`Splash.tsx`](../../src/components/Splash.tsx).
+- Оркестрация: [`Shell.tsx`](../../src/components/Shell.tsx), [`App.tsx`](../../src/App.tsx), [`main.tsx`](../../src/main.tsx), [`Splash.tsx`](../../src/components/Splash.tsx), [`ErrorBoundary.tsx`](../../src/components/ErrorBoundary.tsx), [`OfflineBanner.tsx`](../../src/components/OfflineBanner.tsx).
 - Хром/дашборд: [`Header.tsx`](../../src/components/Header.tsx), [`TabBar.tsx`](../../src/components/TabBar.tsx), [`ReviewTab.tsx`](../../src/components/ReviewTab.tsx), [`ScoreRow.tsx`](../../src/components/ScoreRow.tsx), [`TopicsTab.tsx`](../../src/components/TopicsTab.tsx).
 - Тренировка: [`Session.tsx`](../../src/components/Session.tsx), [`Theory.tsx`](../../src/components/Theory.tsx), [`exercises/`](../../src/components/exercises/), [`Feedback.tsx`](../../src/components/Feedback.tsx), [`Complete.tsx`](../../src/components/Complete.tsx).
 - Утилиты: [`text.ts`](../../src/lib/text.ts), [`wrongOptions.ts`](../../src/lib/wrongOptions.ts), [`speech.ts`](../../src/lib/speech.ts).
@@ -117,4 +136,6 @@ segmented «Повторение»/«Темы». `ScoreRow` — верно/за�
 ## Известные ограничения
 
 - Проверка ответов — на клиенте; `SentenceBuilder` вообще не пишет прогресс.
-- До первой загрузки курса/SRS — экран `Splash` (офлайна нет, Convex требует сети).
+- До первой загрузки курса/SRS — экран `Splash` (холодного офлайн-старта нет,
+  Convex требует сети; при разрыве УЖЕ загруженной сессии тренировка продолжает
+  работать — мутации копятся в очереди клиента, баннер предупреждает).

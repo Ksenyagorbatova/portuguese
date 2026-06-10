@@ -15,10 +15,11 @@ describe("seedContent", () => {
     const first = await t.mutation(internal.seed.seedContent, {});
     const second = await t.mutation(internal.seed.seedContent, {});
 
-    // Same reported counts both times.
+    // Same reported counts both times (включая нулевой prune — чистая БД).
     expect(second).toEqual(first);
     expect(first.topics).toBeGreaterThan(0);
     expect(first.words).toBeGreaterThan(0);
+    expect(first.pruned).toEqual({ topics: 0, lessons: 0, words: 0, crossSentences: 0 });
 
     // DB holds exactly the reported number of rows — upsert, not duplicate.
     const topics = await t.run((ctx) => ctx.db.query("topics").collect());
@@ -27,6 +28,98 @@ describe("seedContent", () => {
     expect(topics).toHaveLength(first.topics);
     expect(words).toHaveLength(first.words);
     expect(sentences).toHaveLength(first.crossSentences);
+  });
+});
+
+describe("seedContent — prune контентных сирот", () => {
+  it("удаляет контентные строки, чьих натуральных ключей больше нет в content.ts", async () => {
+    const t = convexTest(schema, modules);
+    const first = await t.mutation(internal.seed.seedContent, {});
+
+    // «Осиротевший» контент: ключи, которых нет (и не будет) в content.ts.
+    await t.run(async (ctx) => {
+      await ctx.db.insert("topics", {
+        topicKey: "ghost_topic",
+        label: "Ghost",
+        icon: "👻",
+        order: 999,
+      });
+      await ctx.db.insert("lessons", {
+        lessonKey: "ghost_lesson",
+        topicKey: "ghost_topic",
+        label: "Ghost",
+        order: 999,
+        theory: { intro: "", tip: "", sections: [] },
+      });
+      await ctx.db.insert("words", {
+        lessonKey: "ghost_lesson",
+        pt: "fantasma",
+        ru: "призрак",
+        order: 999,
+      });
+      await ctx.db.insert("crossSentences", {
+        sentenceKey: "cs_9999",
+        words: ["x"],
+        answer: "x",
+        ru: "х",
+        required: [],
+        order: 999,
+      });
+    });
+
+    const res = await t.mutation(internal.seed.seedContent, {});
+    expect(res.pruned).toEqual({ topics: 1, lessons: 1, words: 1, crossSentences: 1 });
+
+    // Таблицы вернулись ровно к каноническому составу content.ts.
+    expect(await t.run((ctx) => ctx.db.query("topics").collect())).toHaveLength(first.topics);
+    expect(await t.run((ctx) => ctx.db.query("words").collect())).toHaveLength(first.words);
+    const ghosts = await t.run((ctx) =>
+      ctx.db
+        .query("words")
+        .withIndex("by_lessonKey_pt", (q) => q.eq("lessonKey", "ghost_lesson").eq("pt", "fantasma"))
+        .collect(),
+    );
+    expect(ghosts).toHaveLength(0);
+
+    // Повторный сид — no-op (идемпотентность сохранена).
+    const again = await t.mutation(internal.seed.seedContent, {});
+    expect(again).toEqual(first);
+  });
+
+  it("НЕ трогает per-user таблицы: progress с осиротевшим ключом остаётся", async () => {
+    const t = convexTest(schema, modules);
+    await t.mutation(internal.seed.seedContent, {});
+
+    const userId = await t.run((ctx) => ctx.db.insert("users", {}));
+    // Прогресс по слову, которого больше нет в контенте (например, удалили урок).
+    await t.run(async (ctx) => {
+      await ctx.db.insert("progress", {
+        userId,
+        lessonKey: "removed_lesson",
+        pt: "antigo",
+        interval: 6,
+        ef: 2.5,
+        due: Date.now(),
+        seen: 4,
+        correct: 4,
+        lastSeen: Date.now(),
+        mcCorrect: 3,
+        typeCorrect: 1,
+      });
+      await ctx.db.insert("theorySeen", { userId, lessonKey: "removed_lesson" });
+      await ctx.db.insert("userStats", { userId, streak: 7, lastDay: "2026-06-09" });
+    });
+
+    await t.mutation(internal.seed.seedContent, {});
+
+    const progress = await t.run((ctx) => ctx.db.query("progress").collect());
+    const theory = await t.run((ctx) => ctx.db.query("theorySeen").collect());
+    const stats = await t.run((ctx) => ctx.db.query("userStats").collect());
+    expect(progress).toHaveLength(1);
+    expect(progress[0].lessonKey).toBe("removed_lesson");
+    expect(theory).toHaveLength(1);
+    expect(stats).toHaveLength(1);
+    expect(stats[0].streak).toBe(7);
   });
 });
 

@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { query, mutation, internalMutation } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
@@ -150,8 +150,9 @@ export const getSrsState = query({
 
 // ─── recordAnswer ───────────────────────────────────────────────────────────
 // Server-authoritative SM-2. quality: 0 = wrong both tries, 1 = right on 2nd,
-// 2 = right on 1st try (same encoding as the original updateCard). Also bumps
-// the daily streak (ported touchStreak). Returns the updated card + streak so
+// 2 = right on 1st try (same encoding as the original updateCard). Also keeps
+// the honest daily streak (same day — no change, yesterday → +1, gap → reset
+// to 1) keyed by the CLIENT's local day. Returns the updated card + streak so
 // the UI can show the next-review label immediately.
 export const recordAnswer = mutation({
   args: {
@@ -160,10 +161,24 @@ export const recordAnswer = mutation({
     quality: v.union(v.literal(0), v.literal(1), v.literal(2)),
     // mode: каким упражнением отвечали — определяет, какой счётчик этапа растёт.
     mode: v.union(v.literal("mc"), v.literal("type")),
+    // Локальная дата клиента (YYYY-MM-DD) для честного стрика по дню
+    // ПОЛЬЗОВАТЕЛЯ, а не по UTC сервера. Optional: закэшированный старый фронт
+    // её не шлёт — тогда (и при невалидном формате) fallback на серверную UTC.
+    clientDay: v.optional(v.string()),
   },
-  handler: async (ctx, { lessonKey, pt, quality, mode }) => {
+  handler: async (ctx, { lessonKey, pt, quality, mode, clientDay }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
+
+    // Валидация натурального ключа: слово обязано существовать в контенте.
+    // Иначе опечатка/рассинхрон клиента молча создал бы осиротевшую
+    // progress-строку, которую никто никогда не прочитает. Одно indexed-чтение.
+    const word = await ctx.db
+      .query("words")
+      .withIndex("by_lessonKey_pt", (q) => q.eq("lessonKey", lessonKey).eq("pt", pt))
+      .first();
+    if (!word) throw new ConvexError("unknown word");
+
     const now = Date.now();
 
     const existing = await ctx.db
@@ -214,9 +229,19 @@ export const recordAnswer = mutation({
       // день), БЕЗ умножения интервала: так оно классифицируется как «ongoing»
       // (в работе), а не «due», и не застревает на due=0.
       due = now + DAY;
+    } else if (quality === 0) {
+      // Lapse при РАННЕЙ практике выученного (due ещё не наступил): полный
+      // провал значит «забыл сейчас» — ждать старого далёкого due бессмысленно,
+      // приближаем повтор (interval=1, due=завтра). ef НЕ штрафуем: ef-штраф
+      // остаётся на due-повторах, ранний lapse только приближает повтор.
+      // Это сужение интервала, не инфляция (анти-инфляционный инвариант — про
+      // умножение на ef вне события повторения — не нарушается). quality 1/2 —
+      // поведение прежнее: расписание не трогаем.
+      interval = 1;
+      due = now + DAY;
     }
-    // else: ранняя практика уже выученного, но ещё не due-слова — расписание
-    // (interval/ef/due) не трогаем, повтор ещё не наступил.
+    // else: ранняя практика уже выученного, но ещё не due-слова, с верным
+    // ответом — расписание (interval/ef/due) не трогаем, повтор ещё не наступил.
 
     const card: CardFields = {
       interval, ef, due, seen, correct, lastSeen: now, mcCorrect, typeCorrect,
@@ -224,8 +249,17 @@ export const recordAnswer = mutation({
     if (existing) await ctx.db.patch(existing._id, card);
     else await ctx.db.insert("progress", { userId, lessonKey, pt, ...card });
 
-    // streak (ported touchStreak)
-    const today = new Date(now).toDateString();
+    // ─── Честный стрик по локальному дню клиента ─────────────────────────────
+    // today: валидный clientDay (YYYY-MM-DD И парсимый — «2026-13-99» проходит
+    // regex, но Date.parse даёт NaN; такой мусор отравил бы lastDay и дал два
+    // ложных сброса) или серверная UTC-дата (fallback для старого фронта/
+    // невалидного значения). Семантика: тот же день — без изменений; ровно
+    // вчера → +1; пропуск ≥1 дня → сброс в 1; clientDay РАНЬШЕ lastDay (смена
+    // пояса на запад) → no-op, стрик не сбрасываем.
+    const today =
+      clientDay && /^\d{4}-\d{2}-\d{2}$/.test(clientDay) && !Number.isNaN(Date.parse(clientDay))
+        ? clientDay
+        : new Date(now).toISOString().slice(0, 10);
     const statsRow = await ctx.db
       .query("userStats")
       .withIndex("by_user", (qq) => qq.eq("userId", userId))
@@ -234,11 +268,27 @@ export const recordAnswer = mutation({
     if (!statsRow) {
       streak = 1;
       await ctx.db.insert("userStats", { userId, streak, lastDay: today });
-    } else if (statsRow.lastDay !== today) {
-      streak = statsRow.streak + 1;
-      await ctx.db.patch(statsRow._id, { streak, lastDay: today });
     } else {
-      streak = statsRow.streak;
+      // Миграция формата: легаси-lastDay хранился как toDateString()
+      // («Mon Jun 09 2026»), новые значения — YYYY-MM-DD; Date.parse понимает
+      // оба. Парсятся они в разных «полуночах» (легаси — локальная TZ рантайма,
+      // ISO — UTC), поэтому разницу округляем до целых суток. Непарсимое
+      // значение → Infinity → ветка сброса (безопасный fallback).
+      const prevMs = Date.parse(statsRow.lastDay);
+      const diffDays = Number.isNaN(prevMs)
+        ? Infinity
+        : Math.round((Date.parse(today) - prevMs) / DAY);
+      if (diffDays === 0) {
+        streak = statsRow.streak; // тот же день — стрик не растёт
+      } else if (diffDays === 1) {
+        streak = statsRow.streak + 1; // ровно вчера → серия продолжается
+        await ctx.db.patch(statsRow._id, { streak, lastDay: today });
+      } else if (diffDays < 0) {
+        streak = statsRow.streak; // день клиента «в прошлом» (смена TZ) — no-op
+      } else {
+        streak = 1; // пропуск ≥1 дня → серия начинается заново
+        await ctx.db.patch(statsRow._id, { streak, lastDay: today });
+      }
     }
 
     return { card, streak };
@@ -251,6 +301,15 @@ export const markTheorySeen = mutation({
   handler: async (ctx, { lessonKey }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
+
+    // Валидация ключа: урок обязан существовать (см. recordAnswer — та же
+    // защита от осиротевших строк по опечатке клиента).
+    const lesson = await ctx.db
+      .query("lessons")
+      .withIndex("by_lessonKey", (q) => q.eq("lessonKey", lessonKey))
+      .first();
+    if (!lesson) throw new ConvexError("unknown lesson");
+
     const existing = await ctx.db
       .query("theorySeen")
       .withIndex("by_user_lesson", (q) => q.eq("userId", userId).eq("lessonKey", lessonKey))
