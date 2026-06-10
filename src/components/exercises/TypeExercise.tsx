@@ -89,7 +89,7 @@ export function TypeExercise({
         />
       </div>
       <div className="m-hint">
-        <Icon name="info" /> Акценты необязательны — «ate logo» = «até logo»
+        <Icon name="info" /> Акценты и пунктуация необязательны — «ate logo» = «até logo»
       </div>
       {!resolved && (
         <button
