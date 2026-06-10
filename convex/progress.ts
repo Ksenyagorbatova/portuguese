@@ -250,12 +250,14 @@ export const recordAnswer = mutation({
     else await ctx.db.insert("progress", { userId, lessonKey, pt, ...card });
 
     // ─── Честный стрик по локальному дню клиента ─────────────────────────────
-    // today: валидный clientDay (YYYY-MM-DD) или серверная UTC-дата (fallback
-    // для старого фронта/невалидного значения). Семантика: тот же день — без
-    // изменений; ровно вчера → +1; пропуск ≥1 дня → сброс в 1; clientDay РАНЬШЕ
-    // lastDay (смена пояса на запад) → no-op, стрик не сбрасываем.
+    // today: валидный clientDay (YYYY-MM-DD И парсимый — «2026-13-99» проходит
+    // regex, но Date.parse даёт NaN; такой мусор отравил бы lastDay и дал два
+    // ложных сброса) или серверная UTC-дата (fallback для старого фронта/
+    // невалидного значения). Семантика: тот же день — без изменений; ровно
+    // вчера → +1; пропуск ≥1 дня → сброс в 1; clientDay РАНЬШЕ lastDay (смена
+    // пояса на запад) → no-op, стрик не сбрасываем.
     const today =
-      clientDay && /^\d{4}-\d{2}-\d{2}$/.test(clientDay)
+      clientDay && /^\d{4}-\d{2}-\d{2}$/.test(clientDay) && !Number.isNaN(Date.parse(clientDay))
         ? clientDay
         : new Date(now).toISOString().slice(0, 10);
     const statsRow = await ctx.db

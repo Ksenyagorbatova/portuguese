@@ -572,6 +572,24 @@ describe("recordAnswer — честный стрик по clientDay", () => {
     expect((await readStats(t)).lastDay).toBe(new Date().toISOString().slice(0, 10));
   });
 
+  it("regex-валидный, но непарсимый clientDay («2026-13-99») → fallback, без ложного сброса и отравления lastDay", async () => {
+    const t = convexTest(schema, modules);
+    const { userId, as } = await asUser(t);
+    await seedWordA(t);
+    // Имеющаяся серия; последний ответ — «сегодня» по серверному UTC (куда и
+    // падает fallback при непарсимом clientDay).
+    const utcToday = new Date().toISOString().slice(0, 10);
+    await answer(as, utcToday);
+    await setStats(t, userId, 5, utcToday);
+
+    // «2026-13-99» проходит формат-regex, но Date.parse даёт NaN — без
+    // parse-проверки NaN-diff проваливался в ветку сброса и мусор записывался
+    // в lastDay (а следующий нормальный день давал ЕЩЁ один ложный сброс).
+    const res = await answer(as, "2026-13-99");
+    expect(res.streak).toBe(5); // fallback → тот же день → серия цела
+    expect((await readStats(t)).lastDay).toBe(utcToday); // lastDay не отравлен
+  });
+
   it("без clientDay (старый фронт) → серверная UTC-дата", async () => {
     const t = convexTest(schema, modules);
     const { as } = await asUser(t);
