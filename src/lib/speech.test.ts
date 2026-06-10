@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { speak } from "./speech";
+import { speak, speakSmart } from "./speech";
 
 class FakeUtterance {
   lang = "";
@@ -101,5 +101,59 @@ describe("speak", () => {
   it("no-ops when the Web Speech API is unavailable", () => {
     vi.stubGlobal("speechSynthesis", undefined);
     expect(() => speak("olá")).not.toThrow();
+  });
+
+  it("speaks at the default rate 0.9, or the rate passed via opts", () => {
+    const synth = mockSynth();
+    speak("olá");
+    expect(synth.speak.mock.calls[0][0].rate).toBe(0.9);
+    speak("olá", { rate: 0.6 });
+    expect(synth.speak.mock.calls[1][0].rate).toBe(0.6);
+  });
+});
+
+// П.10 (дизайн-ревью v2): повторный тап по 🔊 с ТЕМ ЖЕ текстом в течение 4с —
+// медленный повтор (0.6), затем цикл заново с обычной скорости.
+describe("speakSmart", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  const rates = (synth: ReturnType<typeof mockSynth>) =>
+    synth.speak.mock.calls.map((c) => c[0].rate);
+
+  it("cycles normal → slow → normal for repeated taps on the same text", () => {
+    const synth = mockSynth();
+    vi.spyOn(Date, "now").mockReturnValue(1000);
+    speakSmart("olá"); // 1-й тап — обычная
+    vi.spyOn(Date, "now").mockReturnValue(2000);
+    speakSmart("olá"); // 2-й подряд (в окне) — медленно
+    vi.spyOn(Date, "now").mockReturnValue(3000);
+    speakSmart("olá"); // 3-й — цикл заново, обычная
+    expect(rates(synth)).toEqual([0.9, 0.6, 0.9]);
+  });
+
+  // Состояние «последнего тапа» — модульное (живёт между тестами): каждому
+  // тесту — своя «эпоха» времени сильно позже предыдущей, чтобы хвост соседа
+  // гарантированно выпал из 4с-окна.
+  it("repeats at the NORMAL rate once the 4s window has passed", () => {
+    const synth = mockSynth();
+    vi.spyOn(Date, "now").mockReturnValue(100_000);
+    speakSmart("olá");
+    vi.spyOn(Date, "now").mockReturnValue(100_000 + 4001); // окно истекло
+    speakSmart("olá");
+    expect(rates(synth)).toEqual([0.9, 0.9]);
+  });
+
+  it("a different text resets the cycle (no slow replay)", () => {
+    const synth = mockSynth();
+    vi.spyOn(Date, "now").mockReturnValue(200_000);
+    speakSmart("olá");
+    vi.spyOn(Date, "now").mockReturnValue(201_000);
+    speakSmart("adeus"); // другой текст — обычная
+    vi.spyOn(Date, "now").mockReturnValue(202_000);
+    speakSmart("adeus"); // а вот его повтор — уже медленный
+    expect(rates(synth)).toEqual([0.9, 0.9, 0.6]);
   });
 });

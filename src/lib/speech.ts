@@ -18,7 +18,13 @@ function pickPortugueseVoice(): SpeechSynthesisVoice | null {
   );
 }
 
-export function speak(text: string): void {
+// Обычная скорость воспроизведения (медленный повтор — SLOW_RATE через speakSmart).
+const DEFAULT_RATE = 0.9;
+const SLOW_RATE = 0.6;
+// Окно повторного тапа: второй запрос ТОГО ЖЕ текста в эти мс играет медленно.
+const SLOW_WINDOW_MS = 4000;
+
+export function speak(text: string, opts?: { rate?: number }): void {
   const synth = window.speechSynthesis;
   if (!synth) return;
   synth.cancel();
@@ -27,7 +33,7 @@ export function speak(text: string): void {
   const emit = (voice: SpeechSynthesisVoice | null) => {
     const utt = new SpeechSynthesisUtterance(clean);
     utt.lang = "pt-PT";
-    utt.rate = 0.85;
+    utt.rate = opts?.rate ?? DEFAULT_RATE;
     if (voice) utt.voice = voice;
     synth.speak(utt);
   };
@@ -48,6 +54,18 @@ export function speak(text: string): void {
   };
   synth.addEventListener?.("voiceschanged", go, { once: true });
   setTimeout(go, 300);
+}
+
+// «Умная» озвучка кнопки 🔊: повторный тап по ТОМУ ЖЕ тексту в течение
+// SLOW_WINDOW_MS играет замедленно (SLOW_RATE), затем цикл заново с обычной
+// скорости. Другой текст сбрасывает цикл. Авто-озвучка после ответа остаётся
+// обычным speak() — замедление только для осознанного «повтори-ка».
+let last: { text: string; at: number; slow: boolean } | null = null;
+export function speakSmart(text: string): void {
+  const now = Date.now();
+  const slow = !!last && last.text === text && now - last.at < SLOW_WINDOW_MS && !last.slow;
+  last = { text, at: now, slow };
+  speak(text, { rate: slow ? SLOW_RATE : DEFAULT_RATE });
 }
 
 // Chrome populates voices asynchronously; prime them once at startup so most

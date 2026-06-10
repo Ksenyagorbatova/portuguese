@@ -23,6 +23,7 @@ const course: Course = {
 
 const srs: SrsState = {
   streak: 0,
+  doneToday: false,
   cards: {},
   tags: {},
   seenTheory: [],

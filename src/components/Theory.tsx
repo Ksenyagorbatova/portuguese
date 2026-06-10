@@ -1,19 +1,20 @@
 import { useState } from "react";
 import type { LessonView, WordView } from "../lib/types";
-import { speak } from "../lib/speech";
+import { speakSmart } from "../lib/speech";
 import { Icon } from "./Icon";
 
 function FlipCard({ word }: { word: WordView }) {
   const [flipped, setFlipped] = useState(false);
   return (
     // <button>, чтобы карточка переворачивалась и с клавиатуры (Enter/Space).
+    // speakSmart: повторный тап по той же карточке в течение 4с — медленно.
     <button
       type="button"
       className={"m-flip" + (flipped ? " flipped" : "")}
       aria-pressed={flipped}
       onClick={() => {
         setFlipped((f) => !f);
-        speak(word.pt);
+        speakSmart(word.pt);
       }}
     >
       <div className="m-flip-in">

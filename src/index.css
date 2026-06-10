@@ -173,9 +173,13 @@ body{
 .m-logo:hover{box-shadow:0 6px 18px -3px var(--accent-shadow)}
 .m-logo:active{transform:scale(.94)}
 .m-header-right{display:flex;align-items:center;gap:var(--s2)}
-.m-streak{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-full);padding:7px 13px 7px 11px;box-shadow:var(--e1)}
+.m-streak{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-full);padding:7px 11px;box-shadow:var(--e1)}
 .m-streak b{font-family:var(--font-display);font-size:16px;color:var(--ink-900);font-variant-numeric:tabular-nums}
 .m-streak .m-flame{font-size:15px;filter:saturate(1.1)}
+/* Статус «день закрыт»: серый кружок до первой сессии дня, акцентная галочка после. */
+.m-streak-day{display:flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:var(--r-full);background:var(--surface-3);color:var(--ink-400);flex-shrink:0;transition:background var(--dur),color var(--dur)}
+.m-streak-day .lucide{width:9px;height:9px;stroke-width:3.5}
+.m-streak-day.done{background:var(--accent);color:#fff}
 .m-icon-btn{display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:var(--r-full);background:var(--surface);border:1px solid var(--line);box-shadow:var(--e1);color:var(--ink-500);cursor:pointer;transition:transform var(--dur-press) var(--ease),background var(--dur),color var(--dur)}
 .m-icon-btn:hover{background:var(--surface-2);color:var(--ink-700)}
 .m-icon-btn:active{transform:scale(.94)}
@@ -446,6 +450,16 @@ body{
 .m-mist-audio .lucide{width:14px;height:14px}
 .m-mist-retry{margin-top:4px}
 
+/* ── Confirm dialog (вместо window.confirm) ────────────────────────────── */
+.m-dialog-overlay{position:fixed;inset:0;z-index:50;background:rgba(26,26,23,.35);display:flex;align-items:center;justify-content:center;padding:var(--s5);animation:m-fade var(--dur) var(--ease)}
+/* На тёмном фоне тёплая полупрозрачная подложка почти неразличима — плотнее. */
+[data-theme="dark"] .m-dialog-overlay{background:rgba(0,0,0,.55)}
+.m-dialog{max-width:320px;width:100%;box-shadow:var(--e3);text-align:center;animation:m-rise var(--dur) var(--ease)}
+.m-dialog-title{font-family:var(--font-display);font-size:19px;font-weight:700;color:var(--ink-900)}
+.m-dialog-msg{font-size:14px;color:var(--ink-600);font-weight:500;margin-top:6px;margin-bottom:16px}
+.m-dialog-actions{display:flex;flex-direction:column;gap:10px}
+@keyframes m-fade{from{opacity:0}to{opacity:1}}
+
 /* ── Sign in ───────────────────────────────────────────────────────────── */
 .m-signin{margin-top:var(--s7);display:flex;flex-direction:column;gap:var(--s4)}
 .m-signin-brand{display:flex;flex-direction:column;align-items:center;gap:14px;margin-bottom:var(--s2)}
@@ -464,7 +478,7 @@ body{
 
 /* ── Reduced motion ────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion:reduce){
-  .m-view,.m-fb,.m-complete-emoji,.m-spinner{animation:none}
+  .m-view,.m-fb,.m-complete-emoji,.m-spinner,.m-dialog-overlay,.m-dialog{animation:none}
   .m-seg-thumb,.m-bar-fill,.m-progress-fill,.m-ring-fill,.m-chev,.m-flip-in,
   .m-btn,.m-opt,.m-atile,.m-wtile,.m-audio,.m-icon-btn{transition:none}
 }
@@ -481,6 +495,11 @@ body{
 /* ── Phones ≤ 480px ────────────────────────────────────────────────────── */
 @media (max-width:480px){
   .m-app{padding:var(--s3) var(--s3) calc(var(--s8) + 48px + env(safe-area-inset-bottom,0px))}
+}
+
+/* ── Touch: чипы хоткеев A–E не нужны без клавиатуры ───────────────────── */
+@media (pointer:coarse){
+  .m-opt-key{display:none}
 }
 
 /* ── A11y: бывшие div-интерактивы стали <button> ───────────────────────────

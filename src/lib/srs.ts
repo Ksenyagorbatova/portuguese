@@ -1,4 +1,5 @@
 import type { CardFields, SrsState, Stat, Tag } from "./types";
+import { localDay } from "./day";
 
 // Progress key matching convex/progress.ts (lessonKey + "||" + pt).
 export const wKey = (lessonKey: string, pt: string): string => lessonKey + "||" + pt;
@@ -7,6 +8,7 @@ export const wKey = (lessonKey: string, pt: string): string => lessonKey + "||" 
 // (pt has non-ASCII accents, illegal in Convex object field names).
 type RawSrsState = {
   streak: number;
+  lastDay: string | null;
   cards: Array<{ lessonKey: string; pt: string } & CardFields>;
   tags: Array<{ lessonKey: string; pt: string; tag: string }>;
   seenTheory: string[];
@@ -30,6 +32,12 @@ export function adaptSrs(raw: RawSrsState): SrsState {
   }
   return {
     streak: raw.streak,
+    // «День закрыт»: последний ответ пришёлся на ТЕКУЩИЙ локальный день
+    // клиента. Сервер отдаёт сырой lastDay (день стрика) — сравниваем здесь,
+    // потому что «сегодня» в таймзоне пользователя знает только клиент (та же
+    // логика, что clientDay в recordAnswer). Пересчитывается на каждом ответе
+    // сервера: после первой сессии дня галочка загорается реактивно.
+    doneToday: raw.lastDay != null && raw.lastDay === localDay(),
     cards,
     tags,
     seenTheory: raw.seenTheory,

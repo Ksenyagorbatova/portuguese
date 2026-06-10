@@ -33,6 +33,7 @@ function queueCounts(queue: SessionItem[]): { due: number; nw: number; rv: numbe
 function srsOf(over: Partial<SrsState> = {}): SrsState {
   return {
     streak: 0,
+    doneToday: false,
     cards: {},
     tags: {},
     seenTheory: [],

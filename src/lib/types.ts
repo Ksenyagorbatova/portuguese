@@ -32,6 +32,7 @@ export type Stat = { total: number; seen: number; learned: number; due: number }
 
 export type SrsState = {
   streak: number;
+  doneToday: boolean; // последний ответ — в текущий локальный день клиента
   cards: Record<string, CardFields>;
   tags: Record<string, Tag>;
   seenTheory: string[];

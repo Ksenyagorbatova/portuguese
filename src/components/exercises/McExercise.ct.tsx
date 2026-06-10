@@ -506,3 +506,22 @@ test("the option keeps its own shadow under the focus ring", async ({ mount, pag
   // (запятую искать нельзя — она есть и внутри rgba()).
   expect(shadow.match(/rgba?\(/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
 });
+
+// ── П.10 (дизайн-ревью v2): discoverability медленного повтора ───────────────
+test("the 🔊 button advertises the slow-replay double tap", async ({ mount }) => {
+  const component = await mount(
+    <McExercise
+      word={word}
+      mode="pt_ru"
+      tag="new"
+      card={undefined}
+      course={course}
+      isLast={false}
+      onAnswered={() => {}}
+      onNext={() => {}}
+    />,
+  );
+  await expect(
+    component.getByRole("button", { name: "Прослушать (второй тап — медленно)" }),
+  ).toBeVisible();
+});

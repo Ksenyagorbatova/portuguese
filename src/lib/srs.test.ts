@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { adaptSrs, wKey, nextDueLabel, pluralRu } from "./srs";
+import { localDay } from "./day";
 
 describe("pluralRu", () => {
   const words = (n: number) => pluralRu(n, "слово", "слова", "слов");
@@ -26,22 +27,33 @@ describe("wKey", () => {
 });
 
 describe("adaptSrs", () => {
+  const raw = (lastDay: string | null) => ({
+    streak: 3,
+    lastDay,
+    cards: [
+      { lessonKey: "g1", pt: "olá", interval: 6, ef: 2.5, due: 100, seen: 2, correct: 2, lastSeen: 50, mcCorrect: 2, typeCorrect: 0 },
+    ],
+    tags: [{ lessonKey: "g1", pt: "olá", tag: "learned" }],
+    seenTheory: ["g1"],
+    learnedPts: ["olá"],
+    dueCountAll: 0,
+    lessonStats: {},
+    topicStats: {},
+  });
+
   it("rebuilds keyed lookup maps from the array-shaped server payload", () => {
-    const s = adaptSrs({
-      streak: 3,
-      cards: [
-        { lessonKey: "g1", pt: "olá", interval: 6, ef: 2.5, due: 100, seen: 2, correct: 2, lastSeen: 50, mcCorrect: 2, typeCorrect: 0 },
-      ],
-      tags: [{ lessonKey: "g1", pt: "olá", tag: "learned" }],
-      seenTheory: ["g1"],
-      learnedPts: ["olá"],
-      dueCountAll: 0,
-      lessonStats: {},
-      topicStats: {},
-    });
+    const s = adaptSrs(raw(null));
     expect(s.cards["g1||olá"]).toMatchObject({ interval: 6, ef: 2.5, seen: 2 });
     expect(s.tags["g1||olá"]).toBe("learned");
     expect(s.streak).toBe(3);
+  });
+
+  // «День закрыт»: сервер отдаёт сырой lastDay (день стрика), а «сегодня» в
+  // таймзоне пользователя знает только клиент — сравнение живёт здесь.
+  it("doneToday is true only when lastDay equals the CLIENT's current local day", () => {
+    expect(adaptSrs(raw(localDay())).doneToday).toBe(true);
+    expect(adaptSrs(raw("2000-01-01")).doneToday).toBe(false);
+    expect(adaptSrs(raw(null)).doneToday).toBe(false);
   });
 });
 

@@ -28,8 +28,12 @@
 легаси-строки — `toDateString()`), `theorySeen` (userId, lessonKey).
 
 API ([`convex/progress.ts`](../../convex/progress.ts)):
-- `getSrsState()` — батч-query для всего дашборда; возвращает `streak`, `cards[]`,
-  `tags[]`, `seenTheory[]`, `learnedPts[]`, `dueCountAll`, `lessonStats`, `topicStats`.
+- `getSrsState()` — батч-query для всего дашборда; возвращает `streak`,
+  `lastDay` (день последнего ответа = день стрика, `null` до первого ответа;
+  сырьё для галочки «день закрыт» — `doneToday` вычисляет клиент в `adaptSrs`
+  сравнением со СВОИМ `localDay()`, т.к. таймзонную истину знает только он),
+  `cards[]`, `tags[]`, `seenTheory[]`, `learnedPts[]`, `dueCountAll`,
+  `lessonStats`, `topicStats`.
 - `recordAnswer({ lessonKey, pt, quality: 0|1|2, mode: "mc"|"type", clientDay? })`
   → `{ card, streak }`. Валидирует натуральный ключ: слова `(lessonKey, pt)` нет в
   контенте → `ConvexError` «unknown word» (одно indexed-чтение

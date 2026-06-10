@@ -137,6 +137,12 @@ export const getSrsState = query({
 
     return {
       streak: statsRow?.streak ?? 0,
+      // Локальный день клиента, в который был ПОСЛЕДНИЙ ответ (тот же lastDay,
+      // что держит стрик; null — ответов ещё не было). Клиент сравнивает его со
+      // СВОИМ текущим днём (adaptSrs → doneToday): «текущий день клиента» знает
+      // только клиент — query аргументов не имеет, и таймзонную истину держим
+      // на той стороне, где она есть (как clientDay в recordAnswer).
+      lastDay: statsRow?.lastDay ?? null,
       cards,
       tags,
       seenTheory: theoryRows.map((t) => t.lessonKey),

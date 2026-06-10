@@ -7,14 +7,14 @@ import { Header } from "./Header";
 const noop = () => {};
 
 test("shows only the logo on the left — no title or kicker text", async ({ mount }) => {
-  const c = await mount(<Header streak={5} themeChoice="light" onCycleTheme={noop} onHome={noop} />);
+  const c = await mount(<Header streak={5} doneToday={false} themeChoice="light" onCycleTheme={noop} onHome={noop} />);
   await expect(c.locator(".m-logo")).toHaveText("pt");
   await expect(c.getByText("Тренажёр")).toHaveCount(0);
   await expect(c.getByText(/Português/)).toHaveCount(0);
 });
 
 test("right cluster order is streak → theme → exit, exit being an icon button", async ({ mount }) => {
-  const c = await mount(<Header streak={7} themeChoice="light" onCycleTheme={noop} onHome={noop} />);
+  const c = await mount(<Header streak={7} doneToday={false} themeChoice="light" onCycleTheme={noop} onHome={noop} />);
   // The old text «выйти» button is gone — exit is now an icon door.
   await expect(c.locator(".m-signout")).toHaveCount(0);
   await expect(c.getByText("выйти")).toHaveCount(0);
@@ -27,14 +27,14 @@ test("right cluster order is streak → theme → exit, exit being an icon butto
 });
 
 test("exit button carries an accessible label and the log-out icon", async ({ mount }) => {
-  const c = await mount(<Header streak={2} themeChoice="light" onCycleTheme={noop} onHome={noop} />);
+  const c = await mount(<Header streak={2} doneToday={false} themeChoice="light" onCycleTheme={noop} onHome={noop} />);
   await expect(c.getByRole("button", { name: "Выйти" })).toBeVisible();
 });
 
 test("the logo is a button that navigates home", async ({ mount }) => {
   let wentHome = false;
   const c = await mount(
-    <Header streak={3} themeChoice="light" onCycleTheme={() => {}} onHome={() => (wentHome = true)} />,
+    <Header streak={3} doneToday={false} themeChoice="light" onCycleTheme={() => {}} onHome={() => (wentHome = true)} />,
   );
   const logo = c.getByRole("button", { name: "На главный экран" });
   await expect(logo).toHaveText("pt");
@@ -43,24 +43,24 @@ test("the logo is a button that navigates home", async ({ mount }) => {
 });
 
 test("theme toggle shows the light label/icon for the light choice", async ({ mount }) => {
-  const c = await mount(<Header streak={1} themeChoice="light" onCycleTheme={noop} onHome={noop} />);
+  const c = await mount(<Header streak={1} doneToday={false} themeChoice="light" onCycleTheme={noop} onHome={noop} />);
   await expect(c.getByRole("button", { name: "Тема: светлая" })).toBeVisible();
 });
 
 test("theme toggle shows the dark label/icon for the dark choice", async ({ mount }) => {
-  const c = await mount(<Header streak={1} themeChoice="dark" onCycleTheme={noop} onHome={noop} />);
+  const c = await mount(<Header streak={1} doneToday={false} themeChoice="dark" onCycleTheme={noop} onHome={noop} />);
   await expect(c.getByRole("button", { name: "Тема: тёмная" })).toBeVisible();
 });
 
 test("theme toggle shows the system label/icon for the system choice", async ({ mount }) => {
-  const c = await mount(<Header streak={1} themeChoice="system" onCycleTheme={noop} onHome={noop} />);
+  const c = await mount(<Header streak={1} doneToday={false} themeChoice="system" onCycleTheme={noop} onHome={noop} />);
   await expect(c.getByRole("button", { name: "Тема: системная" })).toBeVisible();
 });
 
 test("clicking the theme toggle cycles the choice", async ({ mount }) => {
   let clicks = 0;
   const c = await mount(
-    <Header streak={1} themeChoice="system" onCycleTheme={() => (clicks += 1)} onHome={noop} />,
+    <Header streak={1} doneToday={false} themeChoice="system" onCycleTheme={() => (clicks += 1)} onHome={noop} />,
   );
   await c.getByRole("button", { name: "Тема: системная" }).click();
   expect(clicks).toBe(1);
@@ -71,7 +71,9 @@ test("icon buttons keep their own shadow under the keyboard-focus ring", async (
   mount,
   page,
 }) => {
-  const c = await mount(<Header streak={1} themeChoice="light" onCycleTheme={noop} onHome={noop} />);
+  const c = await mount(
+    <Header streak={1} doneToday={false} themeChoice="light" onCycleTheme={noop} onHome={noop} />,
+  );
   // Tab: логотип → переключатель темы (.m-icon-btn с собственной тенью --e1).
   await page.keyboard.press("Tab");
   await page.keyboard.press("Tab");
@@ -82,4 +84,33 @@ test("icon buttons keep their own shadow under the keyboard-focus ring", async (
   // …добавлено к тени --e1, не вместо неё: в computed box-shadow ДВА слоя
   // (= два цвета). Запятую искать нельзя — она есть и внутри rgba().
   expect(shadow.match(/rgba?\(/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+});
+
+// ── П.7 (дизайн-ревью v2): статус «день закрыт» в пилюле стрика ──────────────
+test("before the first session of the day the streak shows a grey day circle", async ({
+  mount,
+}) => {
+  const c = await mount(
+    <Header streak={4} doneToday={false} themeChoice="light" onCycleTheme={noop} onHome={noop} />,
+  );
+  const day = c.locator(".m-streak-day");
+  await expect(day).toBeVisible();
+  await expect(day).not.toHaveClass(/done/);
+  await expect(c.locator(".m-streak")).toHaveAttribute(
+    "aria-label",
+    "Стрик 4 дня, сегодня ещё не пройдено",
+  );
+});
+
+test("after the first session of the day the circle turns into an accent check", async ({
+  mount,
+}) => {
+  const c = await mount(
+    <Header streak={5} doneToday={true} themeChoice="light" onCycleTheme={noop} onHome={noop} />,
+  );
+  await expect(c.locator(".m-streak-day")).toHaveClass(/done/);
+  await expect(c.locator(".m-streak")).toHaveAttribute(
+    "aria-label",
+    "Стрик 5 дней, сегодня пройдено",
+  );
 });
