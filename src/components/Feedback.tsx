@@ -57,6 +57,11 @@ export function NextButton({ isLast, onClick }: { isLast: boolean; onClick: () =
       className="m-btn m-btn--ghost m-btn--block"
       style={{ marginTop: 10 }}
       autoFocus
+      onKeyDown={(e) => {
+        // Зажатый Enter (autorepeat) не должен проскакивать карточку мимо
+        // фидбэка: отмена повторного keydown отменяет синтезируемый click.
+        if (e.key === "Enter" && e.repeat) e.preventDefault();
+      }}
       onClick={onClick}
     >
       {isLast ? "Завершить" : "Дальше"} <Icon name="arrow-right" size={18} />

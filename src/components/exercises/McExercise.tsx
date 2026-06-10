@@ -14,11 +14,17 @@ type Resolved = { ok: boolean; dueLabel: string };
 
 const KEYS = ["A", "B", "C", "D", "E"];
 
-// Хоткей → индекс опции: «1»–«5» и латинские A–E (любой регистр). Кириллица и
-// прочие клавиши не матчатся (раскладка RU не должна стрелять случайно).
-function hotkeyIndex(key: string): number {
+// Хоткей → индекс опции: «1»–«5» и латинские A–E (любой регистр) по e.key.
+// Для нелатинских раскладок (RU: физическая A печатает «ф») — ФОЛЛБЭК по
+// физической позиции e.code (KeyA–KeyE), именно фоллбэк, не замена: e.code
+// позиционный, и когда e.key — другая латинская буква (на AZERTY физическая
+// KeyA печатает «q»), это осознанный ввод другой буквы — фоллбэк не стреляет.
+function hotkeyIndex(key: string, code: string): number {
   if (/^[1-5]$/.test(key)) return key.charCodeAt(0) - "1".charCodeAt(0);
   if (/^[a-eA-E]$/.test(key)) return key.toLowerCase().charCodeAt(0) - "a".charCodeAt(0);
+  if (!/^[a-zA-Z]$/.test(key) && /^Key[A-E]$/.test(code)) {
+    return code.charCodeAt(3) - "A".charCodeAt(0);
+  }
   return -1;
 }
 
@@ -76,7 +82,7 @@ export function McExercise({
     const t = e.target as HTMLElement | null;
     // Не перехватываем набор текста (на будущее — в MC своих инпутов нет).
     if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
-    const i = hotkeyIndex(e.key);
+    const i = hotkeyIndex(e.key, e.code);
     if (i < 0 || i >= options.length) return;
     const o = options[i];
     if (wrongPicked.has(o.pt)) return; // опция уже disabled после промаха

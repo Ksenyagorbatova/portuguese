@@ -155,6 +155,39 @@ test("Latin letter hotkey (A–E) picks the matching option", async ({ mount, pa
   expect(answered).toBe(1);
 });
 
+test("RU layout: physical A–E keys (e.code) pick options via the code fallback", async ({
+  mount,
+  page,
+}) => {
+  let answered = 0;
+  const component = await mount(
+    <McExercise
+      word={word}
+      mode="pt_ru"
+      tag="new"
+      card={undefined}
+      course={course}
+      isLast={false}
+      onAnswered={() => {
+        answered += 1;
+      }}
+      onNext={() => {}}
+    />,
+  );
+  const i = await correctIndex(component);
+  // В русской раскладке физические KeyA–KeyE печатают кириллицу — e.key не
+  // матчится, должен сработать фоллбэк по e.code (синтезируем настоящую пару
+  // key/code этой раскладки: KeyA→«ф», KeyB→«и», KeyC→«с», KeyD→«в», KeyE→«у»).
+  await page.evaluate(
+    ([key, code]) => {
+      document.body.dispatchEvent(new KeyboardEvent("keydown", { key, code, bubbles: true }));
+    },
+    [["ф", "и", "с", "в", "у"][i], "Key" + "ABCDE"[i]] as const,
+  );
+  await expect(component.getByText("Верно!")).toBeVisible();
+  expect(answered).toBe(1);
+});
+
 test("hotkeys are inert for an already-missed (disabled) option and after resolve", async ({
   mount,
   page,

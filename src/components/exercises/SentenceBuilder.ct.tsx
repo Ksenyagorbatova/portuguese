@@ -42,7 +42,7 @@ test("accepts the correctly built sentence", async ({ mount }) => {
   await expect(component.locator(".m-atile-x")).toHaveCount(0);
 });
 
-test("builds and checks the sentence with the keyboard only", async ({ mount }) => {
+test("builds and checks the sentence with the keyboard only", async ({ mount, page }) => {
   let answeredFirstTry: boolean | null = null;
   const component = await mount(
     <SentenceBuilder
@@ -56,13 +56,61 @@ test("builds and checks the sentence with the keyboard only", async ({ mount }) 
   );
 
   // Плитки — настоящие <button>: press фокусирует и активирует Enter'ом.
-  await component.locator(".m-bank .m-wtile").filter({ hasText: "Bom" }).press("Enter");
+  const bom = component.locator(".m-bank .m-wtile").filter({ hasText: "Bom" });
+  await bom.press("Enter");
+
+  // Фокус НЕ упал на body: плитка гасится aria-disabled, а не disabled —
+  // Tab-пользователь продолжает с того же места.
+  const active = await page.evaluate(() => ({
+    tag: document.activeElement?.tagName,
+    cls: document.activeElement?.className ?? "",
+  }));
+  expect(active.tag).toBe("BUTTON");
+  expect(active.cls).toContain("m-wtile");
+  await expect(bom).toHaveAttribute("aria-disabled", "true");
+
+  // Enter по использованной (aria-disabled) плитке — no-op, дубль не добавится.
+  await page.keyboard.press("Enter");
+  await expect(component.locator(".m-answer .m-atile")).toHaveCount(1);
+
   await component.locator(".m-bank .m-wtile").filter({ hasText: "dia" }).press("Enter");
   await expect(component.locator(".m-answer .m-atile")).toHaveCount(2);
   await component.getByRole("button", { name: "Проверить" }).press("Enter");
 
   await expect(component.getByText("Верно!")).toBeVisible();
   expect(answeredFirstTry).toBe(true);
+});
+
+test("held Enter on «Проверить» does not skip past the feedback (autorepeat)", async ({
+  mount,
+  page,
+}) => {
+  let next = 0;
+  const component = await mount(
+    <SentenceBuilder
+      sentence={sentence}
+      isLast={false}
+      onAnswered={() => {}}
+      onNext={() => {
+        next += 1;
+      }}
+    />,
+  );
+  await component.locator(".m-bank .m-wtile").filter({ hasText: "Bom" }).press("Enter");
+  await component.locator(".m-bank .m-wtile").filter({ hasText: "dia" }).press("Enter");
+
+  await component.getByRole("button", { name: "Проверить" }).focus();
+  // resolved ставится синхронно → автофокусная «Дальше» монтируется, пока Enter
+  // ещё зажат; autorepeat не должен проскочить карточку.
+  await page.keyboard.down("Enter");
+  await page.keyboard.down("Enter"); // e.repeat — уже на «Дальше»
+  await page.keyboard.up("Enter");
+
+  await expect(component.getByText("Верно!")).toBeVisible();
+  expect(next).toBe(0); // фидбэк не проскочен
+
+  await page.keyboard.press("Enter"); // осознанный повторный Enter — продвигает
+  expect(next).toBe(1);
 });
 
 test("tiles are buttons and carry lang=pt-PT", async ({ mount }) => {

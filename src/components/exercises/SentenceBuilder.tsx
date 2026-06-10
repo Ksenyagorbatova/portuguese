@@ -70,13 +70,16 @@ export function SentenceBuilder({
         {selected.length === 0 ? (
           <span className="m-ans-ph">нажимай слова снизу…</span>
         ) : (
+          // aria-disabled (не disabled): нативный disabled на активированной
+          // плитке роняет фокус на body — Tab-пользователь начинал бы сначала.
+          // Действие гасит guard в onClick (Enter/Space синтезируют click).
           selected.map((id, idx) => (
             <button
               key={idx}
               type="button"
               className="m-atile"
               lang="pt-PT"
-              disabled={resolved !== null}
+              aria-disabled={resolved !== null}
               onClick={() => !resolved && setSelected((s) => s.filter((_, i) => i !== idx))}
             >
               {wordById.get(id)}
@@ -93,7 +96,7 @@ export function SentenceBuilder({
             type="button"
             className={"m-wtile" + (used.has(t.id) ? " used" : "")}
             lang="pt-PT"
-            disabled={used.has(t.id) || resolved !== null}
+            aria-disabled={used.has(t.id) || resolved !== null}
             onClick={() => !resolved && !used.has(t.id) && setSelected((s) => [...s, t.id])}
           >
             {t.w}
