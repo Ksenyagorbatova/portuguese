@@ -1,10 +1,22 @@
 import { describe, it, expect, vi } from "vitest";
-import { buildLessonQueue, buildReviewQueue, REVIEW_DUE_LIMIT } from "./queue";
+import { buildLessonQueue, buildMistakesQueue, buildReviewQueue, REVIEW_DUE_LIMIT } from "./queue";
+import { MC_TARGET, TYPE_TARGET, SESSION_SIZE } from "./learning";
 import { wKey } from "./srs";
-import type { Course, LessonView, SessionItem, SrsState, Stat } from "./types";
+import { shuffle } from "./shuffle";
+import type { CardFields, Course, LessonView, SessionItem, SrsState, Stat } from "./types";
 
-// shuffle → identity so queue order/slicing is deterministic to assert on.
-vi.mock("./shuffle", () => ({ shuffle: <T>(a: readonly T[]): T[] => [...a] }));
+// shuffle → identity so queue order/slicing is deterministic to assert on
+// (vi.fn, чтобы отдельные тесты могли подменить порядок через
+// mockImplementationOnce — например, для сосед-гарда на стыке проходов).
+vi.mock("./shuffle", () => ({ shuffle: vi.fn(<T,>(a: readonly T[]): T[] => [...a]) }));
+const shuffleMock = vi.mocked(shuffle);
+
+// Полная карточка прогресса с нужными этапными счётчиками (остальное — нули).
+function cardOf(mc: number, type: number): CardFields {
+  return { interval: 0, ef: 2.5, due: 0, seen: 1, correct: 1, lastSeen: 0, mcCorrect: mc, typeCorrect: type };
+}
+// Остаток показов нового слова (без карточки) до «выучено».
+const FULL_REPS = MC_TARGET + TYPE_TARGET;
 
 // Local tally of queue items by badge (срочные · новые · повторения · сочетания).
 function queueCounts(queue: SessionItem[]): { due: number; nw: number; rv: number; cr: number } {
@@ -47,20 +59,17 @@ const course: Course = {
   crossSentences: [],
 };
 
-describe("buildLessonQueue", () => {
-  it("treats untagged words as new and fills the queue with them", () => {
+describe("buildLessonQueue (статичная interleaved-очередь ≤ SESSION_SIZE)", () => {
+  it("builds interleaved passes over unfinished words (3 слова × 6 показов = 18)", () => {
     const q = buildLessonQueue(lesson, srsOf(), course);
-    expect(q).toHaveLength(3);
+    expect(q).toHaveLength(3 * FULL_REPS); // 18 < SESSION_SIZE — очередь короче лимита
     expect(q.every((i) => i.kind === "word")).toBe(true);
-    expect(queueCounts(q).nw).toBe(3);
+    // Проход = по одной карточке на каждое слово: первые 3 — все разные.
+    const firstPass = q.slice(0, 3).map((i) => (i.kind === "word" ? i.word.pt : ""));
+    expect(new Set(firstPass).size).toBe(3);
   });
 
-  it("places due words first", () => {
-    const q = buildLessonQueue(lesson, srsOf({ tags: { [wKey("l1", "a")]: "due" } }), course);
-    expect(q[0]).toMatchObject({ kind: "word", tag: "due", word: { pt: "a" } });
-  });
-
-  it("includes every word of the lesson (no slice — the whole lesson is drilled)", () => {
+  it("caps the queue at SESSION_SIZE and the denominator never grows past it", () => {
     const big: LessonView = {
       ...lesson,
       lessonKey: "lb",
@@ -71,30 +80,90 @@ describe("buildLessonQueue", () => {
       crossSentences: [],
     };
     const q = buildLessonQueue(big, srsOf(), bigCourse);
-    expect(q).toHaveLength(10);
-    expect(queueCounts(q).nw).toBe(10);
+    expect(q).toHaveLength(SESSION_SIZE); // 10 слов × 6 показов = 60 → cap 20
+    // Interleaving: до первого повтора любого слова идут ВСЕ 10 разных слов.
+    const pts = q.map((i) => (i.kind === "word" ? i.word.pt : ""));
+    expect(new Set(pts.slice(0, 10)).size).toBe(10);
   });
 
-  it("orders due words ahead of the rest while still including all of them", () => {
-    const mixed: LessonView = {
-      ...lesson,
-      lessonKey: "lm",
-      words: ["a", "b", "c", "d"].map((pt) => ({ lessonKey: "lm", pt, ru: pt })),
-    };
-    const mixedCourse: Course = {
-      topics: [{ topicKey: "t", label: "T", icon: "x", lessons: [mixed] }],
-      crossSentences: [],
-    };
+  it("places due words first in the FIRST pass", () => {
     const srs = srsOf({
-      tags: { [wKey("lm", "c")]: "due", [wKey("lm", "a")]: "learned" },
+      tags: { [wKey("l1", "c")]: "due" },
+      cards: { [wKey("l1", "c")]: cardOf(1, 0) },
     });
-    const q = buildLessonQueue(mixed, srs, mixedCourse);
-    expect(q).toHaveLength(4); // all four words present
+    const q = buildLessonQueue(lesson, srs, course);
     expect(q[0]).toMatchObject({ kind: "word", tag: "due", word: { pt: "c" } });
-    const c = queueCounts(q);
-    expect(c.due).toBe(1);
-    expect(c.nw).toBe(2); // b, d untagged → new
-    expect(c.rv).toBe(1); // a learned → review badge
+  });
+
+  it("draws only from unfinished words — learned ones stay out", () => {
+    const srs = srsOf({
+      tags: { [wKey("l1", "a")]: "learned" },
+      cards: { [wKey("l1", "a")]: cardOf(MC_TARGET, TYPE_TARGET) },
+    });
+    const q = buildLessonQueue(lesson, srs, course);
+    expect(q.length).toBeGreaterThan(0);
+    expect(q.some((i) => i.kind === "word" && i.word.pt === "a")).toBe(false);
+  });
+
+  it("counts a word's queued shows against its remaining reps (почти добитое слово)", () => {
+    // b добито почти целиком: остался 1 верный ввод → ровно 1 показ в очереди.
+    const srs = srsOf({
+      tags: { [wKey("l1", "b")]: "ongoing" },
+      cards: { [wKey("l1", "b")]: cardOf(MC_TARGET, TYPE_TARGET - 1) },
+    });
+    const q = buildLessonQueue(lesson, srs, course);
+    const bShows = q.filter((i) => i.kind === "word" && i.word.pt === "b").length;
+    expect(bShows).toBe(1);
+    expect(q).toHaveLength(2 * FULL_REPS + 1); // a и c — по 6, b — 1
+  });
+
+  it("falls back to a one-pass review when the whole lesson is learned", () => {
+    const learnedAll = Object.fromEntries(
+      lesson.words.map((w) => [wKey("l1", w.pt), cardOf(MC_TARGET, TYPE_TARGET)] as const),
+    );
+    const tags = Object.fromEntries(
+      lesson.words.map((w) => [wKey("l1", w.pt), "learned"] as const),
+    );
+    const q = buildLessonQueue(lesson, srsOf({ cards: learnedAll, tags }), course);
+    expect(q).toHaveLength(3); // каждое слово по одному показу
+    expect(queueCounts(q).rv).toBe(3);
+  });
+
+  it("never puts the same word on two adjacent cards (сосед-гард на стыке проходов)", () => {
+    // Первый вызов shuffle — проход 1 в обратном порядке [c,b,a], второй —
+    // identity [a,b,c]: стык a|a без гарда. Гард обязан свапнуть.
+    shuffleMock.mockImplementationOnce(<T,>(arr: readonly T[]): T[] => [...arr].reverse());
+    const q = buildMistakesQueue(lesson.words, srsOf());
+    for (let i = 1; i < q.length; i++) {
+      const prev = q[i - 1];
+      const cur = q[i];
+      if (prev.kind === "word" && cur.kind === "word") {
+        expect(cur.word.pt, `cards ${i - 1} and ${i} repeat the same word`).not.toBe(prev.word.pt);
+      }
+    }
+  });
+});
+
+describe("buildMistakesQueue (мини-сессия «Повторить эти N слов»)", () => {
+  it("interleaves only the given words, no sentences, capped at SESSION_SIZE", () => {
+    const srs = srsOf();
+    const q = buildMistakesQueue(lesson.words, srs); // 3 новых × 6 = 18
+    expect(q).toHaveLength(3 * FULL_REPS);
+    expect(q.every((i) => i.kind === "word")).toBe(true);
+    const pts = new Set(q.map((i) => (i.kind === "word" ? i.word.pt : "")));
+    expect(pts).toEqual(new Set(["a", "b", "c"]));
+  });
+
+  it("gives an already-learned (review) miss at least ONE show", () => {
+    // Промах на выученном слове: remainingReps 0, но мини-сессию запускали
+    // ровно ради него — слово обязано получить показ.
+    const srs = srsOf({
+      tags: { [wKey("l1", "a")]: "learned" },
+      cards: { [wKey("l1", "a")]: cardOf(MC_TARGET, TYPE_TARGET) },
+    });
+    const q = buildMistakesQueue([lesson.words[0]], srs);
+    expect(q).toHaveLength(1);
+    expect(q[0]).toMatchObject({ kind: "word", word: { pt: "a" } });
   });
 });
 
@@ -163,6 +232,15 @@ describe("cross-sentence gate (topic ≥80% + required learned)", () => {
   it("hides the sentence if a required word is not learned, even at 80%", () => {
     const srs = srsOf({ learnedPts: ["a"], topicStats: stat(4) }); // b missing
     expect(queueCounts(buildLessonQueue(gateLesson, srs, gateCourse)).cr).toBe(0);
+  });
+
+  it("keeps words + injected sentences within SESSION_SIZE total", () => {
+    // 5 недоученных слов × 6 показов = 30 кандидатов + 1 предложение: бюджет
+    // слов ужимается так, чтобы ОБЩИЙ размер очереди не превысил SESSION_SIZE.
+    const srs = srsOf({ learnedPts: ["a", "b"], topicStats: stat(4) });
+    const q = buildLessonQueue(gateLesson, srs, gateCourse);
+    expect(q.length).toBeLessThanOrEqual(SESSION_SIZE);
+    expect(queueCounts(q).cr).toBe(1);
   });
 
   // Дубль pt в двух темах (farmácia: city_1 и body_2; olho/cabelo аналогично):

@@ -2,12 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
   isWordLearned,
   pickExerciseType,
-  shouldRequeue,
-  requeuePosition,
+  remainingReps,
   MC_TARGET,
   TYPE_TARGET,
-  REQUEUE_GAP,
-  SESSION_REQUEUE_CAP,
 } from "./learning";
 
 describe("isWordLearned", () => {
@@ -60,40 +57,19 @@ describe("pickExerciseType (mixed MC/Type until learned)", () => {
   });
 });
 
-describe("shouldRequeue", () => {
-  it("requeues a not-yet-learned word until the session cap", () => {
-    expect(shouldRequeue({ mcCorrect: 0, typeCorrect: 0 }, 0)).toBe(true);
-    expect(shouldRequeue({ mcCorrect: MC_TARGET, typeCorrect: 0 }, SESSION_REQUEUE_CAP - 1)).toBe(true);
-    expect(shouldRequeue({ mcCorrect: MC_TARGET, typeCorrect: 0 }, SESSION_REQUEUE_CAP)).toBe(false);
+describe("remainingReps (остаток показов до «выучено» — питает interleaved-очередь)", () => {
+  it("counts both skills' shortfalls for a fresh word (no card)", () => {
+    expect(remainingReps(undefined)).toBe(MC_TARGET + TYPE_TARGET);
+    expect(remainingReps({ mcCorrect: 0, typeCorrect: 0 })).toBe(MC_TARGET + TYPE_TARGET);
   });
 
-  it("never requeues a learned word (both skills met)", () => {
-    expect(shouldRequeue({ mcCorrect: MC_TARGET, typeCorrect: TYPE_TARGET }, 0)).toBe(false);
-  });
-});
-
-describe("requeuePosition (spreads requeues across the whole queue, not a 3-cycle)", () => {
-  it("keeps at least REQUEUE_GAP cards before the word repeats", () => {
-    expect(requeuePosition(0, 10, () => 0)).toBe(REQUEUE_GAP);
-    expect(requeuePosition(2, 10, () => 0)).toBe(2 + REQUEUE_GAP);
+  it("sums what is still owed across MC and Type", () => {
+    expect(remainingReps({ mcCorrect: 1, typeCorrect: 0 })).toBe(MC_TARGET - 1 + TYPE_TARGET);
+    expect(remainingReps({ mcCorrect: MC_TARGET, typeCorrect: TYPE_TARGET - 1 })).toBe(1);
   });
 
-  it("can land anywhere up to the END of the queue (so all words get a turn)", () => {
-    expect(requeuePosition(0, 10, () => 0.999)).toBe(10);
-  });
-
-  it("does NOT collapse to a fixed idx+GAP cycle — position varies with rnd", () => {
-    const atStart = requeuePosition(0, 12, () => 0);
-    const atMid = requeuePosition(0, 12, () => 0.5);
-    const atEnd = requeuePosition(0, 12, () => 0.999);
-    expect(atStart).toBe(REQUEUE_GAP);
-    expect(atEnd).toBe(12);
-    expect(atMid).toBeGreaterThan(atStart);
-    expect(atMid).toBeLessThan(atEnd);
-  });
-
-  it("appends to the end when the word is near the back (no room for the gap)", () => {
-    expect(requeuePosition(8, 10, () => 0.5)).toBe(10);
-    expect(requeuePosition(9, 10, () => 0)).toBe(10);
+  it("is zero for a learned word and never negative on overshoot", () => {
+    expect(remainingReps({ mcCorrect: MC_TARGET, typeCorrect: TYPE_TARGET })).toBe(0);
+    expect(remainingReps({ mcCorrect: MC_TARGET + 2, typeCorrect: TYPE_TARGET + 5 })).toBe(0);
   });
 });

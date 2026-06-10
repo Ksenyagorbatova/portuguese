@@ -91,8 +91,9 @@ test("a lesson with seen theory starts the session right away", async ({ mount }
   await c.getByRole("button", { name: "Темы", exact: true }).click();
   await c.getByText("Урок 1").click();
 
-  // Straight into the session: the whole lesson is queued (4 words).
-  await expect(c.locator(".m-progress-count")).toHaveText("1/4");
+  // Straight into the session: a static queue capped at SESSION_SIZE
+  // (4 unfinished words × 6 owed reps = 24 candidates → 20).
+  await expect(c.locator(".m-progress-count")).toHaveText("1/20");
   await expect(c.locator(".m-q-kind")).toBeVisible();
 });
 
@@ -136,7 +137,7 @@ test("cancelling the confirm keeps the session running", async ({ mount, page })
   expect(dialogs).toEqual(["Выйти из тренировки?"]);
   // Dismissed → the exercise is still on screen.
   await expect(c.locator(".m-q-kind")).toBeVisible();
-  await expect(c.locator(".m-progress-count")).toHaveText("1/4");
+  await expect(c.locator(".m-progress-count")).toHaveText("1/20");
 });
 
 test("logo click on the Complete screen leaves without any confirm", async ({ mount, page }) => {
@@ -169,6 +170,101 @@ test("logo click on the Complete screen leaves without any confirm", async ({ mo
   await c.getByRole("button", { name: "На главный экран" }).click();
   expect(dialogs).toEqual([]);
   await expect(c.locator(".m-hero")).toBeVisible();
+});
+
+test("a 100%-finished topic rolls the Complete CTA over to the next topic", async ({ mount }) => {
+  // Тема t1 выучена целиком (один learned-урок), у t2 теория ещё не открыта:
+  // финал должен озаглавиться «Тема закрыта!» и перекатить CTA на первый урок
+  // следующей темы (через openLesson → экран теории, раз она не просмотрена).
+  const rolloverCourse = {
+    topics: [
+      {
+        topicKey: "t1",
+        label: "Приветствия",
+        icon: "👋",
+        lessons: [
+          {
+            lessonKey: "l1",
+            label: "Урок 1",
+            theory: { intro: "", tip: "", sections: [] },
+            words: [{ lessonKey: "l1", pt: "olá", ru: "привет" }],
+          },
+        ],
+      },
+      {
+        topicKey: "t2",
+        label: "Числа",
+        icon: "🔢",
+        lessons: [
+          {
+            lessonKey: "l2",
+            label: "Числа 1–5",
+            theory: { intro: "Цифры", tip: "", sections: [] },
+            words: [
+              { lessonKey: "l2", pt: "um", ru: "один" },
+              { lessonKey: "l2", pt: "dois", ru: "два" },
+              { lessonKey: "l2", pt: "três", ru: "три" },
+            ],
+          },
+        ],
+      },
+    ],
+    crossSentences: [],
+  };
+  const c = await mount<HooksConfig>(<Shell themeChoice="light" onCycleTheme={noop} />, {
+    hooksConfig: {
+      queries: {
+        "courseQueries:getCourse": rolloverCourse,
+        "progress:getSrsState": {
+          streak: 0,
+          cards: [
+            {
+              lessonKey: "l1",
+              pt: "olá",
+              interval: 6,
+              ef: 2.5,
+              due: Date.now() + 6 * 86400000,
+              seen: 6,
+              correct: 6,
+              lastSeen: Date.now(),
+              mcCorrect: 3,
+              typeCorrect: 3,
+            },
+          ],
+          tags: [{ lessonKey: "l1", pt: "olá", tag: "learned" }],
+          seenTheory: ["l1"],
+          learnedPts: ["olá"],
+          dueCountAll: 0,
+          lessonStats: {
+            l1: { total: 1, seen: 1, learned: 1, due: 0 },
+            l2: { total: 3, seen: 0, learned: 0, due: 0 },
+          },
+          topicStats: {
+            t1: { total: 1, seen: 1, learned: 1, due: 0 },
+            t2: { total: 3, seen: 0, learned: 0, due: 0 },
+          },
+        },
+      },
+    },
+  });
+  await c.getByRole("button", { name: "Темы", exact: true }).click();
+  await c.getByText("Урок 1").click();
+  // Урок выучен целиком → одно-проходное повторение из единственного слова.
+  await expect(c.locator(".m-progress-count")).toHaveText("1/1");
+  const kind = (await c.locator(".m-q-kind").textContent()) ?? "";
+  if (kind.includes("Напишите")) {
+    await c.locator(".m-input").fill("olá");
+    await c.getByRole("button", { name: "Проверить" }).click();
+  } else {
+    const ru = c.locator(".m-opt", { hasText: "привет" });
+    if ((await ru.count()) > 0) await ru.first().click();
+    else await c.locator(".m-opt", { hasText: "olá" }).first().click();
+  }
+  await c.getByRole("button", { name: /Дальше|Завершить/ }).click();
+
+  await expect(c.getByText("Тема закрыта!")).toBeVisible();
+  await c.getByRole("button", { name: "Следующая тема: Числа" }).click();
+  await expect(c.locator(".m-theory-title")).toHaveText("Числа 1–5");
 });
 
 test("logo click outside a session goes home without any confirm", async ({ mount, page }) => {

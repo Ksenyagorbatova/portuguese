@@ -95,7 +95,7 @@ context7, прочитай нужное, потом реализуй под ак
 - [`convex-conventions`](.claude/skills/convex-conventions/SKILL.md) — серверные конвенции/готчи
   Convex (`pt`→массивы + `adaptSrs`, авторизация, internal-гейты, паттерн `convex-test`).
 - [`srs-invariants`](.claude/skills/srs-invariants/SKILL.md) — guard при правке SM-2/порогов/очереди
-  (дублированные пороги сервер↔клиент, «событие повторения», случайная ротация).
+  (дублированные пороги сервер↔клиент, «событие повторения», статичная interleaved-очередь).
 - [`browser-smoke`](.claude/skills/browser-smoke/SKILL.md) — браузерная/preview-проверка: вход
   (dev-аккаунт), карта экранов и потоки, что считать «смежным».
 - [`ship-task`](.claude/skills/ship-task/SKILL.md) — прогнать все гейты (спека → code-review →
@@ -196,17 +196,21 @@ worktree-логика — только для *linked* worktree (детект �
   `pickExerciseType` ([`src/lib/learning.ts`](src/lib/learning.ts)): первое
   знакомство со словом — всегда MC.
   → [`specs/feature/word-learning-model.md`](specs/feature/word-learning-model.md).
-- **Очередь и ротация** — клиент строит СТАРТОВЫЙ набор
-  ([`src/lib/queue.ts`](src/lib/queue.ts)) и доводит слова до «выучено»
-  внутрисессионной ротацией со СЛУЧАЙНОЙ позицией переспроса
-  ([`src/components/Session.tsx`](src/components/Session.tsx)). Кросс-предложения —
-  при освоении темы на ≥80% и всех выученных `required`. Недетерминированное держим
-  вне Convex-queries.
+- **Очередь сессии** — СТАТИЧНАЯ, ≤ `SESSION_SIZE` (=20) карточек: клиент собирает
+  её interleaved-проходами по недоученным словам урока
+  ([`src/lib/queue.ts`](src/lib/queue.ts)); после старта очередь НЕ растёт —
+  переспросов нет, недобранное слово возвращается в следующей сессии (прогресс
+  mc/type серверный, сквозной). Финал — разбор промахов («Споткнулся на» +
+  `buildMistakesQueue`) и CTA по фактическому прогрессу
+  ([`src/components/Session.tsx`](src/components/Session.tsx),
+  [`Complete.tsx`](src/components/Complete.tsx)). Кросс-предложения —
+  при освоении темы на ≥80% и всех выученных `required`, в пределах бюджета
+  очереди. Недетерминированное держим вне Convex-queries.
   → [`specs/feature/session-queue-and-rotation.md`](specs/feature/session-queue-and-rotation.md).
 - **UI тренировки** — хедер (логотип-«домой» с флагом Португалии, стрик,
   переключатель темы, выход); во время сессии прячем статистику/табы («чистое поле»);
-  строка прогресса — позиция `idx+1/items.length`, не освоение; теория не скрывается
-  после прохождения.
+  строка прогресса — позиция `idx+1/queue.length` (знаменатель статичен), не
+  освоение; теория не скрывается после прохождения.
   → [`specs/feature/training-ui-and-shell.md`](specs/feature/training-ui-and-shell.md).
 - **Тема** — тройной переключатель light/dark/system (дефолт `system`, следит за ОС),
   anti-flash в [`index.html`](index.html).
@@ -228,8 +232,8 @@ worktree-логика — только для *linked* worktree (детект �
 convex/         схема, content.ts (сид-данные), seed.ts, courseQueries.ts,
                 progress.ts (SRS), auth.ts/auth.config.ts/http.ts
                 *.test.ts — backend-тесты (convex-test)
-src/lib/        types, queue, srs (+adaptSrs), learning (навыки MC/Type, ротация, пороги),
-                text, shuffle, wrongOptions, speech
+src/lib/        types, queue (interleaved-сборка), srs (+adaptSrs), learning (навыки
+                MC/Type, пороги, SESSION_SIZE), text, shuffle, wrongOptions, speech
                 *.test.ts — unit-тесты (Vitest)
 src/components/ Shell (оркестратор) → Header/ScoreRow/TabBar → ReviewTab/TopicsTab/
                 Theory → Session → exercises/{Mc,Type,SentenceBuilder} → Feedback/Complete
@@ -262,5 +266,6 @@ frontend-тесты, компонентные).
 - Проверка ответа — на клиенте; сервер доверяет присланному `quality` и `mode`.
 - «Выучено» = оба навыка (`mcCorrect>=MC_TARGET` И `typeCorrect>=TYPE_TARGET`);
   миграции не требуется (старые «выученные» строки уже имеют `mc>=3`).
-- Урок берёт в сессию ВСЕ слова темы, каждое доводится до «выучено» за сессию —
-  поэтому первая тренировка большого урока длинная (пороги — в `learning.ts`).
+- Сессия каппирована `SESSION_SIZE` (=20) карточек — большой урок закрывается за
+  несколько коротких подходов («Продолжить урок» на финале); слово может не
+  «выучиться» за одну сессию и вернётся в следующую (пороги — в `learning.ts`).

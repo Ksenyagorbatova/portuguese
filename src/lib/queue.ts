@@ -9,7 +9,7 @@ import type {
 } from "./types";
 import { shuffle } from "./shuffle";
 import { wKey } from "./srs";
-import { SENTENCE_TOPIC_THRESHOLD } from "./learning";
+import { remainingReps, SENTENCE_TOPIC_THRESHOLD, SESSION_SIZE } from "./learning";
 
 // Client-side session-queue builders. The server (getSrsState) supplies the
 // due/new/learned/ongoing classification via `tags`; here we shuffle, slice and
@@ -63,31 +63,95 @@ function eligibleSentences(course: Course, srs: SrsState): CrossSentenceView[] {
   });
 }
 
-// A lesson session now drills the WHOLE lesson, not a slice: every word takes
-// part. Due words go first (most urgent), the rest follow shuffled together.
-// Per-word exercise type (MC/Type) and in-session rotation are decided later in
-// Session.tsx — here we only set the starting line-up.
-export function buildLessonQueue(lesson: LessonView, srs: SrsState, course: Course): SessionItem[] {
-  const tagOf = (w: WordView) => srs.tags[wKey(w.lessonKey, w.pt)] ?? "new";
-  const badgeOf = (w: WordView): BadgeTag => {
-    const t = tagOf(w);
+const badgeOfWith =
+  (srs: SrsState) =>
+  (w: WordView): BadgeTag => {
+    const t = srs.tags[wKey(w.lessonKey, w.pt)] ?? "new";
     return t === "due" ? "due" : t === "new" ? "new" : "review";
   };
 
-  const due = lesson.words.filter((w) => tagOf(w) === "due");
-  const rest = lesson.words.filter((w) => tagOf(w) !== "due");
-  const q: SessionItem[] = [
-    ...shuffle(due).map((w) => wordItem(w, "due")),
-    ...shuffle(rest).map((w) => wordItem(w, badgeOf(w))),
-  ];
+// Статичная interleaved-сборка: проходами по словам — в каждом проходе свой
+// shuffle и по ОДНОЙ карточке на слово; слово выбывает, когда набранные в
+// очередь показы покрывают его остаток до «выучено» (repsOf). Так разные слова
+// чередуются (interleaving запоминается лучше тесного цикла по одному слову),
+// а очередь не превышает budget. Сосед-гард на стыке проходов: то же слово не
+// идёт два раза подряд — swap с соседом (выполним, пока в проходе ≥2 слов).
+function interleavedReps(
+  words: WordView[],
+  srs: SrsState,
+  budget: number,
+  repsOf: (w: WordView) => number,
+  dueFirst: boolean,
+): SessionItem[] {
+  const badgeOf = badgeOfWith(srs);
+  const isDue = (w: WordView) => badgeOf(w) === "due";
+  const left = new Map<string, number>();
+  for (const w of words) left.set(wKey(w.lessonKey, w.pt), repsOf(w));
 
-  shuffle(eligibleSentences(course, srs))
-    .slice(0, 2)
-    .forEach((s, i) => {
-      const pos = Math.min(4 + i * 3, q.length);
-      q.splice(pos, 0, sentenceItem(s));
-    });
+  const q: SessionItem[] = [];
+  let firstPass = true;
+  while (q.length < budget) {
+    const pass = shuffle(words.filter((w) => (left.get(wKey(w.lessonKey, w.pt)) ?? 0) > 0));
+    if (pass.length === 0) break;
+    // Срочные (due) — первыми в ПЕРВОМ проходе; внутри групп порядок от shuffle.
+    if (firstPass && dueFirst) {
+      pass.sort((a, b) => Number(isDue(b)) - Number(isDue(a)));
+      firstPass = false;
+    }
+    const last = q[q.length - 1];
+    if (
+      last?.kind === "word" &&
+      pass.length > 1 &&
+      wKey(pass[0].lessonKey, pass[0].pt) === wKey(last.word.lessonKey, last.word.pt)
+    ) {
+      [pass[0], pass[1]] = [pass[1], pass[0]];
+    }
+    for (const w of pass) {
+      if (q.length >= budget) break;
+      const k = wKey(w.lessonKey, w.pt);
+      q.push(wordItem(w, badgeOf(w)));
+      left.set(k, (left.get(k) ?? 0) - 1);
+    }
+  }
   return q;
+}
+
+// A lesson session: a STATIC queue of at most SESSION_SIZE cards built from ALL
+// not-yet-learned words of the lesson, interleaved (see interleavedReps). The
+// queue never grows after start — a miss does not re-queue the card; per-word
+// progress lives on the server, so the next session resumes the grind. Once the
+// whole lesson is learned the session falls back to a one-pass review of its
+// words. Per-card exercise type (MC/Type) is decided later in Session.tsx.
+export function buildLessonQueue(lesson: LessonView, srs: SrsState, course: Course): SessionItem[] {
+  const cardOf = (w: WordView) => srs.cards[wKey(w.lessonKey, w.pt)];
+
+  // Предложения занимают часть бюджета: слова + предложения ≤ SESSION_SIZE.
+  const sentences = shuffle(eligibleSentences(course, srs)).slice(0, 2);
+  const wordBudget = Math.max(0, SESSION_SIZE - sentences.length);
+
+  const unfinished = lesson.words.filter((w) => remainingReps(cardOf(w)) > 0);
+  const q: SessionItem[] =
+    unfinished.length > 0
+      ? interleavedReps(unfinished, srs, wordBudget, (w) => remainingReps(cardOf(w)), true)
+      : // Урок выучен целиком — повторение: каждое слово по одному показу.
+        shuffle(lesson.words)
+          .slice(0, wordBudget)
+          .map((w) => wordItem(w, badgeOfWith(srs)(w)));
+
+  sentences.forEach((s, i) => {
+    const pos = Math.min(4 + i * 3, q.length);
+    q.splice(pos, 0, sentenceItem(s));
+  });
+  return q;
+}
+
+// Мини-сессия «Повторить эти N слов» с финала: только промахнутые слова, та же
+// статичная interleaved-механика, без предложений. Каждое слово получает
+// МИНИМУМ один показ (промахнутое, но уже «выученное» review-слово иначе имело
+// бы remainingReps 0 и выпало бы из мини-сессии, ради которой её и запускали).
+export function buildMistakesQueue(words: WordView[], srs: SrsState): SessionItem[] {
+  const repsOf = (w: WordView) => Math.max(1, remainingReps(srs.cards[wKey(w.lessonKey, w.pt)]));
+  return interleavedReps(words, srs, SESSION_SIZE, repsOf, true);
 }
 
 export function buildReviewQueue(course: Course, srs: SrsState): SessionItem[] {

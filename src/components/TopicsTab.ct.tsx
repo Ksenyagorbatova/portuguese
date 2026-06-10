@@ -63,6 +63,27 @@ test("lesson meta reads «N из M слов» with no stray percent near the bar
   await expect(component).not.toContainText("%");
 });
 
+test("a lesson with unfinished words shows the «сессия ≈ 5 мин» pill", async ({ mount }) => {
+  // Урок не добит (0 из 1) и теория не открыта → обе пилюли соседствуют.
+  const component = await mount(
+    <TopicsTab course={course} srs={srs} onOpenLesson={() => {}} onOpenTheory={() => {}} />,
+  );
+  await expect(component.locator(".m-pill-est")).toHaveText("сессия ≈ 5 мин");
+  await expect(component.locator(".m-pill-new")).toBeVisible();
+});
+
+test("a fully learned lesson hides the «сессия ≈ 5 мин» pill", async ({ mount }) => {
+  const learnedSrs: SrsState = {
+    ...srs,
+    seenTheory: ["l1"],
+    lessonStats: { l1: { total: 1, seen: 1, learned: 1, due: 0 } },
+  };
+  const component = await mount(
+    <TopicsTab course={course} srs={learnedSrs} onOpenLesson={() => {}} onOpenTheory={() => {}} />,
+  );
+  await expect(component.locator(".m-pill-est")).toHaveCount(0);
+});
+
 test("clicking the lesson row starts the lesson", async ({ mount }) => {
   let openedLesson: string | null = null;
   const component = await mount(
