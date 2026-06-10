@@ -12,6 +12,13 @@ export type ThemeChoice = Theme | "system";
 // Click order of the toggle: light → dark → system → light.
 const ORDER: ThemeChoice[] = ["light", "dark", "system"];
 
+// Browser-chrome color (<meta name="theme-color">) per resolved theme — must
+// match --page in src/index.css and the static metas in index.html. The metas
+// carry media="(prefers-color-scheme: …)" for the pre-React paint; once the
+// hook runs it pins BOTH to the resolved theme, so an explicit in-app choice
+// wins over the OS scheme in the browser chrome too.
+const THEME_COLOR: Record<Theme, string> = { light: "#f4f3ef", dark: "#16150f" };
+
 export function nextThemeChoice(c: ThemeChoice): ThemeChoice {
   const i = ORDER.indexOf(c);
   return ORDER[(i + 1) % ORDER.length];
@@ -72,11 +79,17 @@ export function useTheme() {
     }
   }, [choice]);
 
-  // Apply the resolved theme to <html>.
+  // Apply the resolved theme to <html> and to the theme-color metas (browser
+  // chrome): both media-split metas get the resolved color, so whichever one
+  // the browser picks shows the app's actual theme, not the OS one.
   useEffect(() => {
     const el = document.documentElement;
     if (resolved === "dark") el.setAttribute("data-theme", "dark");
     else el.removeAttribute("data-theme");
+    const color = THEME_COLOR[resolved];
+    document
+      .querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')
+      .forEach((m) => m.setAttribute("content", color));
   }, [resolved]);
 
   const cycle = () => setChoice(nextThemeChoice);
