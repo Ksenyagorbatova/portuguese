@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/experimental-ct-react";
+import type { ComponentFixtures, MountResult } from "@playwright/experimental-ct-react";
 import { Session } from "./Session";
 import type { CardFields, Course, SessionItem } from "../lib/types";
 
@@ -29,10 +30,10 @@ const course: Course = {
 };
 const noop = () => {};
 
-function mountSession(mount: Parameters<Parameters<typeof test>[1]>[0]["mount"], over: {
-  queue: SessionItem[];
-  cards?: Record<string, CardFields>;
-}) {
+function mountSession(
+  mount: ComponentFixtures["mount"],
+  over: { queue: SessionItem[]; cards?: Record<string, CardFields> },
+): Promise<MountResult> {
   return mount(
     <Session
       queue={over.queue}
@@ -51,7 +52,7 @@ function mountSession(mount: Parameters<Parameters<typeof test>[1]>[0]["mount"],
 
 // Click the correct MC option regardless of direction (pt→ru shows ru options,
 // ru→pt shows pt options); the correct one carries the word's ru or pt text.
-async function pickCorrect(component: Awaited<ReturnType<typeof mountSession>>) {
+async function pickCorrect(component: MountResult) {
   const ru = component.locator(".m-opt", { hasText: word.ru });
   if ((await ru.count()) > 0) await ru.first().click();
   else await component.locator(".m-opt", { hasText: word.pt }).first().click();
@@ -59,7 +60,7 @@ async function pickCorrect(component: Awaited<ReturnType<typeof mountSession>>) 
 
 // Answer the current exercise correctly — it may be a choice OR a manual input,
 // since the exercise type is now randomized within the session.
-async function answerCorrect(component: Awaited<ReturnType<typeof mountSession>>) {
+async function answerCorrect(component: MountResult) {
   const kind = (await component.locator(".m-q-kind").textContent()) ?? "";
   if (kind.includes("Напишите")) {
     await component.locator(".m-input").fill(word.pt);
@@ -126,6 +127,7 @@ test("an already-learned word is shown once and finishes the session", async ({ 
       due: Date.now() + 6 * 86400000,
       seen: 6,
       correct: 6,
+      lastSeen: Date.now(),
       mcCorrect: 3,
       typeCorrect: 3,
     },
@@ -164,6 +166,7 @@ test.describe("compact layout keeps «Дальше» on-screen (mobile)", () => 
         due: Date.now() + 6 * 86400000,
         seen: 6,
         correct: 3,
+        lastSeen: Date.now(),
         mcCorrect: 0,
         typeCorrect: 3,
       },

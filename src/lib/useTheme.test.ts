@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
-import { nextThemeChoice, resolveTheme, useTheme } from "./useTheme";
+import { nextThemeChoice, useTheme } from "./useTheme";
 
 // A controllable matchMedia stub: jsdom doesn't implement matchMedia, and the
 // hook follows the OS while on "system", so we drive it from the test.
@@ -30,9 +30,31 @@ function stubMatchMedia(initialDark: boolean) {
 
 const isDark = () => document.documentElement.getAttribute("data-theme") === "dark";
 
+// The two media-split theme-color metas from index.html (jsdom has no real
+// index.html, so the test recreates them in <head>).
+const LIGHT_BG = "#f4f3ef";
+const DARK_BG = "#16150f";
+function addThemeColorMetas() {
+  for (const [content, media] of [
+    [LIGHT_BG, "(prefers-color-scheme: light)"],
+    [DARK_BG, "(prefers-color-scheme: dark)"],
+  ]) {
+    const m = document.createElement("meta");
+    m.name = "theme-color";
+    m.content = content;
+    m.media = media;
+    document.head.appendChild(m);
+  }
+}
+const metaColors = () =>
+  [...document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')].map(
+    (m) => m.content,
+  );
+
 beforeEach(() => {
   localStorage.clear();
   document.documentElement.removeAttribute("data-theme");
+  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.remove());
 });
 
 afterEach(() => {
@@ -44,21 +66,6 @@ describe("nextThemeChoice", () => {
     expect(nextThemeChoice("light")).toBe("dark");
     expect(nextThemeChoice("dark")).toBe("system");
     expect(nextThemeChoice("system")).toBe("light");
-  });
-});
-
-describe("resolveTheme", () => {
-  it("returns the explicit choice verbatim", () => {
-    stubMatchMedia(true);
-    expect(resolveTheme("light")).toBe("light");
-    expect(resolveTheme("dark")).toBe("dark");
-  });
-
-  it("follows the OS for system", () => {
-    stubMatchMedia(true);
-    expect(resolveTheme("system")).toBe("dark");
-    stubMatchMedia(false);
-    expect(resolveTheme("system")).toBe("light");
   });
 });
 
@@ -106,6 +113,34 @@ describe("useTheme", () => {
     act(() => mm.set(true));
     expect(result.current.theme).toBe("dark");
     expect(isDark()).toBe(true);
+  });
+
+  it("pins both theme-color metas to the resolved theme (explicit dark on a light OS)", () => {
+    addThemeColorMetas();
+    localStorage.setItem("theme", "dark");
+    stubMatchMedia(false); // OS is light, app is explicitly dark
+    renderHook(() => useTheme());
+    // The media-split metas reflect the APP theme, not prefers-color-scheme.
+    expect(metaColors()).toEqual([DARK_BG, DARK_BG]);
+  });
+
+  it("keeps the theme-color metas in sync while cycling and on OS changes", () => {
+    addThemeColorMetas();
+    const mm = stubMatchMedia(false);
+    const { result } = renderHook(() => useTheme());
+    expect(metaColors()).toEqual([LIGHT_BG, LIGHT_BG]); // system → light OS
+
+    act(() => result.current.cycle()); // → light
+    expect(metaColors()).toEqual([LIGHT_BG, LIGHT_BG]);
+
+    act(() => result.current.cycle()); // → dark
+    expect(metaColors()).toEqual([DARK_BG, DARK_BG]);
+
+    act(() => result.current.cycle()); // → system (OS still light)
+    expect(metaColors()).toEqual([LIGHT_BG, LIGHT_BG]);
+
+    act(() => mm.set(true)); // OS flips to dark while on system
+    expect(metaColors()).toEqual([DARK_BG, DARK_BG]);
   });
 
   it("stops tracking the OS once an explicit theme is chosen", () => {

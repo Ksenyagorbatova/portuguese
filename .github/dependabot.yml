@@ -1,0 +1,15 @@
+# Weekly dependency update PRs: npm packages and the GitHub Actions pinned by
+# commit SHA in .github/workflows (Dependabot bumps the SHA + `# vX` comment).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5

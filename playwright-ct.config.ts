@@ -20,10 +20,14 @@ export default defineConfig({
   timeout: 10_000,
   forbidOnly: !!process.env.CI,
   retries: 0,
-  reporter: process.env.CI ? "github" : "list",
+  // On CI also write the HTML report (playwright-report/) — uploaded as an
+  // artifact on failure together with test-results/ (see ci.yml, job test-ct).
+  reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
   use: {
     ctPort,
-    trace: "on-first-retry",
+    // retries is 0, so "on-first-retry" would never record anything; keep
+    // traces for failed runs on CI instead (they land in test-results/).
+    trace: process.env.CI ? "retain-on-failure" : "off",
     ctViteConfig: {
       resolve: {
         alias: {

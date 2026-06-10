@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { LessonView, SessionItem, SessionOrigin, TopicView } from "../lib/types";
@@ -31,12 +31,17 @@ export function Shell({
   const course = useQuery(api.courseQueries.getCourse);
   const rawSrs = useQuery(api.progress.getSrsState);
   const markTheorySeen = useMutation(api.progress.markTheorySeen);
-  const srs = rawSrs == null ? rawSrs : adaptSrs(rawSrs);
+  // adaptSrs rebuilds the keyed maps from the array payload — memoize so the
+  // rebuild happens per server update, not on every render.
+  const srs = useMemo(() => (rawSrs == null ? rawSrs : adaptSrs(rawSrs)), [rawSrs]);
 
   const [tab, setTab] = useState<Tab>("review");
   const [view, setView] = useState<View>({ kind: "home" });
   const [score, setScore] = useState({ correct: 0, total: 0 });
   const [nonce, setNonce] = useState(0); // bump to remount Session on (re)start
+  // Очередь дойдена до конца — Session уже показывает Complete (view.kind при
+  // этом всё ещё "session"): прерывать нечего, goHome не спрашивает confirm.
+  const [sessionDone, setSessionDone] = useState(false);
 
   // course === undefined → loading; srs === null → not authed yet (race)
   if (!course || !srs) return <Splash />;
@@ -46,11 +51,13 @@ export function Shell({
   function startReview() {
     setScore({ correct: 0, total: 0 });
     setNonce((n) => n + 1);
+    setSessionDone(false);
     setView({ kind: "session", queue: buildReviewQueue(c, s), origin: "review" });
   }
   function startLesson(topicKey: string, lesson: LessonView) {
     setScore({ correct: 0, total: 0 });
     setNonce((n) => n + 1);
+    setSessionDone(false);
     setView({
       kind: "session",
       queue: buildLessonQueue(lesson, s, c),
@@ -77,6 +84,15 @@ export function Shell({
   function switchTab(t: Tab) {
     setTab(t);
     setView({ kind: "home" });
+  }
+  // Logo-«домой» during an ACTIVE session would silently kill the progress —
+  // ask first. Once the session is complete (sessionDone, экран Complete) or
+  // outside a session there is nothing to interrupt. Other switchTab callers
+  // (Complete's «К повторению», Theory's «Назад») stay confirm-free too.
+  function goHome() {
+    const active = view.kind === "session" && !sessionDone;
+    if (active && !window.confirm("Выйти из тренировки?")) return;
+    switchTab("review");
   }
   function findLesson(topicKey: string, lessonKey: string): LessonView | null {
     return (
@@ -126,6 +142,7 @@ export function Shell({
         onPickLesson={onPickLesson}
         onGoReview={() => switchTab("review")}
         onExit={() => setView({ kind: "home" })}
+        onComplete={() => setSessionDone(true)}
       />
     );
   } else if (view.kind === "theory") {
@@ -161,7 +178,7 @@ export function Shell({
         streak={s.streak}
         themeChoice={themeChoice}
         onCycleTheme={onCycleTheme}
-        onHome={() => switchTab("review")}
+        onHome={goHome}
       />
       <OfflineBanner />
       {!inSession && (

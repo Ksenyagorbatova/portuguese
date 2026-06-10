@@ -25,10 +25,20 @@
   иначе сразу `startLesson`. `openTheory`: `markTheorySeen` + открыть `Theory` в
   любой момент (кнопка в `TopicsTab`). `beginFromTheory`: отметить + старт.
 - `startReview`/`startLesson` строят очередь и обнуляют счёт; `nonce` ремаунтит
-  `Session` (`key`); `onExit → home`.
+  `Session` (`key`); `onExit → home`. Серверный `getSrsState` адаптируется через
+  `adaptSrs` под `useMemo` (пересборка Record-карт — раз на ответ сервера).
 - **Во время сессии** (`view.kind==="session"`) Shell скрывает `ScoreRow` и
   `TabBar` — остаётся «само поле тренировки». `ScoreRow` показывается только ПОСЛЕ
   сессии (`score.total > 0`).
+- **Выход по логотипу из активной сессии — через подтверждение**: `goHome`
+  спрашивает `window.confirm("Выйти из тренировки?")` и при отмене оставляет
+  сессию. «Активная» = `view.kind === "session"` и НЕ `sessionDone`: `Complete`
+  рендерится внутри `Session` (`view.kind` не меняется), поэтому Session
+  сигналит опциональным `onComplete?` из `advance()` при исчерпании очереди,
+  Shell ставит флаг `sessionDone` (сброс — в `startReview`/`startLesson`) — и
+  с экрана Complete логотип уходит домой без вопроса. Confirm только на пути
+  логотипа: «К повторению» с экрана `Complete` и «Назад» из теории уходят без
+  вопроса (там нечего терять).
 - Под хедером — [`OfflineBanner`](../../src/components/OfflineBanner.tsx)
   (`useConvexConnectionState().isWebSocketConnected`): при разрыве соединения
   ненавязчивый баннер «Нет соединения — ответы сохранятся…» (класс `.m-offline`,
@@ -37,8 +47,9 @@
   [`../fix/exercise-network-resilience.md`](../fix/exercise-network-resilience.md).
 
 **Хедер** ([`src/components/Header.tsx`](../../src/components/Header.tsx)): слева
-логотип-кнопка «на главный экран» (`onHome → вкладка «Повторение»`; фон — флаг
-Португалии, токены `--flag-green`/`--flag-red`, только в иконке). Справа по
+логотип-кнопка «на главный экран» (`onHome → вкладка «Повторение»`; во время
+сессии — с confirm, см. выше; фон — флаг Португалии, токены
+`--flag-green`/`--flag-red`, только в иконке). Справа по
 порядку: стрик 🔥, переключатель темы (3 режима, см.
 [`theme-system-mode.md`](theme-system-mode.md)), выход (`log-out`, крайний правый).
 
@@ -58,8 +69,14 @@
 (`switchTab("topics")`). Онбординг (теория перед первой практикой) сохранён.
 
 **Дашборд:** `ReviewTab` — кольцо «% выучено» (от просмотренных слов), плитки
-просмотрено/выучено/к повтору, баннер (4 состояния), кнопка действия. `TabBar` —
-segmented «Повторение»/«Темы». `ScoreRow` — верно/заданий/точность (после сессии).
+просмотрено/выучено/к повтору, баннер (4 состояния), кнопка действия. Числа со
+словом «слово» склоняются через `pluralRu` (`src/lib/srs.ts`) — в баннере и на
+кнопке (`Complete` склоняет так же: «Ещё N слово ждёт / слова ждут / слов ждут»).
+**Кнопка повторения честная**: сессия берёт максимум `REVIEW_DUE_LIMIT` (=15,
+экспорт из [`src/lib/queue.ts`](../../src/lib/queue.ts)) срочных слов, поэтому при
+`due > 15` кнопка показывает «Повторить (15 из N)», иначе — «Повторить (N слов)».
+`TabBar` — segmented «Повторение»/«Темы». `ScoreRow` — верно/заданий/точность
+(после сессии).
 
 **Упражнения** ([`src/components/exercises/`](../../src/components/exercises/)) —
 проверка на клиенте, `quality`: первая попытка верно `2`, со 2-й `1`, провал `0`:
@@ -121,10 +138,15 @@ segmented «Повторение»/«Темы». `ScoreRow` — верно/за�
 
 ## Тестирование
 
-Компонентные тесты Playwright CT рядом с компонентами (`*.ct.tsx`): `Session`,
-`Header`, `ReviewTab`, `TopicsTab`, `Theory`, `TabBar`, `ScoreRow`, `SignIn`,
-`Feedback`, `Complete`, `exercises/*`. Компоненты с Convex-хуками изолируются
-стабами (`src/test/mocks`, алиас в `playwright-ct.config.ts`).
+Компонентные тесты Playwright CT рядом с компонентами (`*.ct.tsx`): `Shell`,
+`Session`, `Header`, `ReviewTab`, `TopicsTab`, `Theory`, `TabBar`, `ScoreRow`,
+`SignIn`, `Feedback`, `Complete`, `exercises/*`. Компоненты с Convex-хуками
+изолируются стабами (`src/test/mocks`, алиас в `playwright-ct.config.ts`); для
+`Shell` стаб `useQuery` отдаёт фикстуры по имени функции (`getFunctionName`),
+которые тест передаёт через `mount(..., { hooksConfig: { queries } })` →
+`beforeMount` в [`playwright/index.tsx`](../../playwright/index.tsx).
+`Shell.ct.tsx` покрывает онбординг теории (просмотрена/нет) и confirm выхода
+из сессии (принял/отменил/на экране Complete без confirm/вне сессии).
 
 ## Карта файлов
 

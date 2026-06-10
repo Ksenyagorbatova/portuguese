@@ -8,8 +8,8 @@
    • 8pt spacing grid, larger radii, accessible warm-neutral ramp
    • clean status dots/chips, line icons (Lucide) for UI controls
    • spring-ish motion, press feedback, focus rings, warm dark theme
-   Tokens live on :root; dark theme on [data-theme="dark"]; density on
-   [data-density="compact"]. Component classes use the `m-` prefix.
+   Tokens live on :root; dark theme on [data-theme="dark"]. Component classes
+   use the `m-` prefix.
    ========================================================================== */
 
 :root {
@@ -74,9 +74,6 @@
   --flag-green:    #046a38;               /* зелёный флага Португалии (логотип) */
   --flag-red:      #d52b1e;               /* красный флага Португалии (логотип) */
 }
-
-/* ── Density (compact) ───────────────────────────────────────────────── */
-[data-density="compact"] { --card-pad: 18px; --stack: 10px; }
 
 /* ============================================================================
    DARK THEME — warm dark (paper feeling, not cold gray)
@@ -175,8 +172,6 @@ body{
 .m-logo{width:42px;height:42px;border:none;padding:0;cursor:pointer;border-radius:13px;background:linear-gradient(90deg,var(--flag-green) 0 40%,var(--flag-red) 40% 100%);display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--font-display);font-weight:800;font-size:18px;box-shadow:var(--e-accent);letter-spacing:-.02em;flex-shrink:0;transition:transform var(--dur-press) var(--ease),box-shadow var(--dur)}
 .m-logo:hover{box-shadow:0 6px 18px -3px var(--accent-shadow)}
 .m-logo:active{transform:scale(.94)}
-.m-kicker{font-size:11px;font-weight:600;color:var(--ink-400);letter-spacing:.04em}
-.m-title{font-family:var(--font-display);font-size:21px;font-weight:700;color:var(--ink-900);line-height:1.05;letter-spacing:-.01em}
 .m-header-right{display:flex;align-items:center;gap:var(--s2)}
 .m-streak{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-full);padding:7px 13px 7px 11px;box-shadow:var(--e1)}
 .m-streak b{font-family:var(--font-display);font-size:16px;color:var(--ink-900);font-variant-numeric:tabular-nums}
@@ -201,12 +196,10 @@ body{
 .m-card{background:var(--surface);border-radius:var(--r-lg);padding:var(--card-pad);box-shadow:var(--e1);border:1px solid var(--line-2)}
 .m-hero{background:var(--surface);border-radius:var(--r-xl);padding:var(--s6);box-shadow:var(--e2);border:1px solid var(--line-2)}
 
-/* ── Stat strip ────────────────────────────────────────────────────────── */
-.m-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--s2)}
-.m-stats--3{grid-template-columns:repeat(3,1fr)}
+/* ── Stat strip (session result: 3 cells) ──────────────────────────────── */
+.m-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s2)}
 .m-stat{background:var(--surface);border-radius:var(--r-md);padding:12px 10px;box-shadow:var(--e1);border:1px solid var(--line-2);text-align:center}
 .m-stat-n{font-family:var(--font-display);font-size:22px;font-weight:700;color:var(--ink-900);font-variant-numeric:tabular-nums;line-height:1}
-.m-stat-n.alert{color:var(--due-ink)}
 .m-stat-l{font-size:11px;font-weight:500;color:var(--ink-400);margin-top:5px;letter-spacing:.01em}
 
 /* ── Progress ring ─────────────────────────────────────────────────────── */
@@ -274,7 +267,6 @@ body{
 .m-bar{height:6px;background:var(--surface-3);border-radius:var(--r-full);overflow:hidden}
 .m-bar-fill{height:100%;background:var(--accent);border-radius:var(--r-full);transition:width .5s var(--ease)}
 .m-topic-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
-.m-topic-pct{font-size:13px;font-weight:700;color:var(--ink-500);font-variant-numeric:tabular-nums}
 .m-chev{color:var(--ink-400);display:flex;transition:transform .3s var(--spring)}
 .m-chev .lucide{width:20px;height:20px}
 .m-topic.open .m-chev{transform:rotate(90deg)}
@@ -305,10 +297,9 @@ body{
 .m-progress{flex:1;height:8px;background:var(--surface-3);border-radius:var(--r-full);overflow:hidden}
 .m-progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-strong));border-radius:var(--r-full);transition:width var(--dur-bar) var(--ease)}
 .m-progress-count{font-size:13px;font-weight:700;color:var(--ink-500);font-variant-numeric:tabular-nums}
-.m-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
 
 /* ── Compact training layout ─────────────────────────────────────────────
-   Во время тренировки статистика, табы и чипы скрыты (см. Shell/Session), а
+   Во время тренировки статистика и табы скрыты (см. Shell/Session), а
    карточка упражнения уплотнена по вертикали, чтобы кнопка «Дальше»
    помещалась на экране без прокрутки — и на десктопе, и на мобиле (даже самый
    высокий случай: выбор из 4 вариантов + строка SRS + фидбэк). */
@@ -479,7 +470,6 @@ body{
 /* ── Phones ≤ 480px ────────────────────────────────────────────────────── */
 @media (max-width:480px){
   .m-app{padding:var(--s3) var(--s3) calc(var(--s8) + 48px + env(safe-area-inset-bottom,0px))}
-  .m-title{font-size:20px}
 }
 
 /* ── A11y: бывшие div-интерактивы стали <button> ───────────────────────────

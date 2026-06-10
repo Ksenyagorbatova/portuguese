@@ -10,7 +10,7 @@ export function ScoreRow({ correct, total }: { correct: number; total: number })
     </div>
   );
   return (
-    <div className="m-stats m-stats--3">
+    <div className="m-stats">
       {cell(correct, "Верно")}
       {cell(total, "Заданий")}
       {cell(pct, "Точность")}

@@ -17,6 +17,9 @@
 // Без конфигурации поведение прежнее: мгновенный resolve — существующие CT
 // на него полагаются.
 
+import { getFunctionName } from "convex/server";
+import type { FunctionReference } from "convex/server";
+
 export type MutationMockConfig = {
   manual?: boolean;
   reject?: boolean;
@@ -61,8 +64,19 @@ export function useMutation() {
   };
 }
 
-export function useQuery() {
-  return undefined;
+// Per-test query fixtures, keyed by "module:function" name (e.g.
+// "courseQueries:getCourse"). Tests pass them through mount's hooksConfig;
+// playwright/index.tsx feeds them here in beforeMount — both run in the same
+// browser bundle as this stub. Without fixtures every query returns undefined
+// (the Convex "loading" state), which is what the older CT tests rely on.
+let queryData: Record<string, unknown> = {};
+
+export function __setQueryData(data: Record<string, unknown>): void {
+  queryData = data;
+}
+
+export function useQuery(ref: FunctionReference<"query">): unknown {
+  return queryData[getFunctionName(ref)];
 }
 
 // Стаб состояния соединения для офлайн-баннера: онлайн по умолчанию; тест

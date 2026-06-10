@@ -1,3 +1,4 @@
+import { pluralRu } from "../lib/srs";
 import { Icon } from "./Icon";
 
 export function Complete({
@@ -28,7 +29,8 @@ export function Complete({
       </div>
       {dueCountAll > 0 ? (
         <div className="m-complete-note due">
-          <Icon name="circle-alert" /> Ещё {dueCountAll} слов ждут повторения
+          <Icon name="circle-alert" /> Ещё {dueCountAll}{" "}
+          {pluralRu(dueCountAll, "слово ждёт", "слова ждут", "слов ждут")} повторения
         </div>
       ) : (
         <div className="m-complete-note ok">
