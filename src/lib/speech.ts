@@ -28,6 +28,7 @@ export function speak(text: string, opts?: { rate?: number }): void {
   const synth = window.speechSynthesis;
   if (!synth) return;
   synth.cancel();
+  synth.resume?.(); // cancel оставляет движок «paused» — будим до нового speak
   const clean = text.split("/")[0].trim().replace(/\.\.\./g, "").replace(/[?!.]/g, "");
 
   const emit = (voice: SpeechSynthesisVoice | null) => {
