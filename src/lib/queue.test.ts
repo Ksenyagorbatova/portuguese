@@ -34,6 +34,8 @@ function srsOf(over: Partial<SrsState> = {}): SrsState {
   return {
     streak: 0,
     doneToday: false,
+    bestStreak: 0,
+    startedAt: null,
     cards: {},
     tags: {},
     seenTheory: [],

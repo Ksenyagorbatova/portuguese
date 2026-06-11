@@ -527,3 +527,74 @@ test("the 🔊 button advertises the slow-replay double tap", async ({ mount }) 
     component.getByRole("button", { name: "Прослушать (второй тап — медленно)" }),
   ).toBeVisible();
 });
+
+// ── П.1 (рекомендации v4): аудирование — режим audio_ru ──────────────────────
+test("audio_ru: зона прослушивания вместо текста; pt-слова НЕТ в DOM до ответа", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <McExercise
+      word={word}
+      mode="audio_ru"
+      tag="review"
+      card={dueCard}
+      course={course}
+      isLast={false}
+      onAnswered={() => {}}
+      onNext={() => {}}
+    />,
+  );
+  // hero-зона есть; крупного текста вопроса (m-q-text) — нет.
+  await expect(component.locator(".m-audio-hero")).toBeVisible();
+  await expect(component.locator(".m-q-text")).toHaveCount(0);
+  await expect(component.getByText("Прослушайте слово")).toBeVisible();
+  await expect(component.getByText("Что вы услышали?")).toBeVisible();
+  // pt-текст слова НЕ присутствует в DOM до ответа (не просто скрыт CSS).
+  await expect(component.getByText("olá", { exact: true })).toHaveCount(0);
+});
+
+test("audio_ru: варианты — русские; верный выбор открывает фидбэк со словом письменно", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <McExercise
+      word={word}
+      mode="audio_ru"
+      tag="review"
+      card={dueCard}
+      course={course}
+      isLast={false}
+      onAnswered={() => {}}
+      onNext={() => {}}
+    />,
+  );
+  // Опции — переводы (ru), без разметки lang=pt-PT.
+  const labels = (await component.locator(".m-opt-label").allTextContents()).map((s) => s.trim());
+  expect(labels.sort()).toEqual(["да", "нет", "пока", "привет"]);
+  for (const label of await component.locator(".m-opt-label").all())
+    await expect(label).not.toHaveAttribute("lang");
+  // Верный выбор → фидбэк; теперь слово появляется ПИСЬМЕННО (звук → буквы).
+  await component.getByRole("button", { name: "привет" }).click();
+  await expect(component.getByText("Верно!")).toBeVisible();
+  await expect(component.getByText("olá")).toBeVisible();
+});
+
+test("audio_ru: хоткеи 1–5 выбирают вариант (как в остальных MC)", async ({ mount, page }) => {
+  const component = await mount(
+    <McExercise
+      word={word}
+      mode="audio_ru"
+      tag="review"
+      card={dueCard}
+      course={course}
+      isLast={false}
+      onAnswered={() => {}}
+      onNext={() => {}}
+    />,
+  );
+  const labels = await component.locator(".m-opt-label").allTextContents();
+  const i = labels.findIndex((l) => l.trim() === "привет");
+  expect(i).toBeGreaterThanOrEqual(0);
+  await page.keyboard.press(String(i + 1));
+  await expect(component.getByText("Верно!")).toBeVisible();
+});

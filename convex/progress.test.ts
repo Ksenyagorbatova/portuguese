@@ -751,3 +751,68 @@ describe("reclampSchedules — heals legacy inflated rows", () => {
     expect(res).toEqual({ scanned: 1, fixed: 0 });
   });
 });
+
+// ─── Липучки: счётчик lapses (П.4) ───────────────────────────────────────────
+describe("recordAnswer — lapses (липучки, П.4)", () => {
+  it("растёт только на quality 0; верные ответы (1/2) не трогают", async () => {
+    const t = convexTest(schema, modules);
+    const { as } = await asUser(t);
+    await seedWordA(t);
+
+    let res = await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "mc" });
+    expect(res.card.lapses).toBe(0);
+    res = await as.mutation(api.progress.recordAnswer, { ...W, quality: 0, mode: "mc" });
+    expect(res.card.lapses).toBe(1); // провал → +1
+    res = await as.mutation(api.progress.recordAnswer, { ...W, quality: 1, mode: "mc" });
+    expect(res.card.lapses).toBe(1); // верно со 2-й попытки — не провал
+    res = await as.mutation(api.progress.recordAnswer, { ...W, quality: 0, mode: "type" });
+    expect(res.card.lapses).toBe(2); // ещё один провал (любой режим)
+  });
+
+  it("getSrsState отдаёт накопленный lapses в карточке", async () => {
+    const t = convexTest(schema, modules);
+    const { as } = await asUser(t);
+    await seedWordA(t);
+    await as.mutation(api.progress.recordAnswer, { ...W, quality: 0, mode: "mc" });
+    await as.mutation(api.progress.recordAnswer, { ...W, quality: 0, mode: "mc" });
+    const srs = await as.query(api.progress.getSrsState, {});
+    expect(srs!.cards.find((c) => c.pt === "a")?.lapses).toBe(2);
+  });
+});
+
+// ─── Финал курса: bestStreak / startedAt (П.5) ───────────────────────────────
+describe("recordAnswer — bestStreak / startedAt (финал курса, П.5)", () => {
+  it("startedAt фиксируется днём первого ответа и не меняется", async () => {
+    const t = convexTest(schema, modules);
+    const { as } = await asUser(t);
+    await seedWordA(t);
+
+    await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "mc", clientDay: "2026-06-01" });
+    let srs = await as.query(api.progress.getSrsState, {});
+    expect(srs!.startedAt).toBe("2026-06-01");
+
+    await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "type", clientDay: "2026-06-05" });
+    srs = await as.query(api.progress.getSrsState, {});
+    expect(srs!.startedAt).toBe("2026-06-01"); // прежний — старт один раз
+  });
+
+  it("bestStreak держит максимум за всё время, не падая со сбросом стрика", async () => {
+    const t = convexTest(schema, modules);
+    const { as } = await asUser(t);
+    await seedWordA(t);
+
+    // три дня подряд → стрик 3
+    await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "mc", clientDay: "2026-06-01" });
+    await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "mc", clientDay: "2026-06-02" });
+    await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "mc", clientDay: "2026-06-03" });
+    let srs = await as.query(api.progress.getSrsState, {});
+    expect(srs!.streak).toBe(3);
+    expect(srs!.bestStreak).toBe(3);
+
+    // пропуск дней → стрик сбрасывается в 1, но bestStreak держит 3
+    await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "mc", clientDay: "2026-06-10" });
+    srs = await as.query(api.progress.getSrsState, {});
+    expect(srs!.streak).toBe(1);
+    expect(srs!.bestStreak).toBe(3);
+  });
+});

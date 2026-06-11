@@ -1,5 +1,13 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { adaptSrs, wKey, nextDueLabel, pluralRu } from "./srs";
+import {
+  adaptSrs,
+  wKey,
+  nextDueLabel,
+  pluralRu,
+  nextReviewForecast,
+  daysSinceStart,
+} from "./srs";
+import type { CardFields } from "./types";
 import { localDay } from "./day";
 
 describe("pluralRu", () => {
@@ -30,6 +38,8 @@ describe("adaptSrs", () => {
   const raw = (lastDay: string | null) => ({
     streak: 3,
     lastDay,
+    bestStreak: 5,
+    startedAt: "2026-01-01",
     cards: [
       { lessonKey: "g1", pt: "olá", interval: 6, ef: 2.5, due: 100, seen: 2, correct: 2, lastSeen: 50, mcCorrect: 2, typeCorrect: 0 },
     ],
@@ -54,6 +64,66 @@ describe("adaptSrs", () => {
     expect(adaptSrs(raw(localDay())).doneToday).toBe(true);
     expect(adaptSrs(raw("2000-01-01")).doneToday).toBe(false);
     expect(adaptSrs(raw(null)).doneToday).toBe(false);
+  });
+
+  // П.4/П.5: новые поля прокидываются; отсутствующий в карточке lapses → 0.
+  it("passes through bestStreak/startedAt and defaults a missing card lapses to 0", () => {
+    const s = adaptSrs(raw(null));
+    expect(s.bestStreak).toBe(5);
+    expect(s.startedAt).toBe("2026-01-01");
+    expect(s.cards["g1||olá"].lapses).toBe(0);
+  });
+});
+
+// П.2: прогноз ближайшего повтора. Карточки с будущим due → ближайший
+// КАЛЕНДАРНЫЙ день строго после сегодня + число слов в нём.
+describe("nextReviewForecast (П.2)", () => {
+  const DAY = 86400000;
+  const card = (due: number): CardFields => ({
+    interval: 1, ef: 2.5, due, seen: 1, correct: 1, lastSeen: 0, mcCorrect: 3, typeCorrect: 3,
+  });
+  const now = Date.parse("2026-06-11T12:00:00"); // четверг, локальный полдень
+
+  it("«Завтра» с числом слов, когда ближайший повтор завтра", () => {
+    const f = nextReviewForecast(
+      { a: card(now + DAY), b: card(now + DAY + 3600000), c: card(now + 5 * DAY) },
+      now,
+    );
+    expect(f).toEqual({ count: 2, lead: "Завтра" }); // c — позже, не в счёт
+  });
+
+  it("называет день недели для повтора дальше завтрашнего", () => {
+    // Ближайший due — через 5 дней: 2026-06-16, вторник → «Во вторник».
+    const f = nextReviewForecast({ a: card(now + 5 * DAY) }, now);
+    expect(f).toEqual({ count: 1, lead: "Во вторник" });
+  });
+
+  it("не показывает «сегодня»: due позже сейчас, но в пределах суток → пропуск", () => {
+    // due через 3 часа (тот же календарный день) — не прогноз; будущих дней нет.
+    expect(nextReviewForecast({ a: card(now + 3 * 3600000) }, now)).toBeNull();
+  });
+
+  it("null, когда планировать нечего (нет карточек с будущим due)", () => {
+    expect(nextReviewForecast({}, now)).toBeNull();
+    expect(nextReviewForecast({ a: card(now - DAY) }, now)).toBeNull(); // уже due
+  });
+});
+
+// П.5: дни курса от startedAt до сегодня включительно.
+describe("daysSinceStart (П.5)", () => {
+  const now = Date.parse("2026-06-11T12:00:00");
+
+  it("null без startedAt", () => {
+    expect(daysSinceStart(null, now)).toBeNull();
+  });
+
+  it("считает дни включительно (старт сегодня → 1)", () => {
+    expect(daysSinceStart("2026-06-11", now)).toBe(1);
+    expect(daysSinceStart("2026-06-01", now)).toBe(11); // 10 дней назад + сегодня
+  });
+
+  it("не опускается ниже 1 при старте «в будущем» (защита от рассинхрона часов)", () => {
+    expect(daysSinceStart("2026-06-20", now)).toBe(1);
   });
 });
 

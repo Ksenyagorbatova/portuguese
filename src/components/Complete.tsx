@@ -20,11 +20,14 @@ export function Complete({
   heading,
   nextStep,
   mistakes,
+  leechKeys,
+  relearn,
   onRestart,
   onPickLesson,
   onGoReview,
   onGoTopics,
   onRetryMistakes,
+  onReadTheory,
 }: {
   correct: number;
   total: number;
@@ -32,15 +35,21 @@ export function Complete({
   heading: CompleteHeading;
   nextStep: NextStep | null;
   mistakes: WordView[];
+  // Липучки (П.4): wKey'и промахов-«липучек» (бейдж «даётся тяжело») и урок
+  // первой липучки для ссылки «Перечитать теорию». Оба опциональны.
+  leechKeys?: string[];
+  relearn?: { label: string; topicKey: string; lessonKey: string } | null;
   onRestart: () => void;
   onPickLesson: (topicKey: string, lessonKey: string) => void;
   onGoReview: () => void;
   onGoTopics: () => void;
   onRetryMistakes: () => void;
+  onReadTheory?: (topicKey: string, lessonKey: string) => void;
 }) {
   const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
   const emoji = pct >= 80 ? "🎉" : pct >= 50 ? "👍" : "💪";
   const n = mistakes.length;
+  const leechSet = new Set(leechKeys ?? []);
 
   // Трамплин: primary-CTA по фактическому прогрессу. «Ещё раз» остаётся
   // ghost-вариантом, когда primary занят шагом вперёд; при «Продолжить урок»
@@ -93,6 +102,10 @@ export function Complete({
                 {w.pt}
               </span>
               <span className="m-mist-ru">— {w.ru}</span>
+              {/* «Липучка» (П.4): признаём, что слово вредное — не ученик тупой. */}
+              {leechSet.has(wKey(w.lessonKey, w.pt)) && (
+                <span className="m-leech">даётся тяжело</span>
+              )}
               <button
                 className="m-mist-audio"
                 onClick={() => speak(w.pt)}
@@ -103,6 +116,15 @@ export function Complete({
               </button>
             </div>
           ))}
+          {/* Ссылка на теорию урока первой липучки — под списком промахов. */}
+          {relearn && onReadTheory && (
+            <button
+              className="m-relearn"
+              onClick={() => onReadTheory(relearn.topicKey, relearn.lessonKey)}
+            >
+              <Icon name="book-open" size={14} /> Перечитать теорию «{relearn.label}»
+            </button>
+          )}
           <button className="m-btn m-btn--primary m-btn--block m-mist-retry" onClick={onRetryMistakes}>
             <Icon name="rotate-ccw" size={18} />{" "}
             {n === 1

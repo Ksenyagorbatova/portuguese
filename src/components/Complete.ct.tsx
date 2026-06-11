@@ -163,3 +163,44 @@ test("pluralizes the retry button: 1 слово / 2 слова / 5 слов", as
   const five = await mount(<Complete {...base} mistakes={wordsOf(5)} />);
   await expect(five.getByRole("button", { name: "Повторить эти 5 слов" })).toBeVisible();
 });
+
+// ── П.4 (рекомендации v4): слова-«липучки» в разборе ошибок ──────────────────
+test("липучка получает бейдж «даётся тяжело»; ссылка ведёт на теорию её урока", async ({
+  mount,
+}) => {
+  const mistakes: WordView[] = [
+    { lessonKey: "l1", pt: "obrigada", ru: "спасибо" },
+    { lessonKey: "l1", pt: "olá", ru: "привет" },
+  ];
+  let read: { topicKey: string; lessonKey: string } | null = null;
+  const component = await mount(
+    <Complete
+      {...base}
+      mistakes={mistakes}
+      leechKeys={["l1||obrigada"]}
+      relearn={{ label: "Приветствия", topicKey: "t1", lessonKey: "l1" }}
+      onReadTheory={(topicKey, lessonKey) => {
+        read = { topicKey, lessonKey };
+      }}
+    />,
+  );
+
+  // Бейдж — только у строки-липучки, ровно один.
+  const rows = component.locator(".m-mist-row");
+  await expect(rows.filter({ hasText: "obrigada" }).locator(".m-leech")).toBeVisible();
+  await expect(rows.filter({ hasText: "привет" }).locator(".m-leech")).toHaveCount(0);
+  await expect(component.getByText("даётся тяжело")).toHaveCount(1);
+
+  // Ссылка под списком открывает теорию урока первой липучки.
+  await component.getByRole("button", { name: /Перечитать теорию «Приветствия»/ }).click();
+  expect(read).toEqual({ topicKey: "t1", lessonKey: "l1" });
+});
+
+test("без липучек (lapses<порога) — ни бейджа, ни ссылки на теорию", async ({ mount }) => {
+  const mistakes: WordView[] = [{ lessonKey: "l1", pt: "olá", ru: "привет" }];
+  const component = await mount(
+    <Complete {...base} mistakes={mistakes} leechKeys={[]} relearn={null} onReadTheory={() => {}} />,
+  );
+  await expect(component.getByText("даётся тяжело")).toHaveCount(0);
+  await expect(component.locator(".m-relearn")).toHaveCount(0);
+});

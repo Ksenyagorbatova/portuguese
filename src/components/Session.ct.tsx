@@ -30,12 +30,20 @@ const course: Course = {
 };
 const noop = () => {};
 
+type CourseStats = {
+  wordsTotal: number;
+  topicsTotal: number;
+  days: number | null;
+  bestStreak: number;
+};
+
 function mountSession(
   mount: ComponentFixtures["mount"],
   over: {
     queue: SessionItem[];
     cards?: Record<string, CardFields>;
     onRetryMistakes?: (words: WordView[]) => void;
+    courseComplete?: CourseStats | null;
   },
 ): Promise<MountResult> {
   return mount(
@@ -53,6 +61,8 @@ function mountSession(
       onGoTopics={noop}
       onExit={noop}
       onRetryMistakes={over.onRetryMistakes ?? noop}
+      onReadTheory={noop}
+      courseComplete={over.courseComplete ?? null}
     />,
   );
 }
@@ -127,6 +137,38 @@ test("misses are collected and offered for a retry on the Complete screen", asyn
   expect(retried).toEqual([word]);
 });
 
+// ── П.5 (рекомендации v4): финал курса вместо Complete, один раз ──────────────
+test("courseComplete показывает финал курса вместо Complete и только один раз", async ({
+  mount,
+  page,
+}) => {
+  // CT переиспользует страницу — сбрасываем флаг «видели финал».
+  await page.evaluate(() => localStorage.removeItem("pt-course-complete-seen"));
+  const stats: CourseStats = { wordsTotal: 250, topicsTotal: 13, days: 10, bestStreak: 7 };
+  const learnedCards: Record<string, CardFields> = {
+    "l1||olá": {
+      interval: 6, ef: 2.5, due: Date.now() + 6 * 86400000,
+      seen: 6, correct: 6, lastSeen: Date.now(), mcCorrect: 3, typeCorrect: 3,
+    },
+  };
+  const queue: SessionItem[] = [{ kind: "word", word, tag: "review" }];
+
+  // Первый раз: дойдя до конца — экран финала курса (не обычный Complete).
+  const first = await mountSession(mount, { queue, cards: learnedCards, courseComplete: stats });
+  await answerCorrect(first);
+  await first.getByRole("button", { name: /Дальше|Завершить/ }).click();
+  await expect(first.getByText("Курс пройден!")).toBeVisible();
+  await expect(first.locator(".m-complete")).toHaveCount(0);
+  await first.unmount();
+
+  // Второй раз: флаг уже стоит → обычный Complete, финал курса не повторяется.
+  const second = await mountSession(mount, { queue, cards: learnedCards, courseComplete: stats });
+  await answerCorrect(second);
+  await second.getByRole("button", { name: /Дальше|Завершить/ }).click();
+  await expect(second.getByText("Курс пройден!")).toHaveCount(0);
+  await expect(second.getByText("Сессия завершена!")).toBeVisible();
+});
+
 test("the progress bar exposes progressbar semantics", async ({ mount }) => {
   const component = await mountSession(mount, { queue: [{ kind: "word", word, tag: "new" }] });
   const bar = component.getByRole("progressbar");
@@ -155,6 +197,8 @@ test("the exit control bails out of the session", async ({ mount }) => {
         exited = true;
       }}
       onRetryMistakes={noop}
+      onReadTheory={noop}
+      courseComplete={null}
     />,
   );
   await component.getByRole("button", { name: "Выйти из тренировки" }).click();

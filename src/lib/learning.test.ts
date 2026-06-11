@@ -73,9 +73,44 @@ describe("pickExerciseType (mixed MC/Type until learned)", () => {
     expect(pickExerciseType({ mcCorrect: 1, typeCorrect: 0 }, "new", r(0.7))).toBe("mc_ru_pt");
   });
 
-  it("keeps mixing on a learned 'due' review (leans manual)", () => {
-    const learned = { mcCorrect: MC_TARGET, typeCorrect: TYPE_TARGET };
-    expect(pickExerciseType(learned, "due", r(0.2))).toBe("type_pt");
+  const learned = { mcCorrect: MC_TARGET, typeCorrect: TYPE_TARGET };
+
+  it("keeps mixing on a learned 'due' review, leaning manual (type weighted)", () => {
+    // due-пул [mc_pt_ru, mc_ru_pt, type_pt, type_pt]: ручной ввод вдвое вероятнее.
+    expect(pickExerciseType(learned, "due", r(0.6))).toBe("type_pt");
+    expect(pickExerciseType(learned, "due", r(0.99))).toBe("type_pt");
+    expect(pickExerciseType(learned, "due", r(0.1))).toBe("mc_pt_ru");
+  });
+
+  it("mixes the three visual types uniformly on a learned 'review' word", () => {
+    // review-пул из 3 (без audioOk): индексы 0/1/2.
+    expect(pickExerciseType(learned, "review", r(0.1))).toBe("mc_pt_ru");
+    expect(pickExerciseType(learned, "review", r(0.5))).toBe("mc_ru_pt");
+    expect(pickExerciseType(learned, "review", r(0.9))).toBe("type_pt");
+  });
+
+  // ── П.1: аудирование — третья ступень (только выученные, только при audioOk) ──
+  it("adds mc_audio_ru to the LEARNED pool only when audioOk is true", () => {
+    // review-пул с аудио [mc_pt_ru, mc_ru_pt, type_pt, mc_audio_ru] — индекс 3.
+    expect(pickExerciseType(learned, "review", r(0.9), true)).toBe("mc_audio_ru");
+    // due-пул с аудио [mc_pt_ru, mc_ru_pt, type_pt, type_pt, mc_audio_ru] — индекс 4.
+    expect(pickExerciseType(learned, "due", r(0.95), true)).toBe("mc_audio_ru");
+    // Без audioOk (mute / нет TTS) тот же бросок даёт зрительный тип, не аудио.
+    expect(pickExerciseType(learned, "review", r(0.9), false)).not.toBe("mc_audio_ru");
+  });
+
+  it("NEVER picks mc_audio_ru for a not-yet-learned word, even with audioOk", () => {
+    // Недобранное узнавание/ввод — аудио недоступно ни при каком броске.
+    expect(pickExerciseType({ mcCorrect: 1, typeCorrect: 0 }, "review", r(0.99), true)).not.toBe(
+      "mc_audio_ru",
+    );
+    expect(pickExerciseType({ mcCorrect: 0, typeCorrect: 0 }, "new", r(0.99), true)).not.toBe(
+      "mc_audio_ru",
+    );
+    // Хвост из вводов (узнавание добито, ввод — нет): relief даёт выбор, не аудио.
+    expect(
+      pickExerciseType({ mcCorrect: MC_TARGET, typeCorrect: 1 }, "review", r(0.99), true),
+    ).not.toBe("mc_audio_ru");
   });
 });
 

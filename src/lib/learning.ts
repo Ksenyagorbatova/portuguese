@@ -12,6 +12,11 @@ import type { BadgeTag, CardFields, ExerciseType } from "./types";
 export const MC_TARGET = 3; // верных выборов (узнавание)
 export const TYPE_TARGET = 3; // верных ручных вводов (воспроизведение)
 
+// Слово-«липучка» (П.4): провалено (quality 0) суммарно ≥ этого числа раз. Чисто
+// клиентский порог для бейджа «даётся тяжело» в разборе ошибок — сервер лишь
+// копит счётчик lapses, классификации/расписания SM-2 он не касается.
+export const LEECH_THRESHOLD = 5;
+
 // Порог темы (доля выученных слов), с которого подмешиваются предложения.
 export const SENTENCE_TOPIC_THRESHOLD = 0.8;
 
@@ -45,10 +50,16 @@ export function isWordLearned(card?: StageCard): boolean {
 // TYPE_TAIL_MC_CHANCE — поэтому набор порогов внутри ОДНОЙ очереди не
 // гарантирован: недобранное слово возвращается в следующую сессию). `rnd`
 // инжектируется ради детерминизма в тестах.
+//
+// audioOk (П.1) — доступно ли аудирование (звук не в mute И есть Web Speech API).
+// Гейт резолвит вызывающий (Session) — функция остаётся чистой; на момент сборки
+// пула решаем, входит ли mc_audio_ru. Аудио добавляется ТОЛЬКО для выученных
+// слов (третья ступень) и только когда audioOk.
 export function pickExerciseType(
   card: StageCard | undefined,
   tag: BadgeTag,
   rnd: () => number = Math.random,
+  audioOk = false,
 ): ExerciseType {
   const mc = card?.mcCorrect ?? 0;
   const type = card?.typeCorrect ?? 0;
@@ -71,10 +82,15 @@ export function pickExerciseType(
     return rnd() < 0.5 ? "mc_pt_ru" : "mc_ru_pt";
   }
 
-  // Выучено — повторение (due/review): случайный микс всех трёх упражнений,
-  // на due с уклоном в ручной ввод (ported nextExercise).
-  if (tag === "due") return rnd() < 0.5 ? "type_pt" : rnd() < 0.5 ? "mc_pt_ru" : "mc_ru_pt";
+  // Выучено — повторение (due/review): микс зрительных типов; аудирование (П.1,
+  // третья ступень) добавляется равноправным слотом ТОЛЬКО здесь и только при
+  // audioOk (озвучка доступна — не mute и есть TTS). На due сохраняем лёгкий
+  // уклон в воспроизведение (ручной ввод): повтор выученного полезнее проверять
+  // «вслепую». Так due-слово (mc/type добиты, повтор наступил) иногда приходит
+  // ушами, но чаще — вводом.
   const pool: ExerciseType[] = ["mc_pt_ru", "mc_ru_pt", "type_pt"];
+  if (tag === "due") pool.push("type_pt"); // уклон в воспроизведение на due
+  if (audioOk) pool.push("mc_audio_ru");
   return pool[Math.floor(rnd() * pool.length)];
 }
 

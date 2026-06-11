@@ -69,6 +69,9 @@ export default defineSchema({
     // mcCorrect: правильные выборы (MC); typeCorrect: правильные ручные вводы.
     mcCorrect: v.optional(v.number()),
     typeCorrect: v.optional(v.number()),
+    // Накопительный счётчик провалов (quality 0) — слова-«липучки» (П.4).
+    // Optional: старые строки его не несут, читаем как 0. Только растёт.
+    lapses: v.optional(v.number()),
   })
     .index("by_user_lesson_pt", ["userId", "lessonKey", "pt"])
     .index("by_user", ["userId"]),
@@ -88,5 +91,9 @@ export default defineSchema({
     // («Mon Jun 09 2026»), recordAnswer парсит оба и перезаписывает новым
     // форматом при первом же сдвиге дня.
     lastDay: v.string(),
+    // Финал курса (П.5). Optional: старые строки их не несут — recordAnswer
+    // бэкфилит при следующем ответе, getSrsState отдаёт безопасные fallback.
+    bestStreak: v.optional(v.number()), // максимум стрика за всё время
+    startedAt: v.optional(v.string()), // день первого ответа (YYYY-MM-DD)
   }).index("by_user", ["userId"]),
 });

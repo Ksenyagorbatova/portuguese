@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { speak, speakSmart } from "./speech";
+import { speak, speakSmart, speakAuto, isMuted, setMuted, isSpeechSupported } from "./speech";
 
 class FakeUtterance {
   lang = "";
@@ -155,5 +155,52 @@ describe("speakSmart", () => {
     vi.spyOn(Date, "now").mockReturnValue(202_000);
     speakSmart("adeus"); // а вот его повтор — уже медленный
     expect(rates(synth)).toEqual([0.9, 0.9, 0.6]);
+  });
+});
+
+// П.3: mute глушит ТОЛЬКО авто-озвучку (speakAuto); ручные speak/speakSmart —
+// в обход. Состояние персистится в localStorage (pt-muted).
+describe("mute (П.3)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    setMuted(false);
+    try {
+      localStorage.removeItem("pt-muted");
+    } catch {
+      // jsdom всегда даёт localStorage — ветка на всякий случай
+    }
+  });
+
+  it("setMuted персистит в localStorage, isMuted это отражает", () => {
+    setMuted(true);
+    expect(isMuted()).toBe(true);
+    expect(localStorage.getItem("pt-muted")).toBe("1");
+    setMuted(false);
+    expect(isMuted()).toBe(false);
+    expect(localStorage.getItem("pt-muted")).toBe("0");
+  });
+
+  it("speakAuto — no-op при mute, озвучивает при включённом звуке", () => {
+    const synth = mockSynth();
+    setMuted(true);
+    speakAuto("olá");
+    expect(synth.speak).not.toHaveBeenCalled();
+    setMuted(false);
+    speakAuto("olá");
+    expect(synth.speak).toHaveBeenCalledOnce();
+  });
+
+  it("ручной speak() игнорирует mute (явный тап — явное намерение)", () => {
+    const synth = mockSynth();
+    setMuted(true);
+    speak("olá");
+    expect(synth.speak).toHaveBeenCalledOnce();
+  });
+
+  it("isSpeechSupported отражает наличие speechSynthesis", () => {
+    mockSynth(); // ставит speechSynthesis
+    expect(isSpeechSupported()).toBe(true);
+    vi.stubGlobal("speechSynthesis", undefined);
+    expect(isSpeechSupported()).toBe(false);
   });
 });

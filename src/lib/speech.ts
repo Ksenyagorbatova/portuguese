@@ -68,6 +68,51 @@ export function speakSmart(text: string): void {
   speak(text, { rate: slow ? SLOW_RATE : DEFAULT_RATE });
 }
 
+// ─── Mute (П.3) ──────────────────────────────────────────────────────────────
+// Авто-озвучка после КАЖДОГО ответа звучит всегда — в метро без наушников, в
+// офисе, рядом со спящим ребёнком это вынуждает душить громкость на уровне ОС.
+// Тоггл mute глушит только АВТО-вызовы (speakAuto); ручные кнопки 🔊
+// (speak/speakSmart) звучат в обход mute — явный тап есть явное намерение.
+// Состояние персистится в localStorage (`pt-muted`), чтобы переживать
+// перезагрузку; читается один раз при инициализации модуля.
+const MUTED_KEY = "pt-muted";
+
+function readMuted(): boolean {
+  try {
+    return localStorage.getItem(MUTED_KEY) === "1";
+  } catch {
+    return false; // приватный режим / недоступный storage
+  }
+}
+
+let muted = readMuted();
+
+export function isMuted(): boolean {
+  return muted;
+}
+
+export function setMuted(value: boolean): void {
+  muted = value;
+  try {
+    localStorage.setItem(MUTED_KEY, value ? "1" : "0");
+  } catch {
+    // storage недоступен — состояние живёт в памяти текущей сессии
+  }
+}
+
+// Есть ли в окружении Web Speech API. Вместе с isMuted() — гейт аудио-упражнения
+// (П.1): без речи (или при mute) аудио-карточку показывать нельзя.
+export function isSpeechSupported(): boolean {
+  return typeof window !== "undefined" && !!window.speechSynthesis;
+}
+
+// Авто-озвучка: no-op при mute. Заменяет speak() там, где слово/предложение
+// проигрывается САМО (после ответа, авто-плей карточки). Ручные 🔊 — НЕ это.
+export function speakAuto(text: string): void {
+  if (muted) return;
+  speak(text);
+}
+
 // Chrome populates voices asynchronously; prime them once at startup so most
 // taps hit the synchronous path above.
 export function primeVoices(): void {

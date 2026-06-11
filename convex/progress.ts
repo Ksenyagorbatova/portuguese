@@ -13,6 +13,7 @@ type CardFields = {
   lastSeen: number;
   mcCorrect: number; // правильные выборы (MC) — этап «выбор»
   typeCorrect: number; // правильные ручные вводы (Type) — этап «ввод»
+  lapses: number; // накопительные провалы (quality 0) — «липучки» (П.4)
 };
 const DEFAULT_CARD: CardFields = {
   interval: 0,
@@ -23,6 +24,7 @@ const DEFAULT_CARD: CardFields = {
   lastSeen: 0,
   mcCorrect: 0,
   typeCorrect: 0,
+  lapses: 0,
 };
 
 // Staged-learning thresholds. KEEP IN SYNC with MC_TARGET/TYPE_TARGET in
@@ -103,6 +105,7 @@ export const getSrsState = query({
         interval: c.interval, ef: c.ef, due: c.due,
         seen: c.seen, correct: c.correct, lastSeen: c.lastSeen,
         mcCorrect: c.mcCorrect ?? 0, typeCorrect: c.typeCorrect ?? 0,
+        lapses: c.lapses ?? 0,
       };
       cards.push({ lessonKey: w.lessonKey, pt: w.pt, ...card });
       ls.seen++;
@@ -143,6 +146,11 @@ export const getSrsState = query({
       // только клиент — query аргументов не имеет, и таймзонную истину держим
       // на той стороне, где она есть (как clientDay в recordAnswer).
       lastDay: statsRow?.lastDay ?? null,
+      // Финал курса (П.5). bestStreak — максимум за всё время (для строки без
+      // данных откатываемся на текущий стрик: best ≥ current). startedAt — день
+      // первого ответа (null → клиент не покажет плитку «дней»).
+      bestStreak: statsRow?.bestStreak ?? statsRow?.streak ?? 0,
+      startedAt: statsRow?.startedAt ?? null,
       cards,
       tags,
       seenTheory: theoryRows.map((t) => t.lessonKey),
@@ -199,6 +207,7 @@ export const recordAnswer = mutation({
           interval: existing.interval, ef: existing.ef, due: existing.due,
           seen: existing.seen, correct: existing.correct, lastSeen: existing.lastSeen,
           mcCorrect: existing.mcCorrect ?? 0, typeCorrect: existing.typeCorrect ?? 0,
+          lapses: existing.lapses ?? 0,
         }
       : { ...DEFAULT_CARD };
 
@@ -208,6 +217,9 @@ export const recordAnswer = mutation({
     // Этапные счётчики растут только при верном ответе соответствующего типа.
     const mcCorrect = c.mcCorrect + (right && mode === "mc" ? 1 : 0);
     const typeCorrect = c.typeCorrect + (right && mode === "type" ? 1 : 0);
+    // Провал (quality 0) копит «липучесть» (П.4). Растёт независимо от SM-2 —
+    // на расписание/классификацию не влияет, только на бейдж в разборе ошибок.
+    const lapses = c.lapses + (quality === 0 ? 1 : 0);
 
     const DAY = 86400000;
     // SM-2-расписание двигаем ТОЛЬКО на «событие повторения»: слово выучивается
@@ -250,7 +262,7 @@ export const recordAnswer = mutation({
     // ответом — расписание (interval/ef/due) не трогаем, повтор ещё не наступил.
 
     const card: CardFields = {
-      interval, ef, due, seen, correct, lastSeen: now, mcCorrect, typeCorrect,
+      interval, ef, due, seen, correct, lastSeen: now, mcCorrect, typeCorrect, lapses,
     };
     if (existing) await ctx.db.patch(existing._id, card);
     else await ctx.db.insert("progress", { userId, lessonKey, pt, ...card });
@@ -273,7 +285,10 @@ export const recordAnswer = mutation({
     let streak: number;
     if (!statsRow) {
       streak = 1;
-      await ctx.db.insert("userStats", { userId, streak, lastDay: today });
+      // Первый ответ пользователя: today = и день стрика, и день старта курса.
+      await ctx.db.insert("userStats", {
+        userId, streak, lastDay: today, bestStreak: 1, startedAt: today,
+      });
     } else {
       // Миграция формата: легаси-lastDay хранился как toDateString()
       // («Mon Jun 09 2026»), новые значения — YYYY-MM-DD; Date.parse понимает
@@ -284,17 +299,28 @@ export const recordAnswer = mutation({
       const diffDays = Number.isNaN(prevMs)
         ? Infinity
         : Math.round((Date.parse(today) - prevMs) / DAY);
-      if (diffDays === 0) {
-        streak = statsRow.streak; // тот же день — стрик не растёт
-      } else if (diffDays === 1) {
+      let lastDay = statsRow.lastDay;
+      if (diffDays === 1) {
         streak = statsRow.streak + 1; // ровно вчера → серия продолжается
-        await ctx.db.patch(statsRow._id, { streak, lastDay: today });
-      } else if (diffDays < 0) {
-        streak = statsRow.streak; // день клиента «в прошлом» (смена TZ) — no-op
+        lastDay = today;
+      } else if (diffDays <= 0) {
+        // Тот же день (стрик не растёт) ИЛИ день клиента «в прошлом» (смена TZ
+        // на запад) — стрик и lastDay не трогаем.
+        streak = statsRow.streak;
       } else {
         streak = 1; // пропуск ≥1 дня → серия начинается заново
-        await ctx.db.patch(statsRow._id, { streak, lastDay: today });
+        lastDay = today;
       }
+      // Финал курса (П.5): bestStreak — максимум стрика за всё время; startedAt
+      // задаётся один раз (первый ответ) и не меняется. Патчим всегда (лишнее
+      // безвредное write на том же дне), чтобы бэкфил легаси-строк без этих
+      // полей случился независимо от ветки стрика.
+      await ctx.db.patch(statsRow._id, {
+        streak,
+        lastDay,
+        bestStreak: Math.max(statsRow.bestStreak ?? 0, streak),
+        startedAt: statsRow.startedAt ?? today,
+      });
     }
 
     return { card, streak };

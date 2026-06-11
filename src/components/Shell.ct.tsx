@@ -35,6 +35,8 @@ function queries(
     "progress:getSrsState": {
       streak: 0,
       lastDay: null,
+      bestStreak: 0,
+      startedAt: null,
       cards: over.cards ?? [],
       tags: over.tags ?? [],
       seenTheory: over.seenTheory ?? [],
@@ -244,6 +246,8 @@ test("a 100%-finished topic rolls the Complete CTA over to the next topic", asyn
         "progress:getSrsState": {
           streak: 0,
           lastDay: null,
+          bestStreak: 0,
+          startedAt: null,
           cards: [
             {
               lessonKey: "l1",
