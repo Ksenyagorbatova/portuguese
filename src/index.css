@@ -230,6 +230,9 @@ body{
 .m-banner.info{background:var(--surface-2);color:var(--ink-600)}
 .m-banner b{font-weight:700}
 .m-banner .lucide{width:18px;height:18px;flex-shrink:0}
+/* Прогноз ближайшего повтора (П.2): мост в завтра под ok-баннером. */
+.m-forecast{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12.5px;color:var(--ink-500);font-weight:500}
+.m-forecast .lucide{width:14px;height:14px;flex-shrink:0}
 
 /* ── Buttons ───────────────────────────────────────────────────────────── */
 .m-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font:inherit;font-weight:700;font-size:15px;border:none;border-radius:var(--r-md);padding:0 20px;height:52px;cursor:pointer;transition:transform var(--dur-press) var(--ease),background var(--dur),box-shadow var(--dur),color var(--dur);user-select:none}
@@ -334,6 +337,14 @@ body{
 .m-audio:hover{background:var(--accent-100)}
 .m-audio:active{transform:scale(.92)}
 .m-audio .lucide{width:19px;height:19px}
+/* Аудио-карточка (П.1): зона прослушивания вместо текста вопроса. Сама зона —
+   кнопка (тап = повтор, второй = медленно). 52px круг с тенью акцента + подпись. */
+.m-audio-hero{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;background:var(--accent-50);border:none;border-radius:var(--r-md);padding:22px;color:var(--accent);font:inherit;font-size:15px;font-weight:700;cursor:pointer;transition:transform var(--dur-press) var(--ease),background var(--dur)}
+.m-audio-hero:hover{background:var(--accent-100)}
+.m-audio-hero:active{transform:scale(.99)}
+.m-audio-hero-ring{display:flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:var(--r-full);background:var(--accent);color:#fff;box-shadow:var(--e-accent);flex-shrink:0;transition:transform var(--dur-press) var(--ease)}
+.m-audio-hero:active .m-audio-hero-ring{transform:scale(.94)}
+.m-audio-hero .lucide{width:24px;height:24px}
 .m-q-srs{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-500);margin-top:12px;font-weight:500}
 .m-q-srs .lucide{width:14px;height:14px}
 .m-q-prompt{font-size:14px;color:var(--ink-500);font-weight:600;margin:18px 0 12px}
@@ -455,6 +466,21 @@ body{
 .m-mist-audio:active{transform:scale(.92)}
 .m-mist-audio .lucide{width:14px;height:14px}
 .m-mist-retry{margin-top:4px}
+/* Липучка (П.4): белая пилюля с красным текстом внутри красной строки разбора. */
+.m-leech{flex-shrink:0;font-size:11px;font-weight:700;background:var(--surface);color:var(--due-ink);border-radius:var(--r-full);padding:2px 8px}
+/* Ссылка «Перечитать теорию» под списком промахов — тихая текстовая кнопка. */
+.m-relearn{display:flex;align-items:center;gap:6px;width:100%;background:none;border:none;cursor:pointer;font:inherit;font-size:12.5px;font-weight:700;color:var(--accent-ink);padding:8px 2px 4px;text-align:left;transition:opacity var(--dur)}
+.m-relearn:hover{opacity:.72}
+.m-relearn .lucide{width:14px;height:14px;flex-shrink:0}
+/* Финал курса (П.5): тихий праздник — флаг, итог пути, честный CTA. Без конфетти. */
+.m-course{text-align:center;padding:var(--s7) var(--s5)}
+.m-course-emoji{font-size:40px;line-height:1;margin-bottom:12px;animation:m-pop .5s var(--spring)}
+.m-course-title{font-family:var(--font-display);font-size:24px;font-weight:800;color:var(--ink-900);letter-spacing:-.015em;margin-bottom:6px}
+.m-course-sub{font-size:13.5px;color:var(--ink-600);margin-bottom:18px}
+.m-course-stats{display:flex;justify-content:center;gap:10px;margin-bottom:22px}
+.m-course-stat{background:var(--surface-2);border-radius:var(--r-sm);padding:12px 14px;min-width:74px}
+.m-course-stat-n{font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--ink-900);font-variant-numeric:tabular-nums}
+.m-course-stat-l{font-size:10.5px;color:var(--ink-500);font-weight:500;margin-top:3px}
 
 /* ── Confirm dialog (вместо window.confirm) ────────────────────────────── */
 .m-dialog-overlay{position:fixed;inset:0;z-index:50;background:rgba(26,26,23,.35);display:flex;align-items:center;justify-content:center;padding:var(--s5);animation:m-fade var(--dur) var(--ease)}

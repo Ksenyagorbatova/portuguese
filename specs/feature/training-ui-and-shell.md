@@ -1,6 +1,6 @@
 # UI тренировки: Shell, хедер, сессия, теория, упражнения
 
-Статус: baseline (отгружено) · 2026-06-10
+Статус: baseline (отгружено) · 2026-06-11
 
 ## Цель
 
@@ -27,6 +27,20 @@
 - `startReview`/`startLesson` строят очередь и обнуляют счёт; `nonce` ремаунтит
   `Session` (`key`); `onExit → home`. Серверный `getSrsState` адаптируется через
   `adaptSrs` под `useMemo` (пересборка Record-карт — раз на ответ сервера).
+- **Mute авто-озвучки (П.3)** — источник истины в модуле `speech`
+  (`isMuted()`/`setMuted()`, персист `localStorage` `pt-muted`). Shell держит
+  зеркало в React-state (`muted`, инициализируется из `isMuted()`) ради
+  перерисовки иконки в шапке; `toggleMute` зовёт `setMuted(next)` + `setState`.
+  Прокидывается в `Header` (`muted`/`onToggleMute`).
+- **Финал курса (П.5)** — Shell считает `courseCompleteOf(origin)`: для
+  lesson-сессий, когда ВСЕ темы `learned===total`, возвращает плитки
+  (всего слов/тем в курсе, `daysSinceStart(startedAt)`, `bestStreak`); иначе
+  `null`. Передаётся в `Session` пропом `courseComplete` — тот показывает
+  `CourseComplete` вместо `Complete` (см. ниже). `headingOf`/`nextStepOf` —
+  заголовок и трамплин-CTA обычного финала.
+- **Перечитать теорию из финала** — `onReadTheory(topicKey, lessonKey)` Shell
+  мапит на `openTheory` (markTheorySeen + показ `Theory`); используется ссылкой
+  «Перечитать теорию» по слову-липучке (П.4).
 - **Во время сессии** (`view.kind==="session"`) Shell скрывает `ScoreRow` и
   `TabBar` — остаётся «само поле тренировки». `ScoreRow` показывается только ПОСЛЕ
   сессии (`score.total > 0`).
@@ -58,8 +72,13 @@
 порядку: стрик 🔥 со статусом «день закрыт» (кружок 16px `m-streak-day`:
 `--surface-3` + серая галочка до первой сессии дня, `--accent` + белая после —
 по `doneToday` из `adaptSrs`; `aria-label` пилюли проговаривает состояние),
+**кнопка mute** (П.3; `m-icon-btn`, 40px, МЕЖДУ стриком и темой),
 переключатель темы (3 режима, см. [`theme-system-mode.md`](theme-system-mode.md)),
-выход (`log-out`, крайний правый).
+выход (`log-out`, крайний правый). **Mute-кнопка** глушит авто-озвучку: иконка
+`volume`/`volume-off`, `aria-label`/`title` «Звук: включён»/«Звук: выключен» по
+пропу `muted`, `onClick → onToggleMute`. Иконка `volume-off` (Lucide volume-x —
+динамик с крестом) добавлена в [`Icon.tsx`](../../src/components/Icon.tsx);
+состояние и персист держит модуль `speech` (Shell прокидывает зеркало).
 
 **Сессия** ([`src/components/Session.tsx`](../../src/components/Session.tsx)): строка
 прогресса показывает **позицию** `idx+1/queue.length` (очередь статична —
@@ -77,10 +96,21 @@
 «трамплин», не отчёт-укор:
 - Заголовок по факту: «Тема закрыта!» (100% слов темы) / «Урок выучен!» (урок
   добит) / «Сессия завершена!» (иначе; review-сессии — всегда последнее).
-- **Разбор ошибок** «Споткнулся на» (если были промахи): до 5 строк «pt — ru» с
-  кнопкой 🔊 (`speak(pt)`, тинт `--due-bg`), предложения в разбор не попадают;
-  кнопка «Повторить эти N слов» (`pluralRu`; берёт ВСЕ промахи, не только
-  видимые 5) запускает мини-сессию `buildMistakesQueue` с тем же origin.
+- **Разбор ошибок** «Споткнулся на» (если были промахи): до `MISTAKES_SHOWN` (=5)
+  строк «pt — ru» с кнопкой 🔊 (`speak(pt)`, тинт `--due-bg`), предложения в разбор
+  не попадают; кнопка «Повторить эти N слов» (`pluralRu`; берёт ВСЕ промахи, не
+  только видимые 5) запускает мини-сессию `buildMistakesQueue` с тем же origin.
+- **Слова-липучки (П.4)** — у строк разбора с `lapses ≥ LEECH_THRESHOLD` (счётчик
+  серверный, сквозной; `learning.ts`) — бейдж `.m-leech` «даётся тяжело»
+  (признаём, что слово вредное, а не ученик слаб). Под списком — ссылка
+  `.m-relearn` «Перечитать теорию «{урок}»» (book-open, `onReadTheory →
+  openTheory` урока ПЕРВОЙ липучки). Ссылка показывается **только когда сама
+  липучка ВИДНА** в первых `MISTAKES_SHOWN` строках (`hasShownLeech`): иначе
+  вела бы на слово, которого на экране нет (бейджа рядом тоже нет); `relearn`
+  считается из первой липучки, поэтому «есть видимая липучка» ⇔ «первая липучка
+  показана». Пропы Complete: `leechKeys` (wKey'и липучек), `relearn`,
+  `onReadTheory` — все опциональны; деривацию из `cards.lapses` делает `Session`
+  (см. ниже).
 - **Трёхступенчатый primary-CTA** по фактическому прогрессу (`nextStepOf` в
   `Shell`, тип `NextStep`): в уроке остались слова → «Продолжить урок (ещё N
   слов)» (рестарт той же статичной очереди; ghost «Ещё раз» скрыт — дублировал
@@ -95,6 +125,18 @@
 - Ghost «К темам» (book-open) — всегда последняя в действиях: постоянный
   выход к списку тем с финала (фидбэк владельца).
 
+**Финал курса** ([`src/components/CourseComplete.tsx`](../../src/components/CourseComplete.tsx),
+П.5) — самый эмоциональный экран продукта, показывается **вместо** `Complete`,
+когда выучены ВСЕ темы (`learned===total` по всем), и **только один раз** (флаг
+`localStorage` `pt-course-complete-seen`; `Session` держит гейт). Чистый
+презентационный компонент — цифры приходят пропами от `Shell`
+(`courseCompleteOf`). Содержит: 🇵🇹 40px, display-заголовок «Курс пройден!»,
+подзаголовок «Все N тем закрыты. Boa viagem!», три стат-плитки (`--surface-2`:
+слова / дней от `startedAt` / 🔥 лучший стрик) и primary-CTA «Повторение
+продолжается» (repeat) → review-таб (`onGoReview`; курс конечен, SRS — нет).
+Без конфетти (тихая система празднует сдержанно). Переживает отсутствие
+`startedAt`: `days=null` → плитка «дней» просто исчезает.
+
 **Теория** ([`src/components/Theory.tsx`](../../src/components/Theory.tsx)) **не
 скрывается** после прохождения: flip-карточки (тап → переворот + `speak(pt)`),
 секции из `lesson.theory`, кнопка «Начать практику» (`beginFromTheory`) и «Назад»
@@ -107,6 +149,13 @@
 **Кнопка повторения честная**: сессия берёт максимум `REVIEW_DUE_LIMIT` (=15,
 экспорт из [`src/lib/queue.ts`](../../src/lib/queue.ts)) срочных слов, поэтому при
 `due > 15` кнопка показывает «Повторить (15 из N)», иначе — «Повторить (N слов)».
+**Прогноз повторений (П.2)** — строка `.m-forecast` под ok-баннером «Все
+повторения сделаны…», **только когда `due===0` И `learnedCount>0`** (мост в
+завтра вместо тупика): иконка clock 14px + «Завтра к повтору: N слов» либо «В
+пятницу/Во вторник к повтору: N слов» (`nextReviewForecast` из
+[`src/lib/srs.ts`](../../src/lib/srs.ts) — ближайший будущий КАЛЕНДАРНЫЙ день
+строго после сегодня; «сегодня» = due, не показываем; нет будущих due → строки
+нет). 12.5px, `--ink-500`.
 `TabBar` — segmented «Повторение»/«Темы». `ScoreRow` — верно/заданий/точность
 (после сессии). Пилюля-мета «сессия ≈ 5 мин» из дизайн-ревью v2 удалена по
 решению владельца (лишний шум в строке урока).
@@ -115,6 +164,18 @@
 проверка на клиенте, `quality`: первая попытка верно `2`, со 2-й `1`, провал `0`:
 - `McExercise` — выбор (`mc_pt_ru`/`mc_ru_pt`); неверные варианты из ТОГО ЖЕ урока
   (`getWrong`, [`src/lib/wrongOptions.ts`](../../src/lib/wrongOptions.ts)).
+- **Аудио-карточка (П.1)** — режим `mode="audio_ru"`: вместо текста вопроса —
+  зона `.m-audio-hero` (тинт `--accent-50`, круглая кнопка 52px `--accent`, тень
+  `--e-accent`, подпись «Нажми и слушай»), метка «Прослушайте слово», промпт «Что
+  вы услышали?», варианты — РУССКИЕ. **pt-текст слова НЕ в DOM до ответа** (звук
+  → буквы замыкается уже в `WordFeedback`). Авто-плей один раз при появлении
+  (`speakAuto`; `playedRef`-гард от двойного прогона эффекта в React-StrictMode —
+  иначе двойной cancel+speak вешал движок речи macOS Chrome на сессию), ручной
+  тап по hero — `speakSmart` в ОБХОД mute. После ответа — обычный `WordFeedback`
+  (слово письменно), без повторной авто-озвучки. Серверный режим ответа — `"audio"`
+  (НЕ двигает выученность, экстра-тренировка слуха — см.
+  [`word-learning-model.md`](word-learning-model.md)). Гейт показа аудио-типа —
+  `audioOk()` в `Session` (`canSpeakPortuguese() && !isMuted()`).
 - `TypeExercise` — ручной ввод (`type_pt`); сверка без диакритики/регистра и без
   пунктуации (`.!?,` и многоточия необязательны с обеих сторон, как в
   `sentenceMatch`; дефис значим); для слов-лейблов с вариантами («um / uma»)
@@ -151,9 +212,22 @@
 **Озвучка** ([`src/lib/speech.ts`](../../src/lib/speech.ts)) — Web Speech API,
 чисто клиентская (`primeVoices`, `speak(text, {rate?})` — обычная скорость 0.9,
 `speakSmart` — повторный тап по ТОМУ ЖЕ тексту в течение 4с играет медленно
-0.6, затем цикл заново; другой текст сбрасывает цикл). `speakSmart` подключён
-к кнопке 🔊 в MC (`aria-label`/`title` «Прослушать (второй тап — медленно)») и
-к флип-картам теории; авто-озвучка после ответа — обычный `speak`.
+0.6, затем цикл заново; другой текст сбрасывает цикл). **Mute (П.3)** разводит
+авто- и ручную озвучку: `speakAuto(text)` — no-op при mute, используется там, где
+слово/предложение играет САМО (после ответа, авто-плей аудио-карточки); ручные
+кнопки 🔊 (`speak`/`speakSmart`) звучат в ОБХОД mute (явный тап — явное
+намерение). Состояние mute (`isMuted`/`setMuted`) персистится в `localStorage`
+`pt-muted`, читается раз при инициализации модуля. `speakSmart` подключён к
+кнопке 🔊 в MC (`aria-label`/`title` «Прослушать (второй тап — медленно)»),
+к hero аудио-карточки и к флип-картам теории; авто-озвучка после ответа — теперь
+`speakAuto`.
+**Надёжность речи (фикс «нет звука»):** `synth.resume()` зовётся и ДО (сразу
+после `cancel()`), и ПОСЛЕ `speak()` — будит «paused»-движок Web Speech на
+Chrome/macOS (`cancel` оставлял его в очереди без звука; гонку усугублял двойной
+авто-плей StrictMode). **`isSpeechSupported` переименован в
+`canSpeakPortuguese()`** и теперь требует ЗАГРУЖЕННОГО португальского голоса (не
+только наличия API): без голоса аудио-карточку не показываем (вместе с `isMuted`
+это гейт аудио-упражнения, П.1).
 
 **Тач**: чипы хоткеев `m-opt-key` скрыты на `pointer:coarse` (на телефоне они
 ничего не делают); раскладка `m-opt` остаётся ровной без чипа.
@@ -198,16 +272,23 @@
   `.m-session` в `src/index.css`, проверено вживую вплоть до 640px высоты).
 - Строка прогресса — позиция, не освоение (освоение расходилось бы с «Темами»).
 - CSS перенесён вербатим из исходного одно-файлового HTML в
-  [`src/index.css`](../../src/index.css) — **имена классов сохранять**.
+  [`src/index.css`](../../src/index.css) — **имена классов сохранять**. Новые
+  классы рекомендаций v4: `.m-audio-hero*` (П.1), `.m-forecast` (П.2),
+  `.m-leech`/`.m-relearn` (П.4), `.m-course*` (П.5).
+- **Фавикон (П.7):** [`public/favicon.svg`](../../public/favicon.svg) = логотип
+  шапки (флаг Португалии + «pt»), подключён в [`index.html`](../../index.html)
+  через `%BASE_URL%favicon.svg` (учитывает base-path: `/favicon.svg` в dev,
+  `/portuguese/favicon.svg` в проде).
 
 ## Тестирование
 
 Компонентные тесты Playwright CT рядом с компонентами (`*.ct.tsx`): `Shell`,
 `Session`, `Header`, `ReviewTab`, `TopicsTab`, `Theory`, `TabBar`, `ScoreRow`,
-`SignIn`, `Feedback`, `Complete`, `exercises/*`. Компоненты с Convex-хуками
-изолируются стабами (`src/test/mocks`, алиас в `playwright-ct.config.ts`); для
-`Shell` стаб `useQuery` отдаёт фикстуры по имени функции (`getFunctionName`),
-которые тест передаёт через `mount(..., { hooksConfig: { queries } })` →
+`SignIn`, `Feedback`, `Complete`, `CourseComplete`, `exercises/*`. Компоненты с
+Convex-хуками изолируются стабами (`src/test/mocks`, алиас в
+`playwright-ct.config.ts`); для `Shell` стаб `useQuery` отдаёт фикстуры по имени
+функции (`getFunctionName`), которые тест передаёт через
+`mount(..., { hooksConfig: { queries } })` →
 `beforeMount` в [`playwright/index.tsx`](../../playwright/index.tsx).
 `Shell.ct.tsx` покрывает онбординг теории (просмотрена/нет), диалог выхода
 из сессии («Выйти»/«Остаться»+Esc/на экране Complete без диалога/вне сессии)
@@ -215,12 +296,24 @@
 `ConfirmDialog.ct.tsx` — модальную семантику (фокус на «Остаться», Esc,
 Tab-trap, подложка).
 
+Рекомендации v4 (по фичам): `Header.ct.tsx` — mute-тоггл и позиция кнопки между
+стриком и темой; `ReviewTab.ct.tsx` — прогноз повторений (П.2); `Complete.ct.tsx`
+— бейдж липучки, ссылка «Перечитать теорию» и гейт её видимости (П.4);
+`CourseComplete.ct.tsx` — итоговые плитки, `days=null`, плюрализация (П.5);
+`McExercise.ct.tsx` — аудио-карточка (`audio_ru`: зона прослушивания, pt НЕ в
+DOM до ответа, русские варианты, серверный режим `"audio"`); `Session.ct.tsx` —
+once-гейт финала курса и деривация липучек из `cards.lapses`.
+Юнит-тесты Vitest: [`src/lib/speech.test.ts`](../../src/lib/speech.test.ts) —
+`resume()` будит движок, `canSpeakPortuguese` (true с pt-голосом, false без речи/
+голоса), mute (`speakAuto` no-op при mute, ручной `speak` в обход).
+
 ## Карта файлов
 
 - Оркестрация: [`Shell.tsx`](../../src/components/Shell.tsx), [`App.tsx`](../../src/App.tsx), [`main.tsx`](../../src/main.tsx), [`Splash.tsx`](../../src/components/Splash.tsx), [`ErrorBoundary.tsx`](../../src/components/ErrorBoundary.tsx), [`OfflineBanner.tsx`](../../src/components/OfflineBanner.tsx).
 - Хром/дашборд: [`Header.tsx`](../../src/components/Header.tsx), [`TabBar.tsx`](../../src/components/TabBar.tsx), [`ReviewTab.tsx`](../../src/components/ReviewTab.tsx), [`ScoreRow.tsx`](../../src/components/ScoreRow.tsx), [`TopicsTab.tsx`](../../src/components/TopicsTab.tsx).
-- Тренировка: [`Session.tsx`](../../src/components/Session.tsx), [`Theory.tsx`](../../src/components/Theory.tsx), [`exercises/`](../../src/components/exercises/), [`Feedback.tsx`](../../src/components/Feedback.tsx), [`Complete.tsx`](../../src/components/Complete.tsx), [`ConfirmDialog.tsx`](../../src/components/ConfirmDialog.tsx).
-- Утилиты: [`text.ts`](../../src/lib/text.ts), [`wrongOptions.ts`](../../src/lib/wrongOptions.ts), [`speech.ts`](../../src/lib/speech.ts).
+- Тренировка: [`Session.tsx`](../../src/components/Session.tsx), [`Theory.tsx`](../../src/components/Theory.tsx), [`exercises/`](../../src/components/exercises/), [`Feedback.tsx`](../../src/components/Feedback.tsx), [`Complete.tsx`](../../src/components/Complete.tsx), [`CourseComplete.tsx`](../../src/components/CourseComplete.tsx), [`ConfirmDialog.tsx`](../../src/components/ConfirmDialog.tsx).
+- Утилиты: [`text.ts`](../../src/lib/text.ts), [`wrongOptions.ts`](../../src/lib/wrongOptions.ts), [`speech.ts`](../../src/lib/speech.ts), [`srs.ts`](../../src/lib/srs.ts) (`nextReviewForecast`/`daysSinceStart`), [`Icon.tsx`](../../src/components/Icon.tsx) (`volume`/`volume-off`).
+- Ассеты: [`public/favicon.svg`](../../public/favicon.svg) (логотип-фавикон, П.7), [`index.html`](../../index.html).
 
 ## Известные ограничения
 
@@ -228,3 +321,7 @@ Tab-trap, подложка).
 - До первой загрузки курса/SRS — экран `Splash` (холодного офлайн-старта нет,
   Convex требует сети; при разрыве УЖЕ загруженной сессии тренировка продолжает
   работать — мутации копятся в очереди клиента, баннер предупреждает).
+- Аудио-карточка (П.1) требует загруженного pt-голоса и выключенного mute
+  (`audioOk`); без них тип просто не выпадает — не ошибка, а тихая деградация.
+- Финал курса (П.5) показывается ровно один раз (флаг `localStorage`): при
+  недоступном/очищенном хранилище гейт «один раз» не переживёт перезагрузку.

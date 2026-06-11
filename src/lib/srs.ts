@@ -9,6 +9,8 @@ export const wKey = (lessonKey: string, pt: string): string => lessonKey + "||" 
 type RawSrsState = {
   streak: number;
   lastDay: string | null;
+  bestStreak: number;
+  startedAt: string | null;
   cards: Array<{ lessonKey: string; pt: string } & CardFields>;
   tags: Array<{ lessonKey: string; pt: string; tag: string }>;
   seenTheory: string[];
@@ -28,6 +30,7 @@ export function adaptSrs(raw: RawSrsState): SrsState {
       interval: c.interval, ef: c.ef, due: c.due,
       seen: c.seen, correct: c.correct, lastSeen: c.lastSeen,
       mcCorrect: c.mcCorrect, typeCorrect: c.typeCorrect,
+      lapses: c.lapses ?? 0,
     };
   }
   return {
@@ -38,6 +41,8 @@ export function adaptSrs(raw: RawSrsState): SrsState {
     // логика, что clientDay в recordAnswer). Пересчитывается на каждом ответе
     // сервера: после первой сессии дня галочка загорается реактивно.
     doneToday: raw.lastDay != null && raw.lastDay === localDay(),
+    bestStreak: raw.bestStreak,
+    startedAt: raw.startedAt,
     cards,
     tags,
     seenTheory: raw.seenTheory,
@@ -78,4 +83,64 @@ export function nextDueLabel(card: CardFields | undefined): string {
     return `через ${m} ${pluralRu(m, "месяц", "месяца", "месяцев")}`;
   }
   return "примерно через год";
+}
+
+// День недели в форме «в …» для прогноза повторений (П.2). Индекс — Date.getDay
+// (0=воскресенье … 6=суббота). Падеж винительный («в пятницу»), у вторника — «во».
+const WEEKDAY_IN = [
+  "в воскресенье",
+  "в понедельник",
+  "во вторник",
+  "в среду",
+  "в четверг",
+  "в пятницу",
+  "в субботу",
+];
+
+const startOfLocalDay = (ts: number): number => {
+  const d = new Date(ts);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+};
+
+// Прогноз ближайшего повтора (П.2): среди карточек с будущим `due` находим
+// ближайший КАЛЕНДАРНЫЙ день строго ПОСЛЕ сегодняшнего и число слов в нём.
+// «Сегодня» не показываем — сегодняшние слова и есть due (этот прогноз живёт
+// ровно в состоянии due===0, превращая пустой экран в причину вернуться).
+// null — планировать нечего (нет карточек с будущим повтором). `lead` уже
+// готов к показу: «Завтра» либо «В пятницу»/«Во вторник» (с заглавной).
+export function nextReviewForecast(
+  cards: Record<string, CardFields>,
+  now: number = Date.now(),
+): { count: number; lead: string } | null {
+  const today = startOfLocalDay(now);
+  const byDay = new Map<number, number>();
+  for (const c of Object.values(cards)) {
+    if (!c.due || c.due <= now) continue; // нет расписания или уже due (= сегодня)
+    const day = startOfLocalDay(c.due);
+    if (day <= today) continue; // due позже сейчас, но ещё сегодня — не показываем
+    byDay.set(day, (byDay.get(day) ?? 0) + 1);
+  }
+  if (byDay.size === 0) return null;
+  const nearest = Math.min(...byDay.keys());
+  const count = byDay.get(nearest) ?? 0;
+  const daysAhead = Math.round((nearest - today) / 86400000);
+  const weekday = WEEKDAY_IN[new Date(nearest).getDay()];
+  const lead = daysAhead === 1 ? "Завтра" : weekday.charAt(0).toUpperCase() + weekday.slice(1);
+  return { count, lead };
+}
+
+// Сколько дней идёт курс — от startedAt (день первого ответа) до сегодня
+// включительно (П.5, плитка «N дней»). null — старт неизвестен (легаси-строка
+// без поля). startedAt и localDay() — оба YYYY-MM-DD; Date.parse трактует их как
+// UTC-полночь соответствующего локального дня, поэтому разница чистая в сутках.
+export function daysSinceStart(
+  startedAt: string | null,
+  now: number = Date.now(),
+): number | null {
+  if (!startedAt) return null;
+  const start = Date.parse(startedAt);
+  const today = Date.parse(localDay(new Date(now)));
+  if (Number.isNaN(start) || Number.isNaN(today)) return null;
+  return Math.max(1, Math.round((today - start) / 86400000) + 1);
 }

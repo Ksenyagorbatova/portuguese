@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import type { AnswerResult, CrossSentenceView } from "../../lib/types";
 import { shuffle } from "../../lib/shuffle";
 import { sentenceMatch } from "../../lib/text";
-import { speak } from "../../lib/speech";
+import { speakAuto } from "../../lib/speech";
+import { hapticOk, hapticErr } from "../../lib/haptics";
 import { Badge } from "../Badge";
 import { Icon } from "../Icon";
 import { ResultFeedback, RetryBox, NextButton } from "../Feedback";
@@ -44,14 +45,17 @@ export function SentenceBuilder({
     const ok = sentenceMatch(user, sentence.answer);
     const first = tries === 0;
     if (ok) {
-      speak(sentence.answer);
+      hapticOk(); // тактильная отдача на резолве (П.6)
+      speakAuto(sentence.answer);
       onAnswered({ mode: "sentence", correct: true, firstTry: first });
       setResolved({ ok: true });
     } else if (tries < 1) {
+      hapticErr(); // первый промах → ретрай (П.6)
       setTries(1);
       setRetry(true);
     } else {
-      speak(sentence.answer);
+      hapticErr(); // исчерпаны попытки (П.6)
+      speakAuto(sentence.answer);
       onAnswered({ mode: "sentence", correct: false, firstTry: false });
       setResolved({ ok: false });
     }

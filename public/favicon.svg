@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 42 42" width="42" height="42" role="img" aria-label="Português A0–A1">
+  <defs>
+    <!-- Флаг Португалии (как логотип в шапке): зелёный 0–40%, красный 40–100% -->
+    <linearGradient id="flag" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#046a38"/>
+      <stop offset="0.4" stop-color="#046a38"/>
+      <stop offset="0.4" stop-color="#d52b1e"/>
+      <stop offset="1" stop-color="#d52b1e"/>
+    </linearGradient>
+  </defs>
+  <rect width="42" height="42" rx="13" fill="url(#flag)"/>
+  <text x="21" y="21" fill="#ffffff"
+        font-family="'Bricolage Grotesque', system-ui, -apple-system, 'Segoe UI', sans-serif"
+        font-weight="800" font-size="21" letter-spacing="-0.6"
+        text-anchor="middle" dominant-baseline="central">pt</text>
+</svg>

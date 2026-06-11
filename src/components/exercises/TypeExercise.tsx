@@ -7,7 +7,8 @@ import { ACCENTS_HINT_KEY, useFadingHint } from "../../lib/hints";
 import { localDay } from "../../lib/day";
 import { nextDueLabel } from "../../lib/srs";
 import { predictCardAfterAnswer } from "../../lib/srsPredict";
-import { speak } from "../../lib/speech";
+import { speakAuto } from "../../lib/speech";
+import { hapticOk, hapticErr } from "../../lib/haptics";
 import { Badge } from "../Badge";
 import { Icon } from "../Icon";
 import { WordFeedback, RetryBox, NextButton } from "../Feedback";
@@ -53,7 +54,9 @@ export function TypeExercise({
   function finish(quality: 0 | 1 | 2, ok: boolean) {
     if (pendingRef.current) return;
     pendingRef.current = true;
-    speak(word.pt);
+    if (ok) hapticOk();
+    else hapticErr(); // тактильная отдача на резолве (П.6)
+    speakAuto(word.pt);
     onAnswered({ mode: "type", correct: quality >= 1, firstTry: quality === 2 });
     // UI резолвим сразу, НЕ дожидаясь сети (Convex при разрыве держит мутацию
     // в очереди — промис может висеть неограниченно долго). Метка «следующий
@@ -86,6 +89,7 @@ export function TypeExercise({
     if (ok) {
       finish(first ? 2 : 1, true);
     } else if (tries < 1) {
+      hapticErr(); // первый промах → ретрай (П.6)
       setTries(1);
       setRetry(true);
       setValue("");

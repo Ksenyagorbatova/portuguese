@@ -12,7 +12,8 @@ import type {
 } from "../lib/types";
 import { buildLessonQueue, buildMistakesQueue, buildReviewQueue } from "../lib/queue";
 import { SENTENCE_TOPIC_THRESHOLD } from "../lib/learning";
-import { adaptSrs } from "../lib/srs";
+import { adaptSrs, daysSinceStart } from "../lib/srs";
+import { isMuted, setMuted } from "../lib/speech";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Header } from "./Header";
 import { OfflineBanner } from "./OfflineBanner";
@@ -54,6 +55,14 @@ export function Shell({
   const [sessionDone, setSessionDone] = useState(false);
   // Открыт ли диалог «Выйти из тренировки?» (свой вместо window.confirm).
   const [confirmExit, setConfirmExit] = useState(false);
+  // Mute авто-озвучки (П.3). Источник истины — модуль speech (он же гейт аудио
+  // и хаптики); это зеркало только для перерисовки иконки в шапке.
+  const [muted, setMutedState] = useState(() => isMuted());
+  function toggleMute() {
+    const next = !muted;
+    setMuted(next);
+    setMutedState(next);
+  }
 
   // course === undefined → loading; srs === null → not authed yet (race)
   if (!course || !srs) return <Splash />;
@@ -146,6 +155,36 @@ export function Shell({
       return { kind: "topic", topicKey: nextTopic.topicKey, lessonKey: first.lessonKey, label: nextTopic.label };
     return null;
   }
+  // Финал курса (П.5): все темы на 100% И это сессия урока (не review). Цифры —
+  // из уже имеющихся данных: всего слов/тем в курсе, дни от первого ответа,
+  // лучший стрик. null — курс ещё не пройден (Session покажет обычный Complete).
+  function courseCompleteOf(origin: SessionOrigin): {
+    wordsTotal: number;
+    topicsTotal: number;
+    days: number | null;
+    bestStreak: number;
+  } | null {
+    if (origin === "review") return null;
+    const topics = c.topics;
+    const allLearned =
+      topics.length > 0 &&
+      topics.every((t: TopicView) => {
+        const ts = s.topicStats[t.topicKey];
+        return !!ts && ts.total > 0 && ts.learned === ts.total;
+      });
+    if (!allLearned) return null;
+    const wordsTotal = topics.reduce(
+      (n: number, t: TopicView) =>
+        n + t.lessons.reduce((m: number, l: LessonView) => m + l.words.length, 0),
+      0,
+    );
+    return {
+      wordsTotal,
+      topicsTotal: topics.length,
+      days: daysSinceStart(s.startedAt),
+      bestStreak: s.bestStreak,
+    };
+  }
   // Заголовок финала: «Тема закрыта!» только при 100% слов темы, «Урок выучен!»
   // при добитом уроке, иначе «Сессия завершена!».
   function headingOf(origin: SessionOrigin): CompleteHeading {
@@ -191,6 +230,7 @@ export function Shell({
         dueCountAll={s.dueCountAll}
         heading={headingOf(view.origin)}
         nextStep={nextStepOf(view.origin)}
+        courseComplete={courseCompleteOf(view.origin)}
         onScore={(correct, total) => setScore({ correct, total })}
         onRestart={onRestart}
         onPickLesson={onPickLesson}
@@ -198,6 +238,10 @@ export function Shell({
         onGoTopics={() => switchTab("topics")}
         onExit={() => setView({ kind: "home" })}
         onRetryMistakes={(words) => retryMistakes(view.origin, words)}
+        onReadTheory={(topicKey, lessonKey) => {
+          const lesson = findLesson(topicKey, lessonKey);
+          if (lesson) openTheory(topicKey, lesson);
+        }}
         onComplete={() => setSessionDone(true)}
       />
     );
@@ -233,6 +277,8 @@ export function Shell({
       <Header
         streak={s.streak}
         doneToday={s.doneToday}
+        muted={muted}
+        onToggleMute={toggleMute}
         themeChoice={themeChoice}
         onCycleTheme={onCycleTheme}
         onHome={goHome}

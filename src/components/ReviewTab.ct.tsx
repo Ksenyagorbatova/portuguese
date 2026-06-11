@@ -26,6 +26,8 @@ const course: Course = {
 const emptySrs: SrsState = {
   streak: 0,
   doneToday: false,
+  bestStreak: 0,
+  startedAt: null,
   cards: {},
   tags: {},
   seenTheory: [],
@@ -108,4 +110,35 @@ test("empty state: CTA «Открыть темы» is enabled and routes to Те
   await btn.click();
   expect(wentTopics).toBe(true);
   expect(started).toBe(false);
+});
+
+// ── П.2 (рекомендации v4): прогноз повторений вместо пустого «всё сделано» ────
+test("прогноз: при due=0 и выученных словах — строка-мост «… к повтору: N слов»", async ({
+  mount,
+}) => {
+  // ≥2 календарных дня вперёд — устойчиво «не сегодня» при любом времени прогона.
+  const future = Date.now() + 3 * 86400000 + 12 * 3600000;
+  const srs: SrsState = {
+    ...emptySrs,
+    seenTheory: ["l1"],
+    learnedPts: ["a"],
+    dueCountAll: 0,
+    lessonStats: { l1: { total: 1, seen: 1, learned: 1, due: 0 } },
+    cards: {
+      "l1||a": {
+        interval: 3, ef: 2.5, due: future, seen: 3, correct: 3,
+        lastSeen: 0, mcCorrect: 3, typeCorrect: 3,
+      },
+    },
+  };
+  const c = await mount(<ReviewTab course={course} srs={srs} onStart={() => {}} onGoTopics={() => {}} />);
+  const line = c.locator(".m-forecast");
+  await expect(line).toBeVisible();
+  await expect(line).toContainText("к повтору:");
+  await expect(line).toContainText("1 слово");
+});
+
+test("прогноза нет, когда есть срочные повторы (due>0)", async ({ mount }) => {
+  const c = await mount(<ReviewTab course={course} srs={dueSrs(3)} onStart={() => {}} onGoTopics={() => {}} />);
+  await expect(c.locator(".m-forecast")).toHaveCount(0);
 });

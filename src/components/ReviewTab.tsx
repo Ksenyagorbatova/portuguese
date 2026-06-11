@@ -1,5 +1,5 @@
 import type { Course, SrsState } from "../lib/types";
-import { pluralRu } from "../lib/srs";
+import { pluralRu, nextReviewForecast } from "../lib/srs";
 import { REVIEW_DUE_LIMIT } from "../lib/queue";
 import { Icon } from "./Icon";
 import { ProgressRing } from "./ProgressRing";
@@ -31,6 +31,10 @@ export function ReviewTab({
   );
   const due = srs.dueCountAll;
   const pct = seenCount > 0 ? Math.round((learnedCount / seenCount) * 100) : 0;
+  // Прогноз ближайшего повтора (П.2) — только в состоянии «всё сделано»
+  // (due===0) и когда есть что планировать (learnedCount>0). Мост в завтра
+  // вместо тупика. Нечего планировать (нет будущих due) → строки нет.
+  const forecast = due === 0 && learnedCount > 0 ? nextReviewForecast(srs.cards) : null;
 
   let banner;
   if (seenCount === 0) {
@@ -96,6 +100,12 @@ export function ReviewTab({
         </div>
       </div>
       {banner}
+      {forecast && (
+        <div className="m-forecast">
+          <Icon name="clock" size={14} /> {forecast.lead} к повтору: {forecast.count}{" "}
+          {words(forecast.count)}
+        </div>
+      )}
       <button
         className="m-btn m-btn--primary m-btn--block m-btn--lg"
         style={{ marginTop: 20 }}

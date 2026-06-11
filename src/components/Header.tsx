@@ -17,18 +17,23 @@ const THEME_LABEL: Record<ThemeChoice, string> = {
 export function Header({
   streak,
   doneToday,
+  muted,
+  onToggleMute,
   themeChoice,
   onCycleTheme,
   onHome,
 }: {
   streak: number;
   doneToday: boolean;
+  muted: boolean;
+  onToggleMute: () => void;
   themeChoice: ThemeChoice;
   onCycleTheme: () => void;
   onHome: () => void;
 }) {
   const { signOut } = useAuthActions();
   const themeLabel = THEME_LABEL[themeChoice];
+  const muteLabel = muted ? "Звук: выключен" : "Звук: включён";
   const streakLabel = `Стрик ${streak} ${pluralRu(streak, "день", "дня", "дней")}, ${
     doneToday ? "сегодня пройдено" : "сегодня ещё не пройдено"
   }`;
@@ -49,6 +54,14 @@ export function Header({
             <Icon name="check" size={9} />
           </span>
         </div>
+        <button
+          className="m-icon-btn"
+          onClick={onToggleMute}
+          aria-label={muteLabel}
+          title={muteLabel}
+        >
+          <Icon name={muted ? "volume-off" : "volume"} />
+        </button>
         <button
           className="m-icon-btn"
           onClick={onCycleTheme}

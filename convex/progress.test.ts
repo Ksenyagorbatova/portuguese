@@ -651,7 +651,7 @@ describe("predictCardAfterAnswer зеркалит recordAnswer (пин-матр�
     t: TestConvex<typeof schema>,
     as: AuthCtx,
     quality: 0 | 1 | 2,
-    mode: "mc" | "type",
+    mode: "mc" | "type" | "audio",
   ) {
     const before = await currentCard(t);
     const predicted = predictCardAfterAnswer(before, quality, mode, Date.now());
@@ -691,6 +691,20 @@ describe("predictCardAfterAnswer зеркалит recordAnswer (пин-матр�
     await step(t, as, 1, "type");
     await makeDue(t);
     await step(t, as, 0, "mc");
+  });
+
+  it("audio-ответы (П.1) зеркалятся: изучение (mc/type стоят) и due-повтор ушами", async () => {
+    const t = convexTest(schema, modules);
+    const { as } = await asUser(t);
+    await seedWordA(t);
+    await step(t, as, 2, "mc"); // mc=1
+    await step(t, as, 2, "audio"); // аудио-экстра в изучении — mc/type не двигаются
+    await step(t, as, 0, "audio"); // промах на слух — тоже не двигает (и не lapse)
+    // Добиваем до выученного, делаем due и повторяем УШАМИ (dueReview).
+    for (let i = 0; i < MC_TARGET - 1; i++) await step(t, as, 2, "mc");
+    for (let i = 0; i < TYPE_TARGET; i++) await step(t, as, 2, "type");
+    await makeDue(t);
+    await step(t, as, 2, "audio"); // due-повтор ушами — двигает SM-2 (mode-агностично)
   });
 
   it("потолок MAX_INTERVAL: разогнанный интервал клампится одинаково", async () => {
@@ -749,5 +763,104 @@ describe("reclampSchedules — heals legacy inflated rows", () => {
     );
     const res = await t.mutation(internal.progress.reclampSchedules, {});
     expect(res).toEqual({ scanned: 1, fixed: 0 });
+  });
+});
+
+// ─── Липучки: счётчик lapses (П.4) ───────────────────────────────────────────
+describe("recordAnswer — lapses (липучки, П.4)", () => {
+  it("растёт только на quality 0; верные ответы (1/2) не трогают", async () => {
+    const t = convexTest(schema, modules);
+    const { as } = await asUser(t);
+    await seedWordA(t);
+
+    let res = await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "mc" });
+    expect(res.card.lapses).toBe(0);
+    res = await as.mutation(api.progress.recordAnswer, { ...W, quality: 0, mode: "mc" });
+    expect(res.card.lapses).toBe(1); // провал → +1
+    res = await as.mutation(api.progress.recordAnswer, { ...W, quality: 1, mode: "mc" });
+    expect(res.card.lapses).toBe(1); // верно со 2-й попытки — не провал
+    res = await as.mutation(api.progress.recordAnswer, { ...W, quality: 0, mode: "type" });
+    expect(res.card.lapses).toBe(2); // ещё один провал (любой режим)
+  });
+
+  it("getSrsState отдаёт накопленный lapses в карточке", async () => {
+    const t = convexTest(schema, modules);
+    const { as } = await asUser(t);
+    await seedWordA(t);
+    await as.mutation(api.progress.recordAnswer, { ...W, quality: 0, mode: "mc" });
+    await as.mutation(api.progress.recordAnswer, { ...W, quality: 0, mode: "mc" });
+    const srs = await as.query(api.progress.getSrsState, {});
+    expect(srs!.cards.find((c) => c.pt === "a")?.lapses).toBe(2);
+  });
+});
+
+// ─── Финал курса: bestStreak / startedAt (П.5) ───────────────────────────────
+describe("recordAnswer — bestStreak / startedAt (финал курса, П.5)", () => {
+  it("startedAt фиксируется днём первого ответа и не меняется", async () => {
+    const t = convexTest(schema, modules);
+    const { as } = await asUser(t);
+    await seedWordA(t);
+
+    await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "mc", clientDay: "2026-06-01" });
+    let srs = await as.query(api.progress.getSrsState, {});
+    expect(srs!.startedAt).toBe("2026-06-01");
+
+    await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "type", clientDay: "2026-06-05" });
+    srs = await as.query(api.progress.getSrsState, {});
+    expect(srs!.startedAt).toBe("2026-06-01"); // прежний — старт один раз
+  });
+
+  it("bestStreak держит максимум за всё время, не падая со сбросом стрика", async () => {
+    const t = convexTest(schema, modules);
+    const { as } = await asUser(t);
+    await seedWordA(t);
+
+    // три дня подряд → стрик 3
+    await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "mc", clientDay: "2026-06-01" });
+    await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "mc", clientDay: "2026-06-02" });
+    await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "mc", clientDay: "2026-06-03" });
+    let srs = await as.query(api.progress.getSrsState, {});
+    expect(srs!.streak).toBe(3);
+    expect(srs!.bestStreak).toBe(3);
+
+    // пропуск дней → стрик сбрасывается в 1, но bestStreak держит 3
+    await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "mc", clientDay: "2026-06-10" });
+    srs = await as.query(api.progress.getSrsState, {});
+    expect(srs!.streak).toBe(1);
+    expect(srs!.bestStreak).toBe(3);
+  });
+});
+
+// ─── Аудио-экстра: режим "audio" (П.1) ───────────────────────────────────────
+describe("recordAnswer — режим audio (экстра, не двигает выученность)", () => {
+  it("audio НЕ растит mc/type и НЕ штрафует lapses, но считает seen/correct", async () => {
+    const t = convexTest(schema, modules);
+    const { as } = await asUser(t);
+    await seedWordA(t);
+    await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "mc" }); // mc=1
+
+    // Верный audio — mc/type стоят, seen/correct растут.
+    let res = await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "audio" });
+    expect(res.card.mcCorrect).toBe(1);
+    expect(res.card.typeCorrect).toBe(0);
+    expect(res.card.seen).toBe(2);
+    expect(res.card.correct).toBe(2);
+
+    // Провальный audio — lapses не растёт (промах на слух не «вредность»).
+    res = await as.mutation(api.progress.recordAnswer, { ...W, quality: 0, mode: "audio" });
+    expect(res.card.lapses).toBe(0);
+    expect(res.card.mcCorrect).toBe(1);
+  });
+
+  it("audio на выученном due-слове — это повтор: SM-2 двигается, mc/type на потолке", async () => {
+    const t = convexTest(schema, modules);
+    const { as } = await asUser(t);
+    await seedWordA(t);
+    await graduate(as); // выучено, interval 1
+    await makeDue(t); // повтор наступил
+    const res = await as.mutation(api.progress.recordAnswer, { ...W, quality: 2, mode: "audio" });
+    expect(res.card.interval).toBe(6); // dueReview: 1→6, режим на SM-2 не влияет
+    expect(res.card.mcCorrect).toBe(MC_TARGET);
+    expect(res.card.typeCorrect).toBe(TYPE_TARGET);
   });
 });

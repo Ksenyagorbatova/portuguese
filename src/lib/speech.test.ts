@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { speak, speakSmart } from "./speech";
+import { speak, speakSmart, speakAuto, isMuted, setMuted, canSpeakPortuguese } from "./speech";
 
 class FakeUtterance {
   lang = "";
@@ -13,6 +13,7 @@ function mockSynth(initial: Array<{ lang: string; name?: string }> = [{ lang: "p
   const listeners: Record<string, Array<() => void>> = {};
   const synth = {
     cancel: vi.fn(),
+    resume: vi.fn(),
     speak: vi.fn<(u: FakeUtterance) => void>(),
     getVoices: () => voices as SpeechSynthesisVoice[],
     addEventListener: (ev: string, cb: () => void) => {
@@ -155,5 +156,66 @@ describe("speakSmart", () => {
     vi.spyOn(Date, "now").mockReturnValue(202_000);
     speakSmart("adeus"); // а вот его повтор — уже медленный
     expect(rates(synth)).toEqual([0.9, 0.9, 0.6]);
+  });
+});
+
+// П.3: mute глушит ТОЛЬКО авто-озвучку (speakAuto); ручные speak/speakSmart —
+// в обход. Состояние персистится в localStorage (pt-muted).
+describe("mute (П.3)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    setMuted(false);
+    try {
+      localStorage.removeItem("pt-muted");
+    } catch {
+      // jsdom всегда даёт localStorage — ветка на всякий случай
+    }
+  });
+
+  it("setMuted персистит в localStorage, isMuted это отражает", () => {
+    setMuted(true);
+    expect(isMuted()).toBe(true);
+    expect(localStorage.getItem("pt-muted")).toBe("1");
+    setMuted(false);
+    expect(isMuted()).toBe(false);
+    expect(localStorage.getItem("pt-muted")).toBe("0");
+  });
+
+  it("speakAuto — no-op при mute, озвучивает при включённом звуке", () => {
+    const synth = mockSynth();
+    setMuted(true);
+    speakAuto("olá");
+    expect(synth.speak).not.toHaveBeenCalled();
+    setMuted(false);
+    speakAuto("olá");
+    expect(synth.speak).toHaveBeenCalledOnce();
+  });
+
+  it("ручной speak() игнорирует mute (явный тап — явное намерение)", () => {
+    const synth = mockSynth();
+    setMuted(true);
+    speak("olá");
+    expect(synth.speak).toHaveBeenCalledOnce();
+  });
+
+  it("canSpeakPortuguese: true с pt-голосом; false без речи или без pt-голоса", () => {
+    mockSynth([{ lang: "pt-PT" }]); // есть португальский голос
+    expect(canSpeakPortuguese()).toBe(true);
+    mockSynth([{ lang: "en-US" }]); // голоса есть, но португальского нет
+    expect(canSpeakPortuguese()).toBe(false);
+    vi.stubGlobal("speechSynthesis", undefined); // нет Web Speech API
+    expect(canSpeakPortuguese()).toBe(false);
+  });
+});
+
+// Фикс зависания Chrome/macOS: speak() будит движок resume() после speak().
+describe("speak — resume против зависания (Chrome/macOS)", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("вызывает resume() после speak(), чтобы paused-движок зазвучал", () => {
+    const synth = mockSynth();
+    speak("olá");
+    expect(synth.speak).toHaveBeenCalledOnce();
+    expect(synth.resume).toHaveBeenCalled();
   });
 });

@@ -30,12 +30,21 @@ const course: Course = {
 };
 const noop = () => {};
 
+type CourseStats = {
+  wordsTotal: number;
+  topicsTotal: number;
+  days: number | null;
+  bestStreak: number;
+};
+
 function mountSession(
   mount: ComponentFixtures["mount"],
   over: {
     queue: SessionItem[];
     cards?: Record<string, CardFields>;
     onRetryMistakes?: (words: WordView[]) => void;
+    onReadTheory?: (topicKey: string, lessonKey: string) => void;
+    courseComplete?: CourseStats | null;
   },
 ): Promise<MountResult> {
   return mount(
@@ -53,6 +62,8 @@ function mountSession(
       onGoTopics={noop}
       onExit={noop}
       onRetryMistakes={over.onRetryMistakes ?? noop}
+      onReadTheory={over.onReadTheory ?? noop}
+      courseComplete={over.courseComplete ?? null}
     />,
   );
 }
@@ -127,6 +138,73 @@ test("misses are collected and offered for a retry on the Complete screen", asyn
   expect(retried).toEqual([word]);
 });
 
+// ── П.4 (рекомендации v4): Session выводит липучки из cards.lapses ────────────
+test("промах слова с lapses≥порога получает бейдж и ссылку на теорию его урока", async ({
+  mount,
+}) => {
+  let read: { topicKey: string; lessonKey: string } | null = null;
+  // Слово-липучка: накоплено 5 провалов (серверный счётчик), ещё не выучено.
+  const cards: Record<string, CardFields> = {
+    "l1||olá": {
+      interval: 0, ef: 2.5, due: 0, seen: 5, correct: 0,
+      lastSeen: 0, mcCorrect: 0, typeCorrect: 0, lapses: 5,
+    },
+  };
+  const component = await mountSession(mount, {
+    queue: [{ kind: "word", word, tag: "new" }],
+    cards,
+    onReadTheory: (topicKey, lessonKey) => {
+      read = { topicKey, lessonKey };
+    },
+  });
+
+  // Новое слово → выбор (MC): проваливаем обе попытки (две неверные опции).
+  const wrong = component
+    .locator(".m-opt")
+    .filter({ hasNotText: word.ru })
+    .filter({ hasNotText: word.pt });
+  await wrong.nth(0).click();
+  await wrong.nth(1).click();
+  await component.getByRole("button", { name: /Дальше|Завершить/ }).click();
+
+  // Разбор: бейдж липучки + ссылка на теорию урока (course: topicKey "t", "L1").
+  await expect(component.getByText("даётся тяжело")).toBeVisible();
+  await component.getByRole("button", { name: /Перечитать теорию «L1»/ }).click();
+  expect(read).toEqual({ topicKey: "t", lessonKey: "l1" });
+});
+
+// ── П.5 (рекомендации v4): финал курса вместо Complete, один раз ──────────────
+test("courseComplete показывает финал курса вместо Complete и только один раз", async ({
+  mount,
+  page,
+}) => {
+  // CT переиспользует страницу — сбрасываем флаг «видели финал».
+  await page.evaluate(() => localStorage.removeItem("pt-course-complete-seen"));
+  const stats: CourseStats = { wordsTotal: 250, topicsTotal: 13, days: 10, bestStreak: 7 };
+  const learnedCards: Record<string, CardFields> = {
+    "l1||olá": {
+      interval: 6, ef: 2.5, due: Date.now() + 6 * 86400000,
+      seen: 6, correct: 6, lastSeen: Date.now(), mcCorrect: 3, typeCorrect: 3,
+    },
+  };
+  const queue: SessionItem[] = [{ kind: "word", word, tag: "review" }];
+
+  // Первый раз: дойдя до конца — экран финала курса (не обычный Complete).
+  const first = await mountSession(mount, { queue, cards: learnedCards, courseComplete: stats });
+  await answerCorrect(first);
+  await first.getByRole("button", { name: /Дальше|Завершить/ }).click();
+  await expect(first.getByText("Курс пройден!")).toBeVisible();
+  await expect(first.locator(".m-complete")).toHaveCount(0);
+  await first.unmount();
+
+  // Второй раз: флаг уже стоит → обычный Complete, финал курса не повторяется.
+  const second = await mountSession(mount, { queue, cards: learnedCards, courseComplete: stats });
+  await answerCorrect(second);
+  await second.getByRole("button", { name: /Дальше|Завершить/ }).click();
+  await expect(second.getByText("Курс пройден!")).toHaveCount(0);
+  await expect(second.getByText("Сессия завершена!")).toBeVisible();
+});
+
 test("the progress bar exposes progressbar semantics", async ({ mount }) => {
   const component = await mountSession(mount, { queue: [{ kind: "word", word, tag: "new" }] });
   const bar = component.getByRole("progressbar");
@@ -155,6 +233,8 @@ test("the exit control bails out of the session", async ({ mount }) => {
         exited = true;
       }}
       onRetryMistakes={noop}
+      onReadTheory={noop}
+      courseComplete={null}
     />,
   );
   await component.getByRole("button", { name: "Выйти из тренировки" }).click();

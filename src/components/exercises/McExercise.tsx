@@ -7,7 +7,8 @@ import { getWrong } from "../../lib/wrongOptions";
 import { localDay } from "../../lib/day";
 import { nextDueLabel, wKey } from "../../lib/srs";
 import { predictCardAfterAnswer } from "../../lib/srsPredict";
-import { speak, speakSmart } from "../../lib/speech";
+import { speakAuto, speakSmart } from "../../lib/speech";
+import { hapticOk, hapticErr } from "../../lib/haptics";
 import { Badge } from "../Badge";
 import { Icon } from "../Icon";
 import { WordFeedback, RetryBox, NextButton } from "../Feedback";
@@ -43,7 +44,7 @@ export function McExercise({
   onNext,
 }: {
   word: WordView;
-  mode: "pt_ru" | "ru_pt";
+  mode: "pt_ru" | "ru_pt" | "audio_ru";
   tag: BadgeTag;
   card: CardFields | undefined;
   course: Course;
@@ -61,24 +62,33 @@ export function McExercise({
   // ДО любой асинхронщины, и повторный клик/диспатч не даёт второго finish().
   const pendingRef = useRef(false);
 
-  const label = (o: WordView) => (mode === "pt_ru" ? o.ru : o.pt);
+  // Подписи опций: русские для pt→ru и audio→ru, португальские для ru→pt.
+  const label = (o: WordView) => (mode === "ru_pt" ? o.pt : o.ru);
   const isCorrectOpt = (o: WordView) => o.pt === word.pt;
+
+  // Серверный режим ответа: audio_ru шлёт "audio" — он НЕ двигает выученность
+  // (mc/type не растут), это экстра-тренировка слуха (П.1). Зрительные MC — "mc".
+  const answerMode = mode === "audio_ru" ? "audio" : "mc";
 
   function finish(quality: 0 | 1 | 2, ok: boolean) {
     if (pendingRef.current) return;
     pendingRef.current = true;
-    speak(word.pt);
-    onAnswered({ mode: "mc", correct: quality >= 1, firstTry: quality === 2 });
+    if (ok) hapticOk();
+    else hapticErr(); // тактильная отдача на резолве (П.6)
+    // audio_ru (П.1): слово ТОЛЬКО что звучало (аудио-карточка) — авто-озвучку
+    // не повторяем; в зрительных типах озвучиваем ответ (speakAuto уважает mute).
+    if (mode !== "audio_ru") speakAuto(word.pt);
+    onAnswered({ mode: answerMode, correct: quality >= 1, firstTry: quality === 2 });
     // UI резолвим сразу, НЕ дожидаясь сети (Convex при разрыве держит мутацию
     // в очереди — промис может висеть неограниченно долго). Метка «следующий
     // повтор» считается мгновенно зеркалом планировщика (srsPredict, пин-тест
     // сверяет с сервером) — без «—» → «завтра»-дёргания после roundtrip'а.
-    setResolved({ ok, dueLabel: nextDueLabel(predictCardAfterAnswer(card, quality, "mc")) });
+    setResolved({ ok, dueLabel: nextDueLabel(predictCardAfterAnswer(card, quality, answerMode)) });
     void recordAnswer({
       lessonKey: word.lessonKey,
       pt: word.pt,
       quality,
-      mode: "mc",
+      mode: answerMode,
       clientDay: localDay(),
     }).then(
       // Сервер — истина: при расхождении (устаревший card-проп) тихо поправим.
@@ -100,8 +110,10 @@ export function McExercise({
       finish(first ? 2 : 1, true);
     } else {
       setWrongPicked((prev) => new Set(prev).add(o.pt));
-      if (tries < 1) setTries(1);
-      else finish(0, false);
+      if (tries < 1) {
+        hapticErr(); // первый промах → ретрай (П.6)
+        setTries(1);
+      } else finish(0, false);
     }
   }
 
@@ -126,6 +138,24 @@ export function McExercise({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
+  // Авто-проигрывание аудио-карточки один раз при появлении (П.1). speakAuto
+  // уважает mute (но аудио-тип и так в mute не выпадает — см. гейт audioOk);
+  // ручной тап по hero-кнопке — speakSmart, в обход mute. Компонент keyed по
+  // idx в Session → монтируется заново на каждой карточке: «один раз» = mount.
+  // playedRef гасит ДВОЙНОЙ автоплей React-StrictMode в dev (mount→cleanup→mount
+  // прогоняет эффект дважды): без гарда два cancel+speak подряд вешали движок
+  // речи macOS Chrome на всю сессию (тишина при тапе по «Нажми и слушай»).
+  const playedRef = useRef(false);
+  const playAudio = useEffectEvent(() => {
+    if (mode === "audio_ru" && !playedRef.current) {
+      playedRef.current = true;
+      speakAuto(word.pt);
+    }
+  });
+  useEffect(() => {
+    playAudio();
+  }, []);
+
   function optClass(o: WordView): string {
     if (resolved) {
       if (isCorrectOpt(o)) return "m-opt correct";
@@ -135,33 +165,59 @@ export function McExercise({
     return wrongPicked.has(o.pt) ? "m-opt wrong" : "m-opt";
   }
 
+  const isAudio = mode === "audio_ru";
   const question = mode === "pt_ru" ? word.pt : word.ru;
-  const prompt = mode === "pt_ru" ? "Что это значит по-русски?" : "Как это по-португальски?";
+  const kind = isAudio
+    ? "Прослушайте слово"
+    : mode === "pt_ru"
+      ? "Выберите перевод"
+      : "Выберите по-португальски";
+  const prompt = isAudio
+    ? "Что вы услышали?"
+    : mode === "pt_ru"
+      ? "Что это значит по-русски?"
+      : "Как это по-португальски?";
 
   return (
     <div className="m-card">
       <div className="m-q-head">
-        <span className="m-q-kind">
-          {mode === "pt_ru" ? "Выберите перевод" : "Выберите по-португальски"}
-        </span>
+        <span className="m-q-kind">{kind}</span>
         <Badge tag={tag} />
       </div>
-      <div className="m-q-row">
-        {/* В pt→ru вопрос — португальский: размечаем для скринридеров. */}
-        <div className="m-q-text" lang={mode === "pt_ru" ? "pt-PT" : undefined}>
-          {question}
+      {isAudio ? (
+        // Аудио-карточка: вместо текста вопроса — большая зона прослушивания.
+        // pt-текст НЕ присутствует в DOM до ответа (звук → буквы замыкается уже
+        // в WordFeedback). Тап — повтор, второй в окне — медленно (speakSmart,
+        // в обход mute: явный тап есть явное намерение).
+        <button
+          className="m-audio-hero"
+          onClick={() => speakSmart(word.pt)}
+          aria-label="Прослушать ещё раз (второй тап — медленно)"
+          title="Прослушать ещё раз (второй тап — медленно)"
+        >
+          <span className="m-audio-hero-ring">
+            <Icon name="volume" size={24} />
+          </span>
+          <span className="m-audio-hero-label">Нажми и слушай</span>
+        </button>
+      ) : (
+        <div className="m-q-row">
+          {/* В pt→ru вопрос — португальский: размечаем для скринридеров. */}
+          <div className="m-q-text" lang={mode === "pt_ru" ? "pt-PT" : undefined}>
+            {question}
+          </div>
+          {mode === "pt_ru" && (
+            <button
+              className="m-audio"
+              onClick={() => speakSmart(word.pt)}
+              aria-label="Прослушать (второй тап — медленно)"
+              title="Прослушать (второй тап — медленно)"
+            >
+              <Icon name="volume" />
+            </button>
+          )}
         </div>
-        {mode === "pt_ru" && (
-          <button
-            className="m-audio"
-            onClick={() => speakSmart(word.pt)}
-            aria-label="Прослушать (второй тап — медленно)"
-            title="Прослушать (второй тап — медленно)"
-          >
-            <Icon name="volume" />
-          </button>
-        )}
-      </div>
+      )}
       {/* 💡-заметку ДО ответа не показываем — она спойлерит ответ (заметка
           часто содержит перевод/подсказку). После ответа она остаётся в
           WordFeedback, в теории — на обороте флип-карты. */}

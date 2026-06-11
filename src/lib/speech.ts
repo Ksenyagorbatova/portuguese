@@ -28,6 +28,7 @@ export function speak(text: string, opts?: { rate?: number }): void {
   const synth = window.speechSynthesis;
   if (!synth) return;
   synth.cancel();
+  synth.resume?.(); // cancel оставляет движок «paused» — будим до нового speak
   const clean = text.split("/")[0].trim().replace(/\.\.\./g, "").replace(/[?!.]/g, "");
 
   const emit = (voice: SpeechSynthesisVoice | null) => {
@@ -36,6 +37,10 @@ export function speak(text: string, opts?: { rate?: number }): void {
     utt.rate = opts?.rate ?? DEFAULT_RATE;
     if (voice) utt.voice = voice;
     synth.speak(utt);
+    // Chrome/macOS: после cancel() движок остаётся «paused», и следующий speak()
+    // встаёт в очередь, но не звучит (классический баг Web Speech) — resume()
+    // его будит. Безвреден, когда пауза не нужна.
+    synth.resume?.();
   };
 
   const voice = pickPortugueseVoice();
@@ -66,6 +71,55 @@ export function speakSmart(text: string): void {
   const slow = !!last && last.text === text && now - last.at < SLOW_WINDOW_MS && !last.slow;
   last = { text, at: now, slow };
   speak(text, { rate: slow ? SLOW_RATE : DEFAULT_RATE });
+}
+
+// ─── Mute (П.3) ──────────────────────────────────────────────────────────────
+// Авто-озвучка после КАЖДОГО ответа звучит всегда — в метро без наушников, в
+// офисе, рядом со спящим ребёнком это вынуждает душить громкость на уровне ОС.
+// Тоггл mute глушит только АВТО-вызовы (speakAuto); ручные кнопки 🔊
+// (speak/speakSmart) звучат в обход mute — явный тап есть явное намерение.
+// Состояние персистится в localStorage (`pt-muted`), чтобы переживать
+// перезагрузку; читается один раз при инициализации модуля.
+const MUTED_KEY = "pt-muted";
+
+function readMuted(): boolean {
+  try {
+    return localStorage.getItem(MUTED_KEY) === "1";
+  } catch {
+    return false; // приватный режим / недоступный storage
+  }
+}
+
+let muted = readMuted();
+
+export function isMuted(): boolean {
+  return muted;
+}
+
+export function setMuted(value: boolean): void {
+  muted = value;
+  try {
+    localStorage.setItem(MUTED_KEY, value ? "1" : "0");
+  } catch {
+    // storage недоступен — состояние живёт в памяти текущей сессии
+  }
+}
+
+// Можно ли реально ОЗВУЧИТЬ португальское слово: есть Web Speech API И загружен
+// португальский голос. На части систем speechSynthesis присутствует, но голосов
+// нет (или ещё не загрузились) — тогда аудио-карточка молчит. Вместе с isMuted()
+// это гейт аудио-упражнения (П.1): без голоса или при mute его не показываем.
+// primeVoices() при старте обычно успевает прогреть getVoices() до сессии.
+export function canSpeakPortuguese(): boolean {
+  if (typeof window === "undefined" || !window.speechSynthesis) return false;
+  return pickPortugueseVoice() != null;
+}
+
+// Авто-озвучка: no-op при mute. Заменяет speak() там, где слово/предложение
+// проигрывается САМО (после ответа, авто-плей карточки). Ручные 🔊 — НЕ это.
+export function speakAuto(text: string): void {
+  if (muted) return;
+  speak(text);
 }
 
 // Chrome populates voices asynchronously; prime them once at startup so most
