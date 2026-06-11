@@ -11,7 +11,7 @@ import type {
 } from "../lib/types";
 import { wKey } from "../lib/srs";
 import { pickExerciseType, LEECH_THRESHOLD } from "../lib/learning";
-import { isMuted, isSpeechSupported } from "../lib/speech";
+import { isMuted, canSpeakPortuguese } from "../lib/speech";
 import { McExercise } from "./exercises/McExercise";
 import { TypeExercise } from "./exercises/TypeExercise";
 import { SentenceBuilder } from "./exercises/SentenceBuilder";
@@ -95,10 +95,10 @@ export function Session({
     const p = wp[key];
     return p ? { mcCorrect: p.mc, typeCorrect: p.type } : undefined;
   };
-  // Доступно ли аудирование (П.1) — звук не в mute И есть Web Speech API.
-  // Считается в момент выбора типа (на каждом advance): mute мог переключиться
-  // внутри сессии, гейт должен это уважать.
-  const audioOk = () => isSpeechSupported() && !isMuted();
+  // Доступно ли аудирование (П.1) — звук не в mute И есть португальский голос
+  // (без голоса карточка молчит). Считается в момент выбора типа (на каждом
+  // advance): mute мог переключиться внутри сессии, гейт должен это уважать.
+  const audioOk = () => canSpeakPortuguese() && !isMuted();
   // Урок слова в дереве курса — для ссылки «Перечитать теорию» (липучки, П.4).
   const lessonOf = (word: WordView): { topicKey: string; label: string } | null => {
     for (const t of course.topics)

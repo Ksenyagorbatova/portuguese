@@ -142,8 +142,15 @@ export function McExercise({
   // уважает mute (но аудио-тип и так в mute не выпадает — см. гейт audioOk);
   // ручной тап по hero-кнопке — speakSmart, в обход mute. Компонент keyed по
   // idx в Session → монтируется заново на каждой карточке: «один раз» = mount.
+  // playedRef гасит ДВОЙНОЙ автоплей React-StrictMode в dev (mount→cleanup→mount
+  // прогоняет эффект дважды): без гарда два cancel+speak подряд вешали движок
+  // речи macOS Chrome на всю сессию (тишина при тапе по «Нажми и слушай»).
+  const playedRef = useRef(false);
   const playAudio = useEffectEvent(() => {
-    if (mode === "audio_ru") speakAuto(word.pt);
+    if (mode === "audio_ru" && !playedRef.current) {
+      playedRef.current = true;
+      speakAuto(word.pt);
+    }
   });
   useEffect(() => {
     playAudio();

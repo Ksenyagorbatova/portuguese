@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { speak, speakSmart, speakAuto, isMuted, setMuted, isSpeechSupported } from "./speech";
+import { speak, speakSmart, speakAuto, isMuted, setMuted, canSpeakPortuguese } from "./speech";
 
 class FakeUtterance {
   lang = "";
@@ -13,6 +13,7 @@ function mockSynth(initial: Array<{ lang: string; name?: string }> = [{ lang: "p
   const listeners: Record<string, Array<() => void>> = {};
   const synth = {
     cancel: vi.fn(),
+    resume: vi.fn(),
     speak: vi.fn<(u: FakeUtterance) => void>(),
     getVoices: () => voices as SpeechSynthesisVoice[],
     addEventListener: (ev: string, cb: () => void) => {
@@ -197,10 +198,24 @@ describe("mute (П.3)", () => {
     expect(synth.speak).toHaveBeenCalledOnce();
   });
 
-  it("isSpeechSupported отражает наличие speechSynthesis", () => {
-    mockSynth(); // ставит speechSynthesis
-    expect(isSpeechSupported()).toBe(true);
-    vi.stubGlobal("speechSynthesis", undefined);
-    expect(isSpeechSupported()).toBe(false);
+  it("canSpeakPortuguese: true с pt-голосом; false без речи или без pt-голоса", () => {
+    mockSynth([{ lang: "pt-PT" }]); // есть португальский голос
+    expect(canSpeakPortuguese()).toBe(true);
+    mockSynth([{ lang: "en-US" }]); // голоса есть, но португальского нет
+    expect(canSpeakPortuguese()).toBe(false);
+    vi.stubGlobal("speechSynthesis", undefined); // нет Web Speech API
+    expect(canSpeakPortuguese()).toBe(false);
+  });
+});
+
+// Фикс зависания Chrome/macOS: speak() будит движок resume() после speak().
+describe("speak — resume против зависания (Chrome/macOS)", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("вызывает resume() после speak(), чтобы paused-движок зазвучал", () => {
+    const synth = mockSynth();
+    speak("olá");
+    expect(synth.speak).toHaveBeenCalledOnce();
+    expect(synth.resume).toHaveBeenCalled();
   });
 });

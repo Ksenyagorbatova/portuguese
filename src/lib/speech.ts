@@ -36,6 +36,10 @@ export function speak(text: string, opts?: { rate?: number }): void {
     utt.rate = opts?.rate ?? DEFAULT_RATE;
     if (voice) utt.voice = voice;
     synth.speak(utt);
+    // Chrome/macOS: после cancel() движок остаётся «paused», и следующий speak()
+    // встаёт в очередь, но не звучит (классический баг Web Speech) — resume()
+    // его будит. Безвреден, когда пауза не нужна.
+    synth.resume?.();
   };
 
   const voice = pickPortugueseVoice();
@@ -100,10 +104,14 @@ export function setMuted(value: boolean): void {
   }
 }
 
-// Есть ли в окружении Web Speech API. Вместе с isMuted() — гейт аудио-упражнения
-// (П.1): без речи (или при mute) аудио-карточку показывать нельзя.
-export function isSpeechSupported(): boolean {
-  return typeof window !== "undefined" && !!window.speechSynthesis;
+// Можно ли реально ОЗВУЧИТЬ португальское слово: есть Web Speech API И загружен
+// португальский голос. На части систем speechSynthesis присутствует, но голосов
+// нет (или ещё не загрузились) — тогда аудио-карточка молчит. Вместе с isMuted()
+// это гейт аудио-упражнения (П.1): без голоса или при mute его не показываем.
+// primeVoices() при старте обычно успевает прогреть getVoices() до сессии.
+export function canSpeakPortuguese(): boolean {
+  if (typeof window === "undefined" || !window.speechSynthesis) return false;
+  return pickPortugueseVoice() != null;
 }
 
 // Авто-озвучка: no-op при mute. Заменяет speak() там, где слово/предложение
