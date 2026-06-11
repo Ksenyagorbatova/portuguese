@@ -159,8 +159,9 @@ Shell`.ct, `queue.test`).
   `mode: "mc"` и `quality`. Аудио — это MC по навыку узнавания.
 - Финал курса показывается один раз на устройство (localStorage); смена
   устройства/очистка storage покажет его снова. Приемлемо для разовой эмоции.
-- Затронуты подсистемы word-learning-model (аудио, lapses), training-ui-and-shell
-  (mute, финал), session-queue-and-rotation (выбор типа audioOk) — при следующей
-  ревизии baseline-спек отразить там же.
+- Baseline-спеки затронутых подсистем обновлены в этом же PR: word-learning-model
+  (аудио + аудио-экстра), srs-scheduling (lapses, bestStreak/startedAt, mode
+  "audio"), session-queue-and-rotation (выбор типа audioOk), training-ui-and-shell
+  (mute, прогноз, липучки, финал, надёжность речи).
 - НЕ входит (отклонено владельцем): PWA, пилюля времени, статистика/графики,
   бейджи-достижения, соц-фичи, изменения SM-2.

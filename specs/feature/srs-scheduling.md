@@ -1,6 +1,6 @@
 # SRS-планирование (SM-2) и классификация прогресса
 
-Статус: baseline (отгружено) · 2026-06-09 · per-user прогресс на сервере
+Статус: baseline (отгружено) · 2026-06-11 · per-user прогресс на сервере
 
 ## Цель
 
@@ -22,19 +22,29 @@
 | `seen`,`correct` | number | счётчики ответов |
 | `lastSeen` | number | ms epoch |
 | `mcCorrect`,`typeCorrect` | optional number | этапные счётчики (старые строки = 0) |
+| `lapses` | optional number | накопительные провалы (`quality 0`); старые строки = 0 |
 
 Индексы: `by_user_lesson_pt`, `by_user`. Сопутствующие таблицы:
-`userStats` (streak/lastDay; `lastDay` — новые значения `YYYY-MM-DD`,
-легаси-строки — `toDateString()`), `theorySeen` (userId, lessonKey).
+`userStats` (`streak`/`lastDay` + optional `bestStreak`/`startedAt`; `lastDay` —
+новые значения `YYYY-MM-DD`, легаси-строки — `toDateString()`), `theorySeen`
+(userId, lessonKey).
+
+Все три новых поля (`progress.lapses`, `userStats.bestStreak`,
+`userStats.startedAt`) — `v.optional`, additive, миграции не требуют: старые
+строки читаются с fallback (`?? 0` / `?? null`), а `recordAnswer` бэкфилит
+`userStats.bestStreak`/`startedAt` при следующем ответе (см. ниже).
 
 API ([`convex/progress.ts`](../../convex/progress.ts)):
 - `getSrsState()` — батч-query для всего дашборда; возвращает `streak`,
   `lastDay` (день последнего ответа = день стрика, `null` до первого ответа;
   сырьё для галочки «день закрыт» — `doneToday` вычисляет клиент в `adaptSrs`
   сравнением со СВОИМ `localDay()`, т.к. таймзонную истину знает только он),
-  `cards[]`, `tags[]`, `seenTheory[]`, `learnedPts[]`, `dueCountAll`,
-  `lessonStats`, `topicStats`.
-- `recordAnswer({ lessonKey, pt, quality: 0|1|2, mode: "mc"|"type", clientDay? })`
+  `bestStreak` (максимум стрика за всё время; fallback `bestStreak ?? streak ?? 0`
+  — для строки без поля `best ≥ current`), `startedAt` (день первого ответа
+  `YYYY-MM-DD`; `startedAt ?? null` — оба для экрана «Финал курса»), `cards[]`
+  (каждая карточка несёт `lapses`, fallback `?? 0`), `tags[]`, `seenTheory[]`,
+  `learnedPts[]`, `dueCountAll`, `lessonStats`, `topicStats`.
+- `recordAnswer({ lessonKey, pt, quality: 0|1|2, mode: "mc"|"type"|"audio", clientDay? })`
   → `{ card, streak }`. Валидирует натуральный ключ: слова `(lessonKey, pt)` нет в
   контенте → `ConvexError` «unknown word» (одно indexed-чтение
   `words.by_lessonKey_pt`) — опечатка клиента не создаёт осиротевшую
@@ -49,15 +59,37 @@ API ([`convex/progress.ts`](../../convex/progress.ts)):
 ## Поведение
 
 - `quality`: `0` — неверно обе попытки, `1` — верно со 2-й, `2` — верно с 1-й.
+- `mode`: каким упражнением отвечали. `"mc"`/`"type"` растят соответствующий
+  этапный счётчик (узнавание/воспроизведение). `"audio"` (аудио-экстра,
+  тренировка слуха сверх программы) НЕ растит ни `mc`, ни `type` и НЕ штрафует
+  `lapses`; `seen`/`correct`/`streak` — как обычно. SM-2 от режима НЕ зависит,
+  поэтому выученное due-слово, отвеченное «ушами», нормально двигает расписание
+  (ветка `dueReview`), а недоученное получает обычный фикс-шаг «завтра» (`mc`/`type`
+  стоят → слово не graduating). Инвариант «событие повторения» (`graduating` |
+  `dueReview`) при этом не нарушен.
 - Классификация слова (тег): `new` (нет строки или `seen===0`), `due` (`due<=now`),
   `learned` (выучено и не due), `ongoing` (не выучено и не due).
+- **Счётчик «липучести» `lapses`.** `recordAnswer` копит
+  `lapses += (quality === 0 && mode !== "audio" ? 1 : 0)` — растёт НЕЗАВИСИМО от
+  SM-2, на расписание и классификацию НЕ влияет; используется только для бейджа
+  «слова-липучки» в разборе ошибок (клиентский порог `LEECH_THRESHOLD=5` в
+  [`src/lib/learning.ts`](../../src/lib/learning.ts)). Промах на слух
+  (`mode "audio"`) не штрафует. Возвращается в `getSrsState` (в карточках).
 - **Честный `streak` по локальному дню клиента.** День = валидный `clientDay`
   (`YYYY-MM-DD`, клиент шлёт `localDay()` из [`src/lib/day.ts`](../../src/lib/day.ts) —
   `toLocaleDateString("en-CA")`), иначе серверная UTC-дата. Семантика по разнице
   дней с `lastDay`: тот же день → без изменений; ровно вчера → `streak+1`;
   пропуск ≥1 дня → сброс в `1`; `clientDay` РАНЬШЕ `lastDay` (смена пояса на
-  запад) → no-op (не сбрасываем, `lastDay` остаётся поздним). Раньше стрик рос
-  на любом первом ответе дня и никогда не сбрасывался.
+  запад) → no-op (не сбрасываем, `lastDay` остаётся поздним). Ветки «тот же день»
+  (`diffDays===0`) и «день в прошлом» (`diffDays<0`) объединены в `diffDays<=0` —
+  поведение то же (стрик и `lastDay` не трогаем). Раньше стрик рос на любом первом
+  ответе дня и никогда не сбрасывался.
+- **`bestStreak` / `startedAt` (экран «Финал курса»).** Стрик-блок сперва считает
+  `streak`/`lastDay`, затем ЕДИНЫМ `patch` дописывает `bestStreak = max(prev, streak)`
+  и `startedAt ??= today` (бэкфил легаси-строк без этих полей — независимо от ветки
+  стрика; на первом ответе пользователя оба ставятся сразу при insert `userStats`).
+  `startedAt` фиксируется один раз и не меняется; `bestStreak` переживает сбросы
+  стрика.
 
 ## Ключевые решения и алгоритмы
 
@@ -113,9 +145,12 @@ due = now + interval*DAY
 ответа `recordAnswer` (раньше текст «—» → «завтра» дёргался после
 roundtrip'а). Сервер остаётся истиной для данных: его ответ тихо поправляет
 метку при расхождении, отказ мутации — «—» + «Не удалось сохранить ответ».
+Mode-параметр зеркала включает `"audio"` (`mc`/`type`-инкременты уже гейтятся
+по `=== "mc"`/`"type"`, а SM-2-логика от режима не зависит — расчёт тот же).
 Формулы зеркала пинятся к серверу матрицей в
 [`convex/progress.test.ts`](../../convex/progress.test.ts) (вся жизнь слова
-через настоящий `recordAnswer`) — менять планировщик и зеркало только вместе.
+через настоящий `recordAnswer`, включая audio-шаги — изучение ушами и due-повтор
+ушами) — менять планировщик и зеркало только вместе.
 
 **Миграция формата `lastDay`.** Легаси-значения — `toDateString()`
 («Mon Jun 09 2026»), новые — `YYYY-MM-DD`; сравнение — через `Date.parse` обоих
@@ -145,24 +180,36 @@ roundtrip'а). Сервер остаётся истиной для данных:
   (кросс-слойный пин), классификация `getSrsState`, валидация ключей, стрик
   (тот же день / вчера / пропуск / legacy-формат / clientDay раньше lastDay /
   невалидный — в т.ч. regex-валидный, но непарсимый — или отсутствующий
-  clientDay), идемпотентность `reclampSchedules`.
+  clientDay), идемпотентность `reclampSchedules`. Новое:
+  `lapses` (растёт только на `quality=0`, не на `mode "audio"`; отдаётся в
+  `getSrsState`); `bestStreak` (держит максимум при сбросе стрика) и `startedAt`
+  (фиксируется один раз); `mode "audio"` (не двигает `mc`/`type`/`lapses`, но
+  due-повтор ушами двигает SM-2); пин-матрица зеркала `predictCardAfterAnswer`
+  дополнена audio-шагами (изучение + due-повтор ушами).
   Авторизация: `t.withIdentity({ subject: ` + "`${userId}|session`" + ` })`.
-- Frontend [`src/lib/srs.test.ts`](../../src/lib/srs.test.ts): `adaptSrs` (массивы→Record),
-  подписи `nextDueLabel`/`intervalLabel` (время — `vi.spyOn(Date, "now")`);
+- Frontend [`src/lib/srs.test.ts`](../../src/lib/srs.test.ts): `adaptSrs` (массивы→Record,
+  прокидка `lapses`/`bestStreak`/`startedAt`), подписи `nextDueLabel`/`intervalLabel`
+  (время — `vi.spyOn(Date, "now")`);
   [`src/lib/day.test.ts`](../../src/lib/day.test.ts): `localDay` (формат
   `YYYY-MM-DD`, нули, локальная TZ).
 
 ## Карта файлов
 
-- [`convex/progress.ts`](../../convex/progress.ts) — `getSrsState`, `recordAnswer`, `markTheorySeen`, `reclampSchedules`.
-- [`convex/schema.ts`](../../convex/schema.ts) — таблицы `progress`, `userStats`, `theorySeen`.
-- [`src/lib/srs.ts`](../../src/lib/srs.ts) — `adaptSrs`, `wKey`, подписи времени.
+- [`convex/progress.ts`](../../convex/progress.ts) — `getSrsState`, `recordAnswer` (mode `mc`/`type`/`audio`, `lapses`, `bestStreak`/`startedAt`), `markTheorySeen`, `reclampSchedules`.
+- [`convex/schema.ts`](../../convex/schema.ts) — таблицы `progress` (+ optional `lapses`), `userStats` (+ optional `bestStreak`/`startedAt`), `theorySeen`.
+- [`src/lib/srs.ts`](../../src/lib/srs.ts) — `adaptSrs` (прокидывает `lapses ?? 0`, `bestStreak`, `startedAt`), `wKey`, подписи времени.
+- [`src/lib/srsPredict.ts`](../../src/lib/srsPredict.ts) — `predictCardAfterAnswer` (зеркало планировщика, mode `mc`/`type`/`audio`), пинится матрицей в `convex/progress.test.ts`.
+- [`src/lib/types.ts`](../../src/lib/types.ts) — `CardFields` (+ optional `lapses?`), `SrsState` (+ `bestStreak`/`startedAt`).
 - [`src/lib/day.ts`](../../src/lib/day.ts) — `localDay()` (локальный день клиента для `clientDay`).
 
 ## Известные ограничения
 
 - Проверка ответа — на клиенте; сервер доверяет присланным `quality`, `mode`
-  и `clientDay` (день можно «подделать», но это личный тренажёр).
-- Стрик без «заморозок»/восстановления; день перерыва обнуляет серию до 1.
+  (включая `"audio"`) и `clientDay` (день можно «подделать», но это личный тренажёр).
+- Стрик без «заморозок»/восстановления; день перерыва обнуляет серию до 1
+  (но `bestStreak` хранит исторический максимум для финала курса).
+- `lapses` копится монотонно (только растёт), без «прощения» — порог
+  «липучести» (`LEECH_THRESHOLD`) и сам бейдж живут на клиенте, чисто
+  презентационно (на расписание/классификацию не влияют).
 - Порог «выучено» (`MC_TARGET`/`TYPE_TARGET`) живёт в модели освоения —
   см. [`word-learning-model.md`](word-learning-model.md).

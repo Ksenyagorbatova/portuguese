@@ -5,7 +5,8 @@
 ## Что это
 
 Тренажёр европейского португальского (A0–A1) с русским интерфейсом: интервальное
-повторение (SM-2 / Эббингауз), 4 типа упражнений, теория с озвучкой, кросс-предложения.
+повторение (SM-2 / Эббингауз), 5 типов упражнений (выбор pt→ru / ru→pt, ручной
+ввод, кросс-предложения, аудирование), теория с озвучкой.
 
 **Стек:** React 19 + TypeScript + Vite (фронтенд, статика на GitHub Pages) ·
 Convex (БД + функции + авторизация `@convex-dev/auth`, провайдер Password) ·
@@ -188,13 +189,18 @@ worktree-логика — только для *linked* worktree (детект �
   (НЕ Convex `_id`), SM-2 на сервере [`convex/progress.ts`](convex/progress.ts).
   Интервал двигается ТОЛЬКО на «событие повторения» (слово выучивается этим ответом
   ИЛИ повторяется выученным и реально наступил повтор); потолок `MAX_INTERVAL=120`.
-  Классификация new/due/learned/ongoing — `getSrsState`.
+  Классификация new/due/learned/ongoing — `getSrsState`. Доп. поля (все
+  `v.optional`): `progress.lapses` (счётчик провалов q0 → бейдж «липучки»),
+  `userStats.bestStreak`/`startedAt` (финал курса).
   → [`specs/feature/srs-scheduling.md`](specs/feature/srs-scheduling.md).
 - **Модель освоения** — два навыка: узнавание (MC, выбор) и воспроизведение (Type,
   ввод), ВПЕРЕМЕШКУ; «выучено» = `mcCorrect>=MC_TARGET && typeCorrect>=TYPE_TARGET`
   (пороги `=3` дублируются сервер/клиент — держать синхронно). Тип упражнения —
   `pickExerciseType` ([`src/lib/learning.ts`](src/lib/learning.ts)): первое
-  знакомство со словом — всегда MC.
+  знакомство со словом — всегда MC. Аудирование (`mc_audio_ru`) — 5-й тип: для
+  выученных в повторении (3-я ступень) и ЭКСТРА в изучении (после mc≥1, шанс
+  `AUDIO_EXTRA_CHANCE`); НЕ двигает выученность (серверный mode `"audio"` не растит
+  mc/type). Гейт `audioOk = canSpeakPortuguese() && !isMuted()` (звук + pt-голос).
   → [`specs/feature/word-learning-model.md`](specs/feature/word-learning-model.md).
 - **Очередь сессии** — СТАТИЧНАЯ, ≤ `SESSION_SIZE` (=20) карточек: клиент собирает
   её interleaved-проходами по недоученным словам урока
@@ -207,10 +213,13 @@ worktree-логика — только для *linked* worktree (детект �
   при освоении темы на ≥80% и всех выученных `required`, в пределах бюджета
   очереди. Недетерминированное держим вне Convex-queries.
   → [`specs/feature/session-queue-and-rotation.md`](specs/feature/session-queue-and-rotation.md).
-- **UI тренировки** — хедер (логотип-«домой» с флагом Португалии, стрик,
-  переключатель темы, выход); во время сессии прячем статистику/табы («чистое поле»);
-  строка прогресса — позиция `idx+1/queue.length` (знаменатель статичен), не
-  освоение; теория не скрывается после прохождения.
+- **UI тренировки** — хедер (логотип-«домой» с флагом Португалии, стрик, **mute**
+  `volume`/`volume-off`, переключатель темы, выход); во время сессии прячем
+  статистику/табы («чистое поле»); строка прогресса — позиция `idx+1/queue.length`
+  (знаменатель статичен), не освоение; теория не скрывается после прохождения.
+  Прогноз повторений в ReviewTab при due=0 («Завтра к повтору: N»); бейдж липучки
+  + ссылка на теорию в разборе ошибок; финал курса `CourseComplete` при 100% всех
+  тем (один раз).
   → [`specs/feature/training-ui-and-shell.md`](specs/feature/training-ui-and-shell.md).
 - **Тема** — тройной переключатель light/dark/system (дефолт `system`, следит за ОС),
   anti-flash в [`index.html`](index.html).
@@ -223,8 +232,11 @@ worktree-логика — только для *linked* worktree (детект �
   содержит не-ASCII (á, ã, ç…), запрещённый в именах полей Convex; клиент собирает
   Record через `adaptSrs` ([`src/lib/srs.ts`](src/lib/srs.ts)) — при новых map-ответах
   с `pt` в ключе поступать так же. Озвучка — Web Speech API, клиентская
-  ([`src/lib/speech.ts`](src/lib/speech.ts)). CSS перенесён вербатим из исходного
-  одно-файлового HTML ([`src/index.css`](src/index.css)) — имена классов сохранять.
+  ([`src/lib/speech.ts`](src/lib/speech.ts)): авто-озвучка через `speakAuto`
+  (no-op при mute), ручные 🔊 — `speak`/`speakSmart` в обход; `resume()` до/после
+  `speak()` лечит зависание движка Chrome/macOS; `canSpeakPortuguese()` требует
+  загруженного pt-голоса. CSS перенесён вербатим из исходного одно-файлового HTML
+  ([`src/index.css`](src/index.css)) — имена классов сохранять.
 
 ## Структура
 
