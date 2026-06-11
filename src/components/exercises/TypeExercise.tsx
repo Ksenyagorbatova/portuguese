@@ -43,6 +43,12 @@ export function TypeExercise({
   // закрывает окно между событием и применением обновления — ref выставляется
   // ДО любой асинхронщины, и повторный Enter/клик не даёт второго finish().
   const pendingRef = useRef(false);
+  // Enter засчитывается только ПОЛНОЙ парой down+up в ЭТОМ инпуте: «Дальше»
+  // предыдущей карточки активируется браузером на keyDOWN, эта карточка
+  // монтируется с autoFocus ещё до отпускания клавиши — и keyup-хвост того же
+  // нажатия прилетал в свежий инпут, давая фантомный пустой ответ («Не
+  // совсем!» на нетронутом слове). Без своего keydown up игнорируется.
+  const enterArmedRef = useRef(false);
 
   function finish(quality: 0 | 1 | 2, ok: boolean) {
     if (pendingRef.current) return;
@@ -121,9 +127,16 @@ export function TypeExercise({
           // на autoFocus-«Дальше», и Chrome добивает ТО ЖЕ физическое нажатие
           // кликом по свежесфокусированной кнопке на keyup — Enter «проскакивал»
           // фидбэк к следующей карточке. На keyup нажатие потрачено целиком в
-          // инпуте; заодно не нужен e.repeat-гард (авторепит шлёт только keydown).
+          // инпуте; e.repeat-гард не нужен (авторепит шлёт только keydown'ы).
+          // Армирование (enterArmedRef) отсекает встречный хвост: keyup без
+          // СВОЕГО keydown — это отпускание Enter'а, нажатого ещё на «Дальше».
+          onKeyDown={(e) => {
+            if (e.key === "Enter") enterArmedRef.current = true;
+          }}
           onKeyUp={(e) => {
-            if (e.key === "Enter") check();
+            if (e.key !== "Enter" || !enterArmedRef.current) return;
+            enterArmedRef.current = false;
+            check();
           }}
         />
       </div>
