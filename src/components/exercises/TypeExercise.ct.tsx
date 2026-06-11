@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/experimental-ct-react";
 import { TypeExercise } from "./TypeExercise";
 import { HINT_SHOW_LIMIT } from "../../lib/hints";
+import { EnterTailHarness } from "../../test/EnterTailHarness";
 import type { CardFields, WordView } from "../../lib/types";
 
 const word: WordView = { lessonKey: "l1", pt: "olá", ru: "привет" };
@@ -339,4 +340,27 @@ test("кнопка «Проверить» несёт чип-подсказку E
   await expect(chip).toHaveAttribute("aria-hidden", "true");
   // Имя кнопки не «Проверить ↵» — чип скрыт от скринридера.
   await expect(component.getByRole("button", { name: "Проверить", exact: true })).toBeVisible();
+});
+
+// ── Баг-репорт владельца №2: «хвост» Enter'а с «Дальше» ──────────────────────
+test("keyup-хвост Enter'а с предыдущей карточки не даёт фантомный пустой ответ", async ({
+  mount,
+  page,
+}) => {
+  await mount(<EnterTailHarness word={word} />);
+  await expect(page.getByRole("button", { name: "Дальше" })).toBeFocused();
+
+  // Нажатие (keydown) активирует «Дальше» → монтируется карточка ввода с
+  // autoFocus-инпутом — клавиша ЕЩЁ зажата.
+  await page.keyboard.down("Enter");
+  await expect(page.getByPlaceholder("Ваш ответ…")).toBeFocused();
+  // Отпускание прилетает уже в свежий инпут.
+  await page.keyboard.up("Enter");
+  await page.waitForTimeout(150);
+  // Фантомного пустого ответа (жёлтый «Не совсем!») быть не должно.
+  await expect(page.getByText("Не совсем!")).toHaveCount(0);
+
+  // Само поведение Enter в инпуте живо: ПОЛНОЕ нажатие с пустым → ретрай.
+  await page.keyboard.press("Enter");
+  await expect(page.getByText("Не совсем!")).toBeVisible();
 });
