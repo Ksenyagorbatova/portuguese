@@ -204,3 +204,25 @@ test("без липучек (lapses<порога) — ни бейджа, ни с
   await expect(component.getByText("даётся тяжело")).toHaveCount(0);
   await expect(component.locator(".m-relearn")).toHaveCount(0);
 });
+
+test("ссылки на теорию нет, когда единственная липучка не попала в показанные строки", async ({
+  mount,
+}) => {
+  // 6 промахов (показывается 5), липучка — шестая (за срезом): бейджа на экране
+  // нет, поэтому и ссылка не должна вести на невидимое слово.
+  const mistakes: WordView[] = Array.from({ length: 6 }, (_, i) => ({
+    lessonKey: "l1", pt: `w${i}`, ru: `п${i}`,
+  }));
+  const component = await mount(
+    <Complete
+      {...base}
+      mistakes={mistakes}
+      leechKeys={["l1||w5"]}
+      relearn={{ label: "Урок", topicKey: "t1", lessonKey: "l1" }}
+      onReadTheory={() => {}}
+    />,
+  );
+  await expect(component.locator(".m-mist-row")).toHaveCount(5); // показаны первые 5
+  await expect(component.getByText("даётся тяжело")).toHaveCount(0); // липучка за срезом
+  await expect(component.locator(".m-relearn")).toHaveCount(0); // и ссылки нет
+});

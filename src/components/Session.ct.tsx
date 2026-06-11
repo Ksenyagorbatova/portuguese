@@ -43,6 +43,7 @@ function mountSession(
     queue: SessionItem[];
     cards?: Record<string, CardFields>;
     onRetryMistakes?: (words: WordView[]) => void;
+    onReadTheory?: (topicKey: string, lessonKey: string) => void;
     courseComplete?: CourseStats | null;
   },
 ): Promise<MountResult> {
@@ -61,7 +62,7 @@ function mountSession(
       onGoTopics={noop}
       onExit={noop}
       onRetryMistakes={over.onRetryMistakes ?? noop}
-      onReadTheory={noop}
+      onReadTheory={over.onReadTheory ?? noop}
       courseComplete={over.courseComplete ?? null}
     />,
   );
@@ -135,6 +136,41 @@ test("misses are collected and offered for a retry on the Complete screen", asyn
   await expect(component.locator(".m-mist-pt")).toHaveText(word.pt);
   await component.getByRole("button", { name: "Повторить это слово" }).click();
   expect(retried).toEqual([word]);
+});
+
+// ── П.4 (рекомендации v4): Session выводит липучки из cards.lapses ────────────
+test("промах слова с lapses≥порога получает бейдж и ссылку на теорию его урока", async ({
+  mount,
+}) => {
+  let read: { topicKey: string; lessonKey: string } | null = null;
+  // Слово-липучка: накоплено 5 провалов (серверный счётчик), ещё не выучено.
+  const cards: Record<string, CardFields> = {
+    "l1||olá": {
+      interval: 0, ef: 2.5, due: 0, seen: 5, correct: 0,
+      lastSeen: 0, mcCorrect: 0, typeCorrect: 0, lapses: 5,
+    },
+  };
+  const component = await mountSession(mount, {
+    queue: [{ kind: "word", word, tag: "new" }],
+    cards,
+    onReadTheory: (topicKey, lessonKey) => {
+      read = { topicKey, lessonKey };
+    },
+  });
+
+  // Новое слово → выбор (MC): проваливаем обе попытки (две неверные опции).
+  const wrong = component
+    .locator(".m-opt")
+    .filter({ hasNotText: word.ru })
+    .filter({ hasNotText: word.pt });
+  await wrong.nth(0).click();
+  await wrong.nth(1).click();
+  await component.getByRole("button", { name: /Дальше|Завершить/ }).click();
+
+  // Разбор: бейдж липучки + ссылка на теорию урока (course: topicKey "t", "L1").
+  await expect(component.getByText("даётся тяжело")).toBeVisible();
+  await component.getByRole("button", { name: /Перечитать теорию «L1»/ }).click();
+  expect(read).toEqual({ topicKey: "t", lessonKey: "l1" });
 });
 
 // ── П.5 (рекомендации v4): финал курса вместо Complete, один раз ──────────────
