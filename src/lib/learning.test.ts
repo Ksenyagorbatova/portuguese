@@ -6,6 +6,7 @@ import {
   MC_TARGET,
   TYPE_TARGET,
   TYPE_TAIL_MC_CHANCE,
+  AUDIO_EXTRA_CHANCE,
 } from "./learning";
 
 // Последовательность значений rnd для веток с несколькими бросками.
@@ -99,18 +100,42 @@ describe("pickExerciseType (mixed MC/Type until learned)", () => {
     expect(pickExerciseType(learned, "review", r(0.9), false)).not.toBe("mc_audio_ru");
   });
 
-  it("NEVER picks mc_audio_ru for a not-yet-learned word, even with audioOk", () => {
-    // Недобранное узнавание/ввод — аудио недоступно ни при каком броске.
+  it("обычный микс недоученного слова не содержит аудио (оно только через экстра-гейт)", () => {
+    // Высокий бросок проходит мимо экстра-гейта (П.1) → обычный показ, не аудио.
     expect(pickExerciseType({ mcCorrect: 1, typeCorrect: 0 }, "review", r(0.99), true)).not.toBe(
-      "mc_audio_ru",
-    );
-    expect(pickExerciseType({ mcCorrect: 0, typeCorrect: 0 }, "new", r(0.99), true)).not.toBe(
       "mc_audio_ru",
     );
     // Хвост из вводов (узнавание добито, ввод — нет): relief даёт выбор, не аудио.
     expect(
       pickExerciseType({ mcCorrect: MC_TARGET, typeCorrect: 1 }, "review", r(0.99), true),
     ).not.toBe("mc_audio_ru");
+  });
+});
+
+// ── П.1: аудио-экстра в фазе ИЗУЧЕНИЯ (после ≥1 выбора, не двигает выученность) ──
+describe("pickExerciseType — аудио-экстра в изучении (П.1)", () => {
+  const r = (v: number) => () => v;
+  const learning = { mcCorrect: 1, typeCorrect: 0 }; // узнано раз, ещё не выучено
+
+  it("после ≥1 верного выбора (mc≥1) с audioOk изредка даёт аудио сверх программы", () => {
+    // Бросок < AUDIO_EXTRA_CHANCE → аудио-карточка.
+    expect(pickExerciseType(learning, "new", r(0.1), true)).toBe("mc_audio_ru");
+    // Бросок ≥ порога → обычный показ (не аудио).
+    expect(pickExerciseType(learning, "new", r(0.5), true)).not.toBe("mc_audio_ru");
+    // Ровно на пороге — уже не аудио (строгое <).
+    expect(pickExerciseType(learning, "new", r(AUDIO_EXTRA_CHANCE), true)).not.toBe("mc_audio_ru");
+  });
+
+  it("НЕ даёт аудио, пока слово не узнано ни разу (mc=0), даже при низком броске", () => {
+    expect(pickExerciseType({ mcCorrect: 0, typeCorrect: 0 }, "new", r(0.01), true)).not.toBe(
+      "mc_audio_ru",
+    );
+  });
+
+  it("без audioOk (mute/нет TTS) аудио-экстры нет, rnd не тратится — поведение прежнее", () => {
+    // Тот же низкий бросок, что давал аудио выше, но без audioOk → обычный микс
+    // (0.01 < 0.5 → ручной ввод): гейт коротко замкнулся, rnd достался миксу.
+    expect(pickExerciseType(learning, "new", r(0.01), false)).toBe("type_pt");
   });
 });
 

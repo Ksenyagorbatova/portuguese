@@ -1,6 +1,6 @@
 import { test, expect, type MountResult } from "@playwright/experimental-ct-react";
 import { McExercise } from "./McExercise";
-import type { CardFields, Course, WordView } from "../../lib/types";
+import type { AnswerResult, CardFields, Course, WordView } from "../../lib/types";
 
 const word: WordView = { lessonKey: "l1", pt: "olá", ru: "привет" };
 const course: Course = {
@@ -577,6 +577,29 @@ test("audio_ru: варианты — русские; верный выбор о�
   await component.getByRole("button", { name: "привет" }).click();
   await expect(component.getByText("Верно!")).toBeVisible();
   await expect(component.getByText("olá")).toBeVisible();
+});
+
+test("audio_ru: ответ сообщается как mode «audio» — не двигает выученность (mc/type)", async ({
+  mount,
+}) => {
+  let result: AnswerResult | null = null;
+  const component = await mount(
+    <McExercise
+      word={word}
+      mode="audio_ru"
+      tag="review"
+      card={dueCard}
+      course={course}
+      isLast={false}
+      onAnswered={(r) => {
+        result = r;
+      }}
+      onNext={() => {}}
+    />,
+  );
+  await component.getByRole("button", { name: "привет" }).click();
+  await expect(component.getByText("Верно!")).toBeVisible();
+  expect(result!.mode).toBe("audio");
 });
 
 test("audio_ru: хоткеи 1–5 выбирают вариант (как в остальных MC)", async ({ mount, page }) => {

@@ -174,7 +174,10 @@ export const recordAnswer = mutation({
     pt: v.string(),
     quality: v.union(v.literal(0), v.literal(1), v.literal(2)),
     // mode: каким упражнением отвечали — определяет, какой счётчик этапа растёт.
-    mode: v.union(v.literal("mc"), v.literal("type")),
+    // "audio" (П.1, аудио-экстра) — НЕ растит ни mc, ни type: тренировка слуха
+    // сверх программы, на выученность не влияет (см. ниже). seen/correct/streak
+    // и SM-2-повтор выученного (dueReview) — как обычно.
+    mode: v.union(v.literal("mc"), v.literal("type"), v.literal("audio")),
     // Локальная дата клиента (YYYY-MM-DD) для честного стрика по дню
     // ПОЛЬЗОВАТЕЛЯ, а не по UTC сервера. Optional: закэшированный старый фронт
     // её не шлёт — тогда (и при невалидном формате) fallback на серверную UTC.
@@ -219,7 +222,8 @@ export const recordAnswer = mutation({
     const typeCorrect = c.typeCorrect + (right && mode === "type" ? 1 : 0);
     // Провал (quality 0) копит «липучесть» (П.4). Растёт независимо от SM-2 —
     // на расписание/классификацию не влияет, только на бейдж в разборе ошибок.
-    const lapses = c.lapses + (quality === 0 ? 1 : 0);
+    // Аудио-экстра (mode "audio") НЕ штрафует: промах на слух — не «вредность».
+    const lapses = c.lapses + (quality === 0 && mode !== "audio" ? 1 : 0);
 
     const DAY = 86400000;
     // SM-2-расписание двигаем ТОЛЬКО на «событие повторения»: слово выучивается

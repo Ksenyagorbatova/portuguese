@@ -66,6 +66,10 @@ export function McExercise({
   const label = (o: WordView) => (mode === "ru_pt" ? o.pt : o.ru);
   const isCorrectOpt = (o: WordView) => o.pt === word.pt;
 
+  // Серверный режим ответа: audio_ru шлёт "audio" — он НЕ двигает выученность
+  // (mc/type не растут), это экстра-тренировка слуха (П.1). Зрительные MC — "mc".
+  const answerMode = mode === "audio_ru" ? "audio" : "mc";
+
   function finish(quality: 0 | 1 | 2, ok: boolean) {
     if (pendingRef.current) return;
     pendingRef.current = true;
@@ -74,17 +78,17 @@ export function McExercise({
     // audio_ru (П.1): слово ТОЛЬКО что звучало (аудио-карточка) — авто-озвучку
     // не повторяем; в зрительных типах озвучиваем ответ (speakAuto уважает mute).
     if (mode !== "audio_ru") speakAuto(word.pt);
-    onAnswered({ mode: "mc", correct: quality >= 1, firstTry: quality === 2 });
+    onAnswered({ mode: answerMode, correct: quality >= 1, firstTry: quality === 2 });
     // UI резолвим сразу, НЕ дожидаясь сети (Convex при разрыве держит мутацию
     // в очереди — промис может висеть неограниченно долго). Метка «следующий
     // повтор» считается мгновенно зеркалом планировщика (srsPredict, пин-тест
     // сверяет с сервером) — без «—» → «завтра»-дёргания после roundtrip'а.
-    setResolved({ ok, dueLabel: nextDueLabel(predictCardAfterAnswer(card, quality, "mc")) });
+    setResolved({ ok, dueLabel: nextDueLabel(predictCardAfterAnswer(card, quality, answerMode)) });
     void recordAnswer({
       lessonKey: word.lessonKey,
       pt: word.pt,
       quality,
-      mode: "mc",
+      mode: answerMode,
       clientDay: localDay(),
     }).then(
       // Сервер — истина: при расхождении (устаревший card-проп) тихо поправим.

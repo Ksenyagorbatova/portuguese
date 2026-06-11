@@ -58,8 +58,10 @@ export type ExerciseType = "mc_pt_ru" | "mc_ru_pt" | "type_pt" | "mc_audio_ru";
 //   mode     — каким упражнением отвечали (двигает этап / SM-2 на сервере)
 //   correct  — ответ в итоге верный (в т.ч. со 2-й попытки) → растит этап
 //   firstTry — верно с первой попытки → засчитывается в счёт сессии
+// "audio" (П.1, аудио-экстра) — НЕ двигает выученность (mc/type не растут): это
+// дополнительная тренировка слуха сверх программы, серверный mode "audio".
 export type AnswerResult = {
-  mode: "mc" | "type" | "sentence";
+  mode: "mc" | "type" | "sentence" | "audio";
   correct: boolean;
   firstTry: boolean;
 };

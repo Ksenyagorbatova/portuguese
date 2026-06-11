@@ -35,10 +35,12 @@ const isLearned = (c: Pick<CardFields, "mcCorrect" | "typeCorrect">) =>
 // математики один-в-один: «событие повторения» (graduating | dueReview) двигает
 // SM-2; недоученное — фикс-шаг «завтра»; ранний lapse выученного приближает
 // повтор; ранняя верная практика расписание не трогает.
+// mode "audio" (П.1, аудио-экстра) зеркалит сервер: НЕ растит mc/type (ниже
+// гейты === "mc"/"type"), SM-2-логика от режима не зависит — расчёт тот же.
 export function predictCardAfterAnswer(
   existing: CardFields | undefined,
   quality: 0 | 1 | 2,
-  mode: "mc" | "type",
+  mode: "mc" | "type" | "audio",
   now: number = Date.now(),
 ): CardFields {
   const c = existing ?? DEFAULT_CARD;
