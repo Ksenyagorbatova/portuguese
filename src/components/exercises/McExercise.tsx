@@ -228,7 +228,8 @@ export function McExercise({
       <div className="m-opts">
         {options.map((o, i) => (
           <button
-            // wKey: в контенте есть дубли pt в разных уроках — один pt не уникален.
+            // wKey: составной ключ — контент сейчас запрещает дубли pt между
+            // уроками (инвариант content.test.ts), ключ защищает от их возврата.
             key={wKey(o.lessonKey, o.pt)}
             className={optClass(o)}
             disabled={resolved !== null || wrongPicked.has(o.pt)}

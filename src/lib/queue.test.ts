@@ -358,10 +358,8 @@ describe("тематический фильтр предложений (сесс
   });
 
   it("глобальное повторение темы не фильтрует — смешение тем там уместно", () => {
-    const srs = srsOf({
-      ...readyA,
-      seenTheory: ["a1"],
-    });
+    // readyA — уже готовый SrsState (srsOf отработал внутри фикстуры).
+    const srs = { ...readyA, seenTheory: ["a1"] };
     expect(queueCounts(buildReviewQueue(mkCourse(["x"]), srs)).cr).toBe(1);
   });
 });
