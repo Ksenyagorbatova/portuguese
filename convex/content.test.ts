@@ -91,6 +91,29 @@ describe("целостность контента", () => {
     expect(dups).toEqual([]);
   });
 
+  // Дубль pt МЕЖДУ уроками — это два независимых прогресса (ключ (lessonKey, pt)):
+  // слово, выученное в одной теме, в другой снова показывается как «новое»
+  // (жалоба: в «Внешности» всплывали olho/cabelo из «Частей тела»). Слово живёт
+  // ровно в одном уроке; напомнить его в другом можно текстом intro/tip теории,
+  // но не дублем в words.
+  it("pt уникален глобально (слово живёт ровно в одном уроке)", () => {
+    expect(findDuplicates(allPairs.map((p) => p.pt))).toEqual([]);
+  });
+
+  // Обратное направление к проверке sections ↑: слово урока, не попавшее ни в
+  // одну секцию теории, пользователь впервые встречает сразу в тренировке
+  // «из ниоткуда» (жалоба «эти слова вообще ещё не проходились») — Theory.tsx
+  // рендерит только пересечение sections[].words × lesson.words.
+  it("каждое слово урока показано хотя бы в одной секции теории урока", () => {
+    const missing = lessons.flatMap((lesson) => {
+      const shown = new Set(lesson.theory.sections.flatMap((sec) => sec.words));
+      return lesson.words
+        .filter((w) => !shown.has(w.pt))
+        .map((w) => `${lesson.id}: "${w.pt}" нет ни в одной секции теории`);
+    });
+    expect(missing).toEqual([]);
+  });
+
   it("lessonKey уникален глобально", () => {
     expect(findDuplicates(lessons.map((l) => l.id))).toEqual([]);
   });
