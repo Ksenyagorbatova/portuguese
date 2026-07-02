@@ -109,13 +109,8 @@ export function TypeExercise({
       </div>
       <div className="m-q-text">{word.ru}</div>
       {/* 💡-заметку ДО ответа не показываем (спойлерит ответ) — см. McExercise;
-          после ответа она остаётся в WordFeedback. */}
-      {/* Только для реально просроченных (due) слов — см. McExercise. */}
-      {tag === "due" && (
-        <div className="m-q-srs">
-          <Icon name="clock" /> следующий повтор: {nextDueLabel(card)}
-        </div>
-      )}
+          после ответа она остаётся в WordFeedback. Пре-ответной строки
+          «следующий повтор» нет — см. McExercise. */}
       <div className="m-q-prompt">Введите перевод:</div>
       <div className="m-field">
         <input

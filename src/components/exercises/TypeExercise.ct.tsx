@@ -39,7 +39,10 @@ const dueCard: CardFields = {
   typeCorrect: 3,
 };
 
-test("a DUE word shows the «следующий повтор» line without «интервал»", async ({ mount }) => {
+// Пре-ответной строки SRS нет ни для какого тега — почему, см. McExercise.ct.tsx.
+test("a DUE word does NOT show a pre-answer SRS line (вырождалась в «прямо сейчас»)", async ({
+  mount,
+}) => {
   const component = await mount(
     <TypeExercise
       word={word}
@@ -50,10 +53,8 @@ test("a DUE word shows the «следующий повтор» line without «и
       onNext={() => {}}
     />,
   );
-  const srs = component.locator(".m-q-srs");
-  await expect(srs).toBeVisible();
-  await expect(srs).toContainText("следующий повтор:");
-  await expect(srs).not.toContainText("интервал");
+  await expect(component.getByText("привет")).toBeVisible();
+  await expect(component.locator(".m-q-srs")).toHaveCount(0);
 });
 
 test("a non-due word (early practice) hides the pre-answer SRS line", async ({ mount }) => {

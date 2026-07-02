@@ -63,15 +63,27 @@ export function pluralRu(n: number, one: string, few: string, many: string): str
   return many;
 }
 
+const startOfLocalDay = (ts: number): number => {
+  const d = new Date(ts);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+};
+
 // Display label for the next review (ported from the original nextDueLabel).
 // Computed client-side from the card + current time; purely presentational.
-// Большие интервалы округляем в недели/месяцы/«примерно через год» — «через
-// 455 дн» читается как сломанное (а на проде у части слов до миграции лежат
-// именно такие легаси-due).
+// Живёт только в POST-answer фидбэке — там due всегда в будущем (планировщик
+// после ответа двигает расписание вперёд либо сознательно не трогает: ранняя
+// верная практика выученного слова, due позже сегодня), а переспросов в
+// статичной очереди нет. Поэтому дни считаем КАЛЕНДАРНЫМИ локальными (а не
+// round по 24 часа): due позже сегодня → «сегодня» (round-ноль давал ложное
+// «прямо сейчас» — жалоба), due за полночью → честное «завтра». Большие
+// интервалы округляем в недели/месяцы/«примерно через год» — «через 455 дн»
+// читается как сломанное (а на проде у части слов до миграции лежат именно
+// такие легаси-due).
 export function nextDueLabel(card: CardFields | undefined): string {
   if (!card || !card.seen) return "новое";
-  const days = Math.round((card.due - Date.now()) / 86400000);
-  if (days <= 0) return "прямо сейчас";
+  const days = Math.round((startOfLocalDay(card.due) - startOfLocalDay(Date.now())) / 86400000);
+  if (days <= 0) return "сегодня";
   if (days === 1) return "завтра";
   if (days < 7) return `через ${days} дн.`;
   if (days < 28) {
@@ -96,12 +108,6 @@ const WEEKDAY_IN = [
   "в пятницу",
   "в субботу",
 ];
-
-const startOfLocalDay = (ts: number): number => {
-  const d = new Date(ts);
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
-};
 
 // Прогноз ближайшего повтора (П.2): среди карточек с будущим `due` находим
 // ближайший КАЛЕНДАРНЫЙ день строго ПОСЛЕ сегодняшнего и число слов в нём.

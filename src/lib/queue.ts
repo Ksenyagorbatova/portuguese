@@ -28,10 +28,10 @@ const sentenceItem = (sentence: CrossSentenceView): SessionItem => ({
   tag: "cross",
 });
 
-// Map each word's pt → EVERY topicKey it belongs to (the same pt may live in
-// several topics — farmácia, olho, cabelo…; the sentence gate below treats a
-// word as ready when ANY of its topics is ready, otherwise adding a duplicate
-// would silently move the gate to whichever topic happens to be last).
+// Map each word's pt → EVERY topicKey it belongs to. Контент сейчас держит
+// слово ровно в одном уроке (инвариант content.test.ts), но карта остаётся
+// множеством: вернись дубль — гейт ниже считает слово готовым при ЛЮБОЙ
+// готовой теме, а не молча переносит порог на последнюю тему по порядку.
 function wordTopicMap(course: Course): Map<string, Set<string>> {
   const m = new Map<string, Set<string>>();
   for (const t of course.topics)
@@ -47,7 +47,15 @@ function wordTopicMap(course: Course): Map<string, Set<string>> {
 // A sentence appears only when (a) all its required words are learned AND
 // (b) every required word comes from at least one ≥80%-learned topic. So
 // combinations show up once a topic is almost fully mastered — not before.
-function eligibleSentences(course: Course, srs: SrsState): CrossSentenceView[] {
+// forTopicKey (сессия урока) добавляет (c): предложение принадлежит теме
+// урока — хотя бы одно required-слово из неё. Без него (глобальное
+// повторение) смешение тем уместно; в сессии же урока чужие предложения
+// читались как «конструктор не к месту» (жалоба).
+function eligibleSentences(
+  course: Course,
+  srs: SrsState,
+  forTopicKey?: string,
+): CrossSentenceView[] {
   const learned = new Set(srs.learnedPts);
   const wordTopic = wordTopicMap(course);
   const topicReady = (topicKey: string) => {
@@ -55,12 +63,18 @@ function eligibleSentences(course: Course, srs: SrsState): CrossSentenceView[] {
     return !!st && st.total > 0 && st.learned / st.total >= SENTENCE_TOPIC_THRESHOLD;
   };
   return course.crossSentences.filter((s) => {
+    if (forTopicKey && !s.required.some((r) => wordTopic.get(r)?.has(forTopicKey))) return false;
     if (!s.required.every((r) => learned.has(r))) return false;
     return s.required.every((r) => {
       const topics = wordTopic.get(r);
       return !!topics && [...topics].some(topicReady);
     });
   });
+}
+
+// Тема, которой принадлежит урок (для тематического фильтра предложений).
+function topicKeyOfLesson(course: Course, lessonKey: string): string | undefined {
+  return course.topics.find((t) => t.lessons.some((l) => l.lessonKey === lessonKey))?.topicKey;
 }
 
 const badgeOfWith =
@@ -126,7 +140,10 @@ export function buildLessonQueue(lesson: LessonView, srs: SrsState, course: Cour
   const cardOf = (w: WordView) => srs.cards[wKey(w.lessonKey, w.pt)];
 
   // Предложения занимают часть бюджета: слова + предложения ≤ SESSION_SIZE.
-  const sentences = shuffle(eligibleSentences(course, srs)).slice(0, 2);
+  // Только предложения темы ЭТОГО урока — см. eligibleSentences (c).
+  const sentences = shuffle(
+    eligibleSentences(course, srs, topicKeyOfLesson(course, lesson.lessonKey)),
+  ).slice(0, 2);
   const wordBudget = Math.max(0, SESSION_SIZE - sentences.length);
 
   const unfinished = lesson.words.filter((w) => remainingReps(cardOf(w)) > 0);

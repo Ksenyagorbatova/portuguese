@@ -198,16 +198,13 @@ export const TOPICS: Record<string, Topic> = {
       },
       {
         id: "basics_2",
-        label: "Часть 2 — Размер, время, место",
+        label: "Часть 2 — Вид, время, место",
         theory: {
           intro:
-            "Слова для описания размера, расположения во времени и пространстве. Muito важное слово — запомни первым!",
+            "Слова для описания вида, расположения во времени и пространстве. Hoje, amanhã, ontem — три слова, без которых не обходится ни один день.",
           tip: "Сегодня/завтра/вчера: hoje/amanhã/ontem. Ontem foi bom. — Вчера было хорошо.",
           sections: [
-            {
-              heading: "Размер и вид",
-              words: ["grande", "pequeno", "novo", "velho", "caro", "barato", "bonito", "feio"],
-            },
+            { heading: "Вид", words: ["bonito", "feio"] },
             {
               heading: "Время и место",
               words: ["aqui", "ali", "agora", "hoje", "amanhã", "ontem", "sempre", "nunca"],
@@ -215,12 +212,6 @@ export const TOPICS: Record<string, Topic> = {
           ],
         },
         words: [
-          { pt: "grande", ru: "большой" },
-          { pt: "pequeno", ru: "маленький" },
-          { pt: "novo", ru: "новый / молодой" },
-          { pt: "velho", ru: "старый" },
-          { pt: "caro", ru: "дорогой" },
-          { pt: "barato", ru: "дешёвый" },
           { pt: "bonito", ru: "красивый" },
           { pt: "feio", ru: "некрасивый" },
           { pt: "aqui", ru: "здесь" },
@@ -249,7 +240,10 @@ export const TOPICS: Record<string, Topic> = {
           tip: "Sou russo. — Я русский. (ser)\nEstou cansado. — Я устал. (estar)\nEstou em Lisboa. — Я в Лиссабоне. (estar)",
           sections: [
             { heading: "Два глагола «быть»", words: ["ser", "estar"] },
-            { heading: "Самые важные", words: ["ter", "fazer", "ir", "vir", "falar", "comer", "beber"] },
+            {
+              heading: "Самые важные",
+              words: ["ter", "fazer", "ir", "vir", "falar", "comer", "beber", "querer"],
+            },
           ],
         },
         words: [
@@ -273,10 +267,10 @@ export const TOPICS: Record<string, Topic> = {
             "Глаголы poder (мочь), saber (знать/уметь), gostar (нравиться). Gostar всегда с «de»: Gosto de café. — Мне нравится кофе.",
           tip: "trabalhar (работать) → eu trabalho. morar (жить) → eu moro em... Эти глаголы правильные, легко спрягаются.",
           sections: [
-            { heading: "Модальные", words: ["poder", "saber", "querer", "precisar"] },
+            { heading: "Модальные", words: ["poder", "saber", "precisar"] },
             {
               heading: "Бытовые",
-              words: ["trabalhar", "morar", "gostar", "chamar-se", "comprar", "vender"],
+              words: ["trabalhar", "morar", "gostar", "chamar-se", "comprar", "vender", "abrir"],
             },
           ],
         },
@@ -291,7 +285,6 @@ export const TOPICS: Record<string, Topic> = {
           { pt: "comprar", ru: "покупать", note: "eu compro = я покупаю" },
           { pt: "vender", ru: "продавать", note: "eu vendo = я продаю" },
           { pt: "abrir", ru: "открывать", note: "eu abro = я открываю" },
-          { pt: "querer", ru: "хотеть", note: "eu quero = я хочу" },
         ],
       },
     ],
@@ -390,8 +383,6 @@ export const TOPICS: Record<string, Topic> = {
           { pt: "idoso", ru: "пожилой" },
           { pt: "comprido", ru: "длинный" },
           { pt: "curto", ru: "короткий" },
-          { pt: "olho", ru: "глаз" },
-          { pt: "cabelo", ru: "волосы" },
         ],
       },
     ],
@@ -475,6 +466,7 @@ export const TOPICS: Record<string, Topic> = {
               heading: "Дни недели",
               words: ["segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado", "domingo"],
             },
+            { heading: "Неделя", words: ["dia", "semana", "fim de semana"] },
           ],
         },
         words: [
@@ -561,7 +553,7 @@ export const TOPICS: Record<string, Topic> = {
             { heading: "Транспорт", words: ["autocarro", "metro", "comboio", "táxi", "carro", "avião", "barco"] },
             {
               heading: "Направления",
-              words: ["direita", "esquerda", "em frente", "perto", "longe", "aqui", "ali"],
+              words: ["direita", "esquerda", "em frente", "perto", "longe"],
             },
           ],
         },
@@ -578,8 +570,6 @@ export const TOPICS: Record<string, Topic> = {
           { pt: "em frente", ru: "прямо / напротив" },
           { pt: "perto", ru: "близко / рядом", note: "perto de... = рядом с..." },
           { pt: "longe", ru: "далеко", note: "longe de... = далеко от..." },
-          { pt: "aqui", ru: "здесь" },
-          { pt: "ali", ru: "там" },
         ],
       },
     ],
@@ -626,8 +616,9 @@ export const TOPICS: Record<string, Topic> = {
           sections: [
             {
               heading: "Здоровье",
-              words: ["médico", "farmácia", "comprimido", "febre", "dor", "doente", "cansado", "alérgico", "ambulância"],
+              words: ["médico", "comprimido", "febre", "dor", "doente", "cansado", "alérgico", "ambulância"],
             },
+            { heading: "Ещё части тела", words: ["perna", "cabelo"] },
           ],
         },
         words: [
@@ -641,7 +632,6 @@ export const TOPICS: Record<string, Topic> = {
           { pt: "ambulância", ru: "скорая помощь" },
           { pt: "perna", ru: "нога (целиком)" },
           { pt: "cabelo", ru: "волосы" },
-          { pt: "farmácia", ru: "аптека" },
         ],
       },
     ],
@@ -693,7 +683,7 @@ export const TOPICS: Record<string, Topic> = {
           sections: [
             {
               heading: "Предметы",
-              words: ["computador", "telefone", "chave", "livro", "roupa", "cadeira", "sofá", "frigorífico"],
+              words: ["computador", "telefone", "chave", "livro", "roupa", "frigorífico"],
             },
           ],
         },
@@ -703,11 +693,7 @@ export const TOPICS: Record<string, Topic> = {
           { pt: "chave", ru: "ключ" },
           { pt: "livro", ru: "книга" },
           { pt: "roupa", ru: "одежда" },
-          { pt: "cadeira", ru: "стул" },
-          { pt: "sofá", ru: "диван" },
           { pt: "frigorífico", ru: "холодильник" },
-          { pt: "televisão", ru: "телевизор" },
-          { pt: "jardim", ru: "сад" },
         ],
       },
     ],
@@ -772,6 +758,10 @@ export const TOPICS: Record<string, Topic> = {
             {
               heading: "Помощь",
               words: ["Preciso de ajuda.", "Pode ajudar-me?", "Onde é...?", "Como chego a...?", "Tem...?"],
+            },
+            {
+              heading: "Покупки и знакомство",
+              words: ["Quanto custa?", "A conta, por favor.", "De onde é?"],
             },
           ],
         },

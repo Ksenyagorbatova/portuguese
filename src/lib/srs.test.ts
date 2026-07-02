@@ -151,7 +151,27 @@ describe("nextDueLabel", () => {
     });
     expect(nextDueLabel(card(day))).toBe("завтра");
     expect(nextDueLabel(card(3 * day))).toBe("через 3 дн.");
-    expect(nextDueLabel(card(-day))).toBe("прямо сейчас");
+    expect(nextDueLabel(card(-day))).toBe("сегодня");
+  });
+
+  // Метка живёт ТОЛЬКО в post-answer фидбэке, где «прямо сейчас» всегда враньё:
+  // планировщик после ответа либо двигает due вперёд, либо сознательно не
+  // трогает (ранняя верная практика выученного, due позже сегодня), а
+  // переспросов в статичной очереди нет. Считаем КАЛЕНДАРНЫМИ локальными
+  // днями: due позже сегодня → «сегодня»; за полночью (23:00 → 08:00) —
+  // честное «завтра», а не round-ноль.
+  it("календарные дни: due позже сегодня → «сегодня», за полночью → «завтра»", () => {
+    const at = (day: number, hour: number) => new Date(2026, 5, day, hour).getTime();
+    const card = (due: number) => ({
+      interval: 1, ef: 2.5, due, seen: 1, correct: 1, lastSeen: 0, mcCorrect: 3, typeCorrect: 3,
+    });
+    // 10:00 → due 13:00 того же дня: раньше вырождалось в «прямо сейчас».
+    vi.spyOn(Date, "now").mockReturnValue(at(15, 10));
+    expect(nextDueLabel(card(at(15, 13)))).toBe("сегодня");
+    // 23:00 → due 08:00 следующего дня: 9 часов, round дал бы 0 (ложное
+    // «сегодня») — календарно это завтра.
+    vi.spyOn(Date, "now").mockReturnValue(at(15, 23));
+    expect(nextDueLabel(card(at(16, 8)))).toBe("завтра");
   });
 
   it("rounds large intervals into human buckets (weeks / months / year)", () => {
