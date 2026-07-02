@@ -246,9 +246,10 @@ describe("cross-sentence gate (topic ≥80% + required learned)", () => {
     expect(queueCounts(q).cr).toBe(1);
   });
 
-  // Дубль pt в двух темах (farmácia: city_1 и body_2; olho/cabelo аналогично):
-  // слово считается готовым, когда готова ХОТЯ БЫ ОДНА из его тем — иначе
-  // добавление дубля молча переносило бы гейт на последнюю тему по порядку.
+  // Дубль pt в двух темах: слово считается готовым, когда готова ХОТЯ БЫ ОДНА
+  // из его тем — иначе добавление дубля молча переносило бы гейт на последнюю
+  // тему по порядку. (Контент сейчас дублей не содержит — content.test.ts это
+  // запрещает; ветка остаётся защитой от их возвращения.)
   it("treats a duplicated word as ready when ANY of its topics is ready", () => {
     const lessonA: LessonView = {
       lessonKey: "a1",
@@ -288,5 +289,79 @@ describe("cross-sentence gate (topic ≥80% + required learned)", () => {
     });
     const q = buildLessonQueue(lessonA, srs, dupCourse);
     expect(q.filter((i) => i.kind === "sentence")).toHaveLength(1);
+  });
+});
+
+describe("тематический фильтр предложений (сессия урока — только предложения своей темы)", () => {
+  // Две темы: tA освоена целиком (x, y выучены), tB не начата (p, q новые).
+  // Предложение построено из слов tA — по гейту выученности оно «открыто».
+  const lessonA: LessonView = {
+    lessonKey: "a1",
+    label: "A1",
+    theory: { intro: "", tip: "", sections: [] },
+    words: [
+      { lessonKey: "a1", pt: "x", ru: "х" },
+      { lessonKey: "a1", pt: "y", ru: "у" },
+    ],
+  };
+  const lessonB: LessonView = {
+    lessonKey: "b1",
+    label: "B1",
+    theory: { intro: "", tip: "", sections: [] },
+    words: [
+      { lessonKey: "b1", pt: "p", ru: "п" },
+      { lessonKey: "b1", pt: "q", ru: "к" },
+    ],
+  };
+  const mkCourse = (required: string[]): Course => ({
+    topics: [
+      { topicKey: "tA", label: "A", icon: "x", lessons: [lessonA] },
+      { topicKey: "tB", label: "B", icon: "x", lessons: [lessonB] },
+    ],
+    crossSentences: [
+      { sentenceKey: "cs1", words: ["X", "Y"], answer: "X Y", ru: "—", required },
+    ],
+  });
+  const readyA = srsOf({
+    learnedPts: ["x", "y"],
+    tags: { [wKey("a1", "x")]: "learned", [wKey("a1", "y")]: "learned" },
+    cards: {
+      [wKey("a1", "x")]: cardOf(MC_TARGET, TYPE_TARGET),
+      [wKey("a1", "y")]: cardOf(MC_TARGET, TYPE_TARGET),
+    },
+    topicStats: {
+      tA: { total: 2, seen: 2, learned: 2, due: 0 },
+      tB: { total: 2, seen: 0, learned: 0, due: 0 },
+    },
+  });
+
+  it("НЕ вставляет предложение чужой темы в сессию урока (жалоба: конструктор не к месту)", () => {
+    // Учим урок темы B — открытое предложение темы A в его сессию не лезет.
+    expect(queueCounts(buildLessonQueue(lessonB, readyA, mkCourse(["x"]))).cr).toBe(0);
+  });
+
+  it("вставляет предложение своей темы в сессию урока", () => {
+    expect(queueCounts(buildLessonQueue(lessonA, readyA, mkCourse(["x"]))).cr).toBe(1);
+  });
+
+  it("предложение из слов ДВУХ тем принадлежит обеим — показывается в уроках каждой", () => {
+    const both = srsOf({
+      learnedPts: ["x", "y", "p", "q"],
+      topicStats: {
+        tA: { total: 2, seen: 2, learned: 2, due: 0 },
+        tB: { total: 2, seen: 2, learned: 2, due: 0 },
+      },
+    });
+    const course = mkCourse(["x", "p"]);
+    expect(queueCounts(buildLessonQueue(lessonA, both, course)).cr).toBe(1);
+    expect(queueCounts(buildLessonQueue(lessonB, both, course)).cr).toBe(1);
+  });
+
+  it("глобальное повторение темы не фильтрует — смешение тем там уместно", () => {
+    const srs = srsOf({
+      ...readyA,
+      seenTheory: ["a1"],
+    });
+    expect(queueCounts(buildReviewQueue(mkCourse(["x"]), srs)).cr).toBe(1);
   });
 });
