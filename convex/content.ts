@@ -87,6 +87,121 @@ export const TOPICS: Record<string, Topic> = {
           { pt: "Até amanhã", ru: "До завтра" },
         ],
       },
+      {
+        id: "greetings_3",
+        label: "Часть 3 — Пожелания и реакции",
+        theory: {
+          intro:
+            "Короткие фразы-реакции на все случаи жизни. Parabéns — и «поздравляю», и «с днём рождения». Bem-vindo меняется по роду: женщине говорят bem-vinda.",
+          tip: "Saúde! — говорят и как тост, и когда кто-то чихнул. Fixe! — «класс!», словечко именно португальской молодёжи.",
+          sections: [
+            {
+              heading: "Пожелания",
+              words: ["Parabéns!", "Boa sorte!", "Bem-vindo!", "Bom apetite!", "Boa viagem!", "Saúde!", "Força!"],
+            },
+            { heading: "Реакции", words: ["Não faz mal.", "Que pena!", "Fixe!"] },
+          ],
+        },
+        words: [
+          { pt: "Parabéns!", ru: "Поздравляю! / С днём рождения!" },
+          { pt: "Boa sorte!", ru: "Удачи!" },
+          { pt: "Bem-vindo!", ru: "Добро пожаловать!", note: "женщине — bem-vinda" },
+          { pt: "Bom apetite!", ru: "Приятного аппетита!" },
+          { pt: "Boa viagem!", ru: "Счастливого пути!" },
+          { pt: "Saúde!", ru: "Будь здоров! / За здоровье!", note: "тост и при чихании" },
+          { pt: "Força!", ru: "Держись! / Давай!" },
+          { pt: "Não faz mal.", ru: "Ничего страшного." },
+          { pt: "Que pena!", ru: "Как жаль!" },
+          { pt: "Fixe!", ru: "Класс! / Здорово!", note: "разговорное, только в Португалии" },
+        ],
+      },
+    ],
+  },
+
+  pronouns: {
+    label: "Местоимения и вопросы",
+    icon: "🙋",
+    lessons: [
+      {
+        id: "pronouns_1",
+        label: "Часть 1 — Я, ты, он, она",
+        theory: {
+          intro:
+            "В Португалии местоимение часто опускают: Sou russo вместо Eu sou russo — окончание глагола уже показывает лицо. Você в лицо незнакомцу звучит суховато — вежливее o senhor / a senhora.",
+          tip: "Eu sou o Ivan. E a senhora, como se chama? — Я Иван. А вас как зовут? (вежливо к женщине)",
+          sections: [
+            { heading: "Единственное число", words: ["eu", "tu", "você", "ele", "ela"] },
+            { heading: "Множественное число", words: ["nós", "vocês", "eles", "elas"] },
+            { heading: "Вежливое «вы»", words: ["o senhor / a senhora"] },
+          ],
+        },
+        words: [
+          { pt: "eu", ru: "я" },
+          { pt: "tu", ru: "ты", note: "к друзьям и близким" },
+          { pt: "você", ru: "вы (к одному)", note: "нейтрально-прохладно; вежливее o senhor" },
+          { pt: "ele", ru: "он" },
+          { pt: "ela", ru: "она" },
+          { pt: "nós", ru: "мы" },
+          { pt: "vocês", ru: "вы (к нескольким)" },
+          { pt: "eles", ru: "они (муж. или смешанные)" },
+          { pt: "elas", ru: "они (жен.)" },
+          { pt: "o senhor / a senhora", ru: "вежливое «вы»", note: "к мужчине / к женщине" },
+        ],
+      },
+      {
+        id: "pronouns_2",
+        label: "Часть 2 — Мой, твой, наш",
+        theory: {
+          intro:
+            "Притяжательные согласуются с ВЕЩЬЮ, а не с владельцем: o meu carro (машина — муж. род), a minha casa (дом — жен. род). Обычно с артиклем: o meu, a minha.",
+          tip: "Este é o meu marido. — Это мой муж. A nossa casa é pequena. — Наш дом маленький. O carro dele. — Его машина.",
+          sections: [
+            {
+              heading: "Чей?",
+              words: ["meu / minha", "teu / tua", "seu / sua", "nosso / nossa", "dele", "dela"],
+            },
+            { heading: "Этот и тот", words: ["este / esta", "esse / essa"] },
+          ],
+        },
+        words: [
+          { pt: "meu / minha", ru: "мой / моя", note: "o meu carro, a minha casa" },
+          { pt: "teu / tua", ru: "твой / твоя" },
+          { pt: "seu / sua", ru: "ваш / ваша", note: "«его/её» чаще dele/dela" },
+          { pt: "nosso / nossa", ru: "наш / наша" },
+          { pt: "dele", ru: "его", note: "o carro dele = его машина" },
+          { pt: "dela", ru: "её" },
+          { pt: "este / esta", ru: "этот / эта" },
+          { pt: "esse / essa", ru: "тот / та (рядом)", note: "вдалеке — aquele / aquela" },
+        ],
+      },
+      {
+        id: "pronouns_3",
+        label: "Часть 3 — Вопросительные слова",
+        theory: {
+          intro:
+            "Главный инструмент выживания. В разговоре португальцы часто добавляют «é que»: Onde é que moras? = Onde moras? (Где живёшь?)",
+          tip: "Quanto custa isto? — Сколько это стоит? Onde é a casa de banho? — Где туалет? Porquê? — Почему?",
+          sections: [
+            {
+              heading: "Вопросы",
+              words: ["quem", "o que", "onde", "quando", "como", "quanto", "qual", "porquê"],
+            },
+            { heading: "Полезное рядом", words: ["Que horas são?", "isto"] },
+          ],
+        },
+        words: [
+          { pt: "quem", ru: "кто", note: "Quem é? = Кто это?" },
+          { pt: "o que", ru: "что", note: "O que é isto? = Что это?" },
+          { pt: "onde", ru: "где", note: "Onde fica...? = Где находится...?" },
+          { pt: "quando", ru: "когда" },
+          { pt: "como", ru: "как", note: "Como está? = Как дела?" },
+          { pt: "quanto", ru: "сколько", note: "Quanto custa? = Сколько стоит?" },
+          { pt: "qual", ru: "какой / который", note: "Qual é o seu nome? = Как ваше имя?" },
+          { pt: "porquê", ru: "почему", note: "в начале фразы — porque é que..." },
+          { pt: "Que horas são?", ru: "Который час?" },
+          { pt: "isto", ru: "это", note: "Isto é um livro. = Это книга." },
+        ],
+      },
     ],
   },
 
@@ -127,14 +242,17 @@ export const TOPICS: Record<string, Topic> = {
         label: "Числа 11–100",
         theory: {
           intro:
-            "11–15 надо просто запомнить. 16–19: dez + seis/sete... → dezasseis. 20 — vinte, 30 — trinta, 100 — cem.",
+            "11–15 надо просто запомнить. 16–19: dez + seis/sete... → dezasseis. 20 — vinte, 30 — trinta, 100 — cem, 1000 — mil.",
           tip: "«Tenho vinte anos» — «Мне двадцать лет». Возраст всегда с глаголом ter (иметь).",
           sections: [
             {
               heading: "11–20",
               words: ["onze", "doze", "treze", "catorze", "quinze", "dezasseis", "dezassete", "dezoito", "dezanove", "vinte"],
             },
-            { heading: "Десятки", words: ["trinta", "quarenta", "cinquenta", "sessenta", "cem"] },
+            {
+              heading: "Десятки и большие числа",
+              words: ["trinta", "quarenta", "cinquenta", "sessenta", "setenta", "oitenta", "noventa", "cem", "mil"],
+            },
           ],
         },
         words: [
@@ -153,6 +271,10 @@ export const TOPICS: Record<string, Topic> = {
           { pt: "cinquenta", ru: "пятьдесят" },
           { pt: "cem", ru: "сто" },
           { pt: "sessenta", ru: "шестьдесят" },
+          { pt: "setenta", ru: "семьдесят" },
+          { pt: "oitenta", ru: "восемьдесят" },
+          { pt: "noventa", ru: "девяносто" },
+          { pt: "mil", ru: "тысяча" },
         ],
       },
     ],
@@ -224,6 +346,34 @@ export const TOPICS: Record<string, Topic> = {
           { pt: "nunca", ru: "никогда" },
         ],
       },
+      {
+        id: "basics_3",
+        label: "Часть 3 — Наречия-связки",
+        theory: {
+          intro:
+            "Маленькие слова, которые склеивают речь: já (уже), ainda (ещё), também (тоже). Они встречаются почти в каждой фразе.",
+          tip: "Também quero! — Я тоже хочу! Já percebo. — Уже понимаю. Tudo bem? — Всё хорошо?",
+          sections: [
+            { heading: "Время и порядок", words: ["já", "ainda", "depois", "antes"] },
+            {
+              heading: "Степень и связки",
+              words: ["também", "talvez", "tudo", "nada", "só", "outro"],
+            },
+          ],
+        },
+        words: [
+          { pt: "já", ru: "уже", note: "já não... = уже не..." },
+          { pt: "ainda", ru: "ещё / всё ещё" },
+          { pt: "depois", ru: "потом / после" },
+          { pt: "antes", ru: "раньше / до" },
+          { pt: "também", ru: "тоже / также" },
+          { pt: "talvez", ru: "может быть" },
+          { pt: "tudo", ru: "всё", note: "Tudo bem? = Всё хорошо?" },
+          { pt: "nada", ru: "ничего", note: "не путать с De nada (не за что)" },
+          { pt: "só", ru: "только" },
+          { pt: "outro", ru: "другой", note: "outra = другая" },
+        ],
+      },
     ],
   },
 
@@ -287,6 +437,34 @@ export const TOPICS: Record<string, Topic> = {
           { pt: "abrir", ru: "открывать", note: "eu abro = я открываю" },
         ],
       },
+      {
+        id: "verbs_3",
+        label: "Часть 3 — Ещё десять важных",
+        theory: {
+          intro:
+            "Ficar — главный глагол для «где находится»: Onde fica o hotel? Ещё десять глаголов, без которых не обойтись в быту.",
+          tip: "Onde fica a estação? — Где находится вокзал? Fica perto. — Рядом. Espera um momento! — Подожди минутку!",
+          sections: [
+            { heading: "Самые нужные", words: ["ficar", "dar", "dizer", "ver"] },
+            {
+              heading: "Каждый день",
+              words: ["ler", "escrever", "dormir", "pagar", "ajudar", "esperar"],
+            },
+          ],
+        },
+        words: [
+          { pt: "ficar", ru: "находиться / оставаться", note: "Onde fica...? = где находится...?" },
+          { pt: "dar", ru: "давать", note: "eu dou = я даю" },
+          { pt: "dizer", ru: "сказать", note: "eu digo = я говорю" },
+          { pt: "ver", ru: "видеть", note: "eu vejo = я вижу" },
+          { pt: "ler", ru: "читать", note: "eu leio = я читаю" },
+          { pt: "escrever", ru: "писать", note: "eu escrevo = я пишу" },
+          { pt: "dormir", ru: "спать", note: "eu durmo = я сплю" },
+          { pt: "pagar", ru: "платить", note: "eu pago = я плачу" },
+          { pt: "ajudar", ru: "помогать", note: "eu ajudo = я помогаю" },
+          { pt: "esperar", ru: "ждать / надеяться", note: "eu espero = я жду" },
+        ],
+      },
     ],
   },
 
@@ -326,6 +504,96 @@ export const TOPICS: Record<string, Topic> = {
           { pt: "prima", ru: "двоюродная сестра" },
         ],
       },
+      {
+        id: "family_2",
+        label: "Люди вокруг",
+        theory: {
+          intro:
+            "Не только семья: друзья, дети, просто люди. Amigo/amiga — друг/подруга, namorado/namorada — парень/девушка.",
+          tip: "Este é o meu amigo João. — Это мой друг Жуан. A pessoa — всегда женского рода, даже о мужчине.",
+          sections: [
+            { heading: "Свои люди", words: ["amigo", "amiga", "namorado", "namorada"] },
+            {
+              heading: "Люди вообще",
+              words: ["homem", "criança", "bebé", "pessoa", "gente"],
+            },
+          ],
+        },
+        words: [
+          { pt: "amigo", ru: "друг" },
+          { pt: "amiga", ru: "подруга" },
+          { pt: "namorado", ru: "парень (в отношениях)", note: "o meu namorado = мой парень" },
+          { pt: "namorada", ru: "девушка (в отношениях)" },
+          { pt: "homem", ru: "мужчина", note: "женщина = mulher (тема «Семья»)" },
+          { pt: "criança", ru: "ребёнок" },
+          { pt: "bebé", ru: "младенец", note: "в Португалии bebé, в Бразилии bebê" },
+          { pt: "pessoa", ru: "человек", note: "всегда жен. род: a pessoa" },
+          { pt: "gente", ru: "люди / народ", note: "toda a gente = все" },
+        ],
+      },
+    ],
+  },
+
+  about: {
+    label: "О себе",
+    icon: "🌍",
+    lessons: [
+      {
+        id: "about_1",
+        label: "Страны и языки",
+        theory: {
+          intro:
+            "Национальность и язык — одно слово: russo — это и русский человек, и русский язык. Sou russo. Falo russo. Названия языков пишутся с маленькой буквы.",
+          tip: "De onde é? — Sou da Rússia, mas moro em Lisboa. — Откуда вы? — Я из России, но живу в Лиссабоне.",
+          sections: [
+            {
+              heading: "Страны и города",
+              words: ["Portugal", "Rússia", "Lisboa", "país", "cidade", "estrangeiro"],
+            },
+            { heading: "Языки и национальности", words: ["português", "russo", "inglês", "língua"] },
+          ],
+        },
+        words: [
+          { pt: "Portugal", ru: "Португалия" },
+          { pt: "Rússia", ru: "Россия" },
+          { pt: "Lisboa", ru: "Лиссабон" },
+          { pt: "país", ru: "страна", note: "муж. род: o país" },
+          { pt: "cidade", ru: "город" },
+          { pt: "estrangeiro", ru: "иностранец / заграница", note: "no estrangeiro = за границей" },
+          { pt: "português", ru: "португальский / португалец", note: "portuguesa = португалка" },
+          { pt: "russo", ru: "русский", note: "russa = русская; язык тоже russo" },
+          { pt: "inglês", ru: "английский / англичанин" },
+          { pt: "língua", ru: "язык", note: "Que línguas fala? = Какие языки знаете?" },
+        ],
+      },
+      {
+        id: "about_2",
+        label: "Работа и учёба",
+        theory: {
+          intro:
+            "Обычный смолток: Onde trabalha? — Где работаете? Trabalho numa empresa. — Работаю в компании. Trabalho — и «работа», и «я работаю».",
+          tip: "Estou de férias! — Я в отпуске! Tenho aulas de português. — У меня уроки португальского.",
+          sections: [
+            { heading: "Работа", words: ["trabalho", "escritório", "empresa", "colega", "férias"] },
+            {
+              heading: "Учёба",
+              words: ["escola", "universidade", "professor", "estudante", "aula"],
+            },
+          ],
+        },
+        words: [
+          { pt: "trabalho", ru: "работа", note: "eu trabalho = я работаю — то же слово" },
+          { pt: "escritório", ru: "офис" },
+          { pt: "empresa", ru: "компания / фирма" },
+          { pt: "colega", ru: "коллега", note: "общий род: o/a colega" },
+          { pt: "férias", ru: "отпуск / каникулы", note: "всегда мн. ч.: as férias" },
+          { pt: "escola", ru: "школа" },
+          { pt: "universidade", ru: "университет" },
+          { pt: "professor", ru: "учитель / преподаватель", note: "professora = учительница" },
+          { pt: "estudante", ru: "студент / студентка" },
+          { pt: "aula", ru: "урок / занятие", note: "aula de português = урок португальского" },
+        ],
+      },
     ],
   },
 
@@ -335,7 +603,7 @@ export const TOPICS: Record<string, Topic> = {
     lessons: [
       {
         id: "colors_1",
-        label: "Цвета и внешность",
+        label: "Цвета",
         theory: {
           intro:
             "Цвета согласуются с родом: carro vermelho (красная машина), casa vermelha. Исключения без изменений: azul, verde, laranja, cor-de-rosa.",
@@ -450,6 +718,66 @@ export const TOPICS: Record<string, Topic> = {
     ],
   },
 
+  restaurant: {
+    label: "Ресторан и продукты",
+    icon: "🍴",
+    lessons: [
+      {
+        id: "restaurant_1",
+        label: "Продукты",
+        theory: {
+          intro:
+            "Базовая продуктовая корзина. Azeite — оливковое масло, гордость Португалии: им поливают всё, от салата до трески.",
+          tip: "Pão com manteiga e um galão — классический португальский завтрак за пару евро.",
+          sections: [
+            { heading: "Основное", words: ["carne", "ovo", "queijo", "manteiga", "azeite"] },
+            { heading: "Из магазина", words: ["sal", "açúcar", "batata", "tomate", "maçã"] },
+          ],
+        },
+        words: [
+          { pt: "carne", ru: "мясо" },
+          { pt: "ovo", ru: "яйцо" },
+          { pt: "queijo", ru: "сыр" },
+          { pt: "manteiga", ru: "сливочное масло" },
+          { pt: "azeite", ru: "оливковое масло", note: "гордость Португалии" },
+          { pt: "sal", ru: "соль" },
+          { pt: "açúcar", ru: "сахар" },
+          { pt: "batata", ru: "картофель" },
+          { pt: "tomate", ru: "помидор" },
+          { pt: "maçã", ru: "яблоко" },
+        ],
+      },
+      {
+        id: "restaurant_2",
+        label: "За столом",
+        theory: {
+          intro:
+            "В ресторане первым делом приносят couvert — хлеб, оливки, масло. Он платный! Не хочешь — вежливо откажись, это нормально.",
+          tip: "A ementa, se faz favor. — Меню, пожалуйста. O prato do dia é bacalhau. — Блюдо дня — треска.",
+          sections: [
+            {
+              heading: "Посуда и приборы",
+              words: ["prato", "copo", "garfo", "faca", "colher", "garrafa"],
+            },
+            { heading: "В ресторане", words: ["ementa", "empregado", "bacalhau", "pastel de nata"] },
+          ],
+        },
+        words: [
+          { pt: "prato", ru: "тарелка / блюдо", note: "prato do dia = блюдо дня" },
+          { pt: "copo", ru: "стакан / бокал" },
+          { pt: "garfo", ru: "вилка" },
+          { pt: "faca", ru: "нож" },
+          { pt: "colher", ru: "ложка" },
+          { pt: "garrafa", ru: "бутылка", note: "uma garrafa de água = бутылка воды" },
+          { pt: "ementa", ru: "меню", note: "в Португалии ementa; menu — комплексный обед" },
+          { pt: "empregado", ru: "официант", note: "подзывают: se faz favor!" },
+          { pt: "bacalhau", ru: "треска", note: "национальное блюдо — говорят, 365 рецептов" },
+          { pt: "pastel de nata", ru: "пирожное с заварным кремом", note: "главный десерт страны" },
+        ],
+      },
+    ],
+  },
+
   days_time: {
     label: "Дни и время",
     icon: "📅",
@@ -491,7 +819,7 @@ export const TOPICS: Record<string, Topic> = {
           tip: "Manhã = утро. Tarde = день/вечер. Noite = ночь. De manhã = утром. À tarde = днём/вечером.",
           sections: [
             { heading: "Части суток", words: ["manhã", "tarde", "noite", "meio-dia", "meia-noite"] },
-            { heading: "Время", words: ["hora", "minuto", "mês", "ano", "cedo", "tarde", "logo"] },
+            { heading: "Время", words: ["hora", "minuto", "mês", "ano", "cedo", "logo"] },
           ],
         },
         words: [
@@ -506,6 +834,74 @@ export const TOPICS: Record<string, Topic> = {
           { pt: "ano", ru: "год" },
           { pt: "cedo", ru: "рано" },
           { pt: "logo", ru: "позже / скоро", note: "até logo = до скорого" },
+        ],
+      },
+    ],
+  },
+
+  calendar: {
+    label: "Календарь",
+    icon: "🗓️",
+    lessons: [
+      {
+        id: "calendar_1",
+        label: "Месяцы",
+        theory: {
+          intro:
+            "Месяцы, как и дни недели, пишутся с маленькой буквы. «В мае» = em maio. Дата: a 5 de maio — 5 мая.",
+          tip: "O meu aniversário é em maio. — Мой день рождения в мае. Junho и julho легко перепутать — junho раньше!",
+          sections: [
+            {
+              heading: "Первое полугодие",
+              words: ["janeiro", "fevereiro", "março", "abril", "maio", "junho"],
+            },
+            {
+              heading: "Второе полугодие",
+              words: ["julho", "agosto", "setembro", "outubro", "novembro", "dezembro"],
+            },
+          ],
+        },
+        words: [
+          { pt: "janeiro", ru: "январь" },
+          { pt: "fevereiro", ru: "февраль" },
+          { pt: "março", ru: "март" },
+          { pt: "abril", ru: "апрель" },
+          { pt: "maio", ru: "май" },
+          { pt: "junho", ru: "июнь" },
+          { pt: "julho", ru: "июль" },
+          { pt: "agosto", ru: "август" },
+          { pt: "setembro", ru: "сентябрь" },
+          { pt: "outubro", ru: "октябрь" },
+          { pt: "novembro", ru: "ноябрь" },
+          { pt: "dezembro", ru: "декабрь" },
+        ],
+      },
+      {
+        id: "calendar_2",
+        label: "Сезоны и праздники",
+        theory: {
+          intro:
+            "Времена года — с маленькой буквы, праздники — с большой. «Летом» = no verão, «зимой» = no inverno.",
+          tip: "Feliz aniversário! — С днём рождения! O Natal em Portugal — это bacalhau и bolo-rei на столе.",
+          sections: [
+            { heading: "Времена года", words: ["primavera", "verão", "outono", "inverno"] },
+            {
+              heading: "Праздники и даты",
+              words: ["data", "aniversário", "festa", "feriado", "Natal", "Páscoa"],
+            },
+          ],
+        },
+        words: [
+          { pt: "primavera", ru: "весна" },
+          { pt: "verão", ru: "лето" },
+          { pt: "outono", ru: "осень" },
+          { pt: "inverno", ru: "зима" },
+          { pt: "data", ru: "дата" },
+          { pt: "aniversário", ru: "день рождения", note: "Feliz aniversário! = С днём рождения!" },
+          { pt: "festa", ru: "праздник / вечеринка" },
+          { pt: "feriado", ru: "нерабочий день / гос. праздник" },
+          { pt: "Natal", ru: "Рождество", note: "Feliz Natal! = Счастливого Рождества!" },
+          { pt: "Páscoa", ru: "Пасха" },
         ],
       },
     ],
@@ -570,6 +966,66 @@ export const TOPICS: Record<string, Topic> = {
           { pt: "em frente", ru: "прямо / напротив" },
           { pt: "perto", ru: "близко / рядом", note: "perto de... = рядом с..." },
           { pt: "longe", ru: "далеко", note: "longe de... = далеко от..." },
+        ],
+      },
+    ],
+  },
+
+  shopping: {
+    label: "Деньги и покупки",
+    icon: "🛒",
+    lessons: [
+      {
+        id: "shopping_1",
+        label: "Деньги и оплата",
+        theory: {
+          intro:
+            "Multibanco — и банкомат, и главная платёжная система Португалии, работает везде. Posso pagar com cartão? — Можно картой?",
+          tip: "Quanto custa? — Сколько стоит? Fica três euros e cinquenta. — Выходит 3,50 €.",
+          sections: [
+            { heading: "Деньги", words: ["dinheiro", "euro", "cêntimo", "preço", "grátis"] },
+            { heading: "Оплата", words: ["cartão", "troco", "recibo", "multibanco", "caixa"] },
+          ],
+        },
+        words: [
+          { pt: "dinheiro", ru: "деньги" },
+          { pt: "euro", ru: "евро" },
+          { pt: "cêntimo", ru: "цент", note: "в Португалии cêntimo, не centavo" },
+          { pt: "preço", ru: "цена" },
+          { pt: "grátis", ru: "бесплатно" },
+          { pt: "cartão", ru: "банковская карта", note: "pagar com cartão = платить картой" },
+          { pt: "troco", ru: "сдача" },
+          { pt: "recibo", ru: "чек / квитанция" },
+          { pt: "multibanco", ru: "банкомат / оплата картой", note: "главная платёжная система страны" },
+          { pt: "caixa", ru: "касса" },
+        ],
+      },
+      {
+        id: "shopping_2",
+        label: "Магазины",
+        theory: {
+          intro:
+            "Вывески, которые встречаются каждый день: aberto (открыто), fechado (закрыто), saldos (распродажа — январь и июль).",
+          tip: "На кассе всегда спросят: Quer um saco? — Пакет нужен? O mercado abre às sete. — Рынок открывается в семь.",
+          sections: [
+            { heading: "Куда идём", words: ["loja", "mercado", "padaria", "talho"] },
+            {
+              heading: "В магазине",
+              words: ["saco", "fila", "aberto", "fechado", "saldos", "presente"],
+            },
+          ],
+        },
+        words: [
+          { pt: "loja", ru: "магазин" },
+          { pt: "mercado", ru: "рынок" },
+          { pt: "padaria", ru: "булочная / пекарня" },
+          { pt: "talho", ru: "мясная лавка", note: "в Бразилии — açougue" },
+          { pt: "saco", ru: "пакет", note: "Quer um saco? = Пакет нужен?" },
+          { pt: "fila", ru: "очередь" },
+          { pt: "aberto", ru: "открыто" },
+          { pt: "fechado", ru: "закрыто" },
+          { pt: "saldos", ru: "распродажа", note: "всегда мн. ч.; январь и июль" },
+          { pt: "presente", ru: "подарок" },
         ],
       },
     ],
@@ -683,7 +1139,7 @@ export const TOPICS: Record<string, Topic> = {
           sections: [
             {
               heading: "Предметы",
-              words: ["computador", "telefone", "chave", "livro", "roupa", "frigorífico"],
+              words: ["computador", "telefone", "telemóvel", "relógio", "chave", "livro", "roupa", "frigorífico"],
             },
           ],
         },
@@ -694,6 +1150,8 @@ export const TOPICS: Record<string, Topic> = {
           { pt: "livro", ru: "книга" },
           { pt: "roupa", ru: "одежда" },
           { pt: "frigorífico", ru: "холодильник" },
+          { pt: "telemóvel", ru: "мобильный телефон", note: "в Португалии telemóvel, не celular" },
+          { pt: "relógio", ru: "часы" },
         ],
       },
     ],
@@ -739,6 +1197,76 @@ export const TOPICS: Record<string, Topic> = {
     ],
   },
 
+  feelings: {
+    label: "Чувства и состояния",
+    icon: "🙂",
+    lessons: [
+      {
+        id: "feelings_1",
+        label: "Чувства и состояния",
+        theory: {
+          intro:
+            "Временные состояния — с estar: Estou feliz. Голод, жажда, страх — через ter: Tenho fome (дословно «имею голод»).",
+          tip: "Estou muito contente! — Я очень доволен! Tenho saudades de casa. — Скучаю по дому.",
+          sections: [
+            {
+              heading: "Состояния (estar)",
+              words: ["feliz", "triste", "contente", "zangado", "nervoso"],
+            },
+            { heading: "Через ter", words: ["fome", "sede", "sono", "medo", "saudade"] },
+          ],
+        },
+        words: [
+          { pt: "feliz", ru: "счастливый" },
+          { pt: "triste", ru: "грустный" },
+          { pt: "contente", ru: "довольный" },
+          { pt: "zangado", ru: "сердитый" },
+          { pt: "nervoso", ru: "нервный / взволнованный" },
+          { pt: "fome", ru: "голод", note: "Tenho fome. = Я голоден." },
+          { pt: "sede", ru: "жажда", note: "Tenho sede. = Хочу пить." },
+          { pt: "sono", ru: "сонливость", note: "Tenho sono. = Хочу спать." },
+          { pt: "medo", ru: "страх", note: "Tenho medo de... = Я боюсь..." },
+          { pt: "saudade", ru: "тоска / скучание", note: "Tenho saudades tuas. = Скучаю по тебе." },
+        ],
+      },
+    ],
+  },
+
+  clothes: {
+    label: "Одежда",
+    icon: "👕",
+    lessons: [
+      {
+        id: "clothes_1",
+        label: "Одежда и обувь",
+        theory: {
+          intro:
+            "Многие названия — всегда во множественном числе: as calças (брюки), os óculos (очки). Примерить: Posso experimentar? — Можно примерить?",
+          tip: "Que tamanho? — Какой размер? Camisola в Португалии — свитер, а в Бразилии — ночная рубашка!",
+          sections: [
+            {
+              heading: "Одежда",
+              words: ["camisa", "calças", "vestido", "saia", "camisola", "casaco"],
+            },
+            { heading: "Обувь и аксессуары", words: ["sapatos", "sapatilhas", "chapéu", "óculos"] },
+          ],
+        },
+        words: [
+          { pt: "camisa", ru: "рубашка" },
+          { pt: "calças", ru: "брюки", note: "всегда мн. ч.: as calças" },
+          { pt: "vestido", ru: "платье" },
+          { pt: "saia", ru: "юбка" },
+          { pt: "camisola", ru: "свитер / кофта", note: "в Бразилии значит другое!" },
+          { pt: "casaco", ru: "куртка / пальто" },
+          { pt: "sapatos", ru: "туфли / обувь", note: "um sapato = один ботинок" },
+          { pt: "sapatilhas", ru: "кроссовки", note: "в Бразилии — tênis" },
+          { pt: "chapéu", ru: "шляпа / головной убор" },
+          { pt: "óculos", ru: "очки", note: "óculos de sol = солнечные очки" },
+        ],
+      },
+    ],
+  },
+
   phrases: {
     label: "Фразы выживания",
     icon: "💬",
@@ -753,7 +1281,7 @@ export const TOPICS: Record<string, Topic> = {
           sections: [
             {
               heading: "Непонимание",
-              words: ["Não percebo.", "Pode repetir?", "Mais devagar, por favor.", "Como se diz...?", "Não falo bem português."],
+              words: ["Não percebo.", "Pode repetir?", "Mais devagar, por favor.", "Como se diz...?", "Não falo bem português.", "Fala inglês?"],
             },
             {
               heading: "Помощь",
@@ -763,6 +1291,7 @@ export const TOPICS: Record<string, Topic> = {
               heading: "Покупки и знакомство",
               words: ["Quanto custa?", "A conta, por favor.", "De onde é?"],
             },
+            { heading: "Реакции", words: ["Não sei.", "Está bem."] },
           ],
         },
         words: [
@@ -779,6 +1308,9 @@ export const TOPICS: Record<string, Topic> = {
           { pt: "Onde é...?", ru: "Где находится...?" },
           { pt: "Como chego a...?", ru: "Как добраться до...?" },
           { pt: "Tem...?", ru: "У вас есть...?" },
+          { pt: "Fala inglês?", ru: "Вы говорите по-английски?" },
+          { pt: "Não sei.", ru: "Я не знаю." },
+          { pt: "Está bem.", ru: "Хорошо. / Ладно." },
         ],
       },
     ],
@@ -827,4 +1359,45 @@ export const CROSS_SENTENCES: CrossSentence[] = [
   // mixed advanced
   { words: ["De", "onde", "é?", "Sou", "de", "Lisboa."], answer: "De onde é? Sou de Lisboa.", ru: "Откуда вы? Я из Лиссабона.", required: ["De onde é?", "ser"] },
   { words: ["Gosto", "de", "Portugal", "porque", "o", "tempo", "é", "bom."], answer: "Gosto de Portugal porque o tempo é bom.", ru: "Мне нравится Португалия, потому что погода хорошая.", required: ["gostar", "tempo", "bom / boa", "porque"] },
+  // greetings + pronouns
+  { words: ["Olá!", "Como", "está", "a", "senhora?"], answer: "Olá! Como está a senhora?", ru: "Здравствуйте! Как вы поживаете? (к женщине)", required: ["Olá", "Como está?", "o senhor / a senhora"] },
+  { words: ["O", "que", "é", "isto?"], answer: "O que é isto?", ru: "Что это?", required: ["o que", "isto"] },
+  // basics (наречия-связки)
+  { words: ["Agora", "já", "percebo", "tudo!"], answer: "Agora já percebo tudo!", ru: "Теперь я уже всё понимаю!", required: ["agora", "já", "tudo"] },
+  { words: ["Talvez", "depois,", "agora", "não."], answer: "Talvez depois, agora não.", ru: "Может быть потом, сейчас нет.", required: ["talvez", "depois", "agora", "não"] },
+  // pronouns + verbs
+  { words: ["Eu", "não", "vejo", "nada."], answer: "Eu não vejo nada.", ru: "Я ничего не вижу.", required: ["eu", "ver", "nada"] },
+  { words: ["Vou", "dormir.", "Boa", "noite!"], answer: "Vou dormir. Boa noite!", ru: "Иду спать. Спокойной ночи!", required: ["ir", "dormir", "Boa noite"] },
+  // family (люди) + pronouns
+  { words: ["Este", "é", "o", "meu", "amigo."], answer: "Este é o meu amigo.", ru: "Это мой друг.", required: ["este / esta", "meu / minha", "amigo", "ser"] },
+  { words: ["A", "senhora", "tem", "filhos?"], answer: "A senhora tem filhos?", ru: "У вас есть дети? (вежливо)", required: ["o senhor / a senhora", "ter", "filho"] },
+  // about (страны, языки, работа)
+  { words: ["Falo", "russo", "e", "um", "pouco", "de", "português."], answer: "Falo russo e um pouco de português.", ru: "Я говорю по-русски и немного по-португальски.", required: ["falar", "russo", "pouco", "português"] },
+  { words: ["Trabalho", "numa", "empresa", "em", "Lisboa."], answer: "Trabalho numa empresa em Lisboa.", ru: "Я работаю в компании в Лиссабоне.", required: ["trabalhar", "empresa", "Lisboa"] },
+  { words: ["Amanhã", "estou", "de", "férias!"], answer: "Amanhã estou de férias!", ru: "Завтра я в отпуске!", required: ["amanhã", "estar", "férias"] },
+  // restaurant + food
+  { words: ["Quero", "bacalhau", "e", "um", "copo", "de", "vinho."], answer: "Quero bacalhau e um copo de vinho.", ru: "Хочу треску и бокал вина.", required: ["querer", "bacalhau", "copo", "vinho"] },
+  { words: ["A", "ementa,", "por", "favor."], answer: "A ementa, por favor.", ru: "Меню, пожалуйста.", required: ["ementa", "Por favor"] },
+  { words: ["Um", "pastel", "de", "nata", "e", "um", "café."], answer: "Um pastel de nata e um café.", ru: "Одно пирожное ната и один кофе.", required: ["pastel de nata", "café"] },
+  { words: ["Quero", "outro", "café,", "por", "favor."], answer: "Quero outro café, por favor.", ru: "Хочу ещё один кофе, пожалуйста.", required: ["querer", "outro", "café", "Por favor"] },
+  // calendar
+  { words: ["O", "meu", "aniversário", "é", "em", "maio."], answer: "O meu aniversário é em maio.", ru: "Мой день рождения в мае.", required: ["aniversário", "maio", "meu / minha"] },
+  { words: ["O", "Natal", "é", "em", "dezembro."], answer: "O Natal é em dezembro.", ru: "Рождество в декабре.", required: ["Natal", "dezembro", "ser"] },
+  { words: ["No", "verão", "vou", "à", "praia."], answer: "No verão vou à praia.", ru: "Летом я хожу на пляж.", required: ["verão", "ir", "praia"] },
+  // shopping + numbers
+  { words: ["Quanto", "custa?", "São", "dez", "euros."], answer: "Quanto custa? São dez euros.", ru: "Сколько стоит? Десять евро.", required: ["Quanto custa?", "dez", "euro"] },
+  { words: ["Posso", "pagar", "com", "cartão?"], answer: "Posso pagar com cartão?", ru: "Могу я заплатить картой?", required: ["poder", "pagar", "cartão"] },
+  { words: ["O", "mercado", "está", "fechado", "hoje."], answer: "O mercado está fechado hoje.", ru: "Рынок сегодня закрыт.", required: ["mercado", "fechado", "hoje", "estar"] },
+  { words: ["A", "conta", "é", "setenta", "euros."], answer: "A conta é setenta euros.", ru: "Счёт — семьдесят евро.", required: ["conta", "setenta", "euro"] },
+  // home + feelings
+  { words: ["O", "telemóvel", "está", "na", "mesa."], answer: "O telemóvel está na mesa.", ru: "Телефон на столе.", required: ["telemóvel", "mesa", "estar"] },
+  { words: ["Estou", "feliz", "porque", "hoje", "é", "sexta-feira."], answer: "Estou feliz porque hoje é sexta-feira.", ru: "Я счастлив, потому что сегодня пятница.", required: ["feliz", "porque", "sexta-feira", "estar"] },
+  { words: ["Tenho", "fome", "e", "sede."], answer: "Tenho fome e sede.", ru: "Я хочу есть и пить.", required: ["ter", "fome", "sede"] },
+  { words: ["Tenho", "saudades", "de", "casa."], answer: "Tenho saudades de casa.", ru: "Я скучаю по дому.", required: ["saudade", "casa", "ter"] },
+  // clothes + colors
+  { words: ["A", "camisa", "branca", "é", "cara."], answer: "A camisa branca é cara.", ru: "Белая рубашка дорогая.", required: ["camisa", "branco", "caro", "ser"] },
+  { words: ["Onde", "estão", "os", "meus", "óculos?"], answer: "Onde estão os meus óculos?", ru: "Где мои очки?", required: ["onde", "óculos", "meu / minha", "estar"] },
+  // phrases
+  { words: ["Fala", "inglês?", "Não,", "desculpe."], answer: "Fala inglês? Não, desculpe.", ru: "Вы говорите по-английски? Нет, извините.", required: ["Fala inglês?", "não", "Desculpe"] },
+  { words: ["Está", "bem,", "até", "amanhã!"], answer: "Está bem, até amanhã!", ru: "Хорошо, до завтра!", required: ["Está bem.", "Até amanhã"] },
 ];
