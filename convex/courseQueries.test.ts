@@ -46,4 +46,21 @@ describe("getCourse", () => {
     });
     expect(course!.topics).toHaveLength(seedReport);
   });
+
+  it("attaches per-topic sentences (раздел «Построение предложений») to each topic", async () => {
+    const t = convexTest(schema, modules);
+    await t.mutation(internal.seed.seedContent, {});
+    const as = await asUser(t);
+
+    const course = await as.query(api.courseQueries.getCourse, {});
+    const greetings = course!.topics.find((tp) => tp.topicKey === "greetings");
+    expect(greetings).toBeTruthy();
+    // Пилот-темы несут предложения; каждое — своей темы и с полем blank.
+    expect(greetings!.sentences.length).toBeGreaterThan(0);
+    expect(greetings!.sentences.every((s) => s.topicKey === "greetings")).toBe(true);
+    expect(greetings!.sentences[0]).toHaveProperty("blank");
+    expect(greetings!.sentences[0]).toHaveProperty("answer");
+    // Каждая тема курса несёт массив sentences (возможно пустой).
+    expect(course!.topics.every((tp) => Array.isArray(tp.sentences))).toBe(true);
+  });
 });

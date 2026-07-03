@@ -53,6 +53,20 @@ export default defineSchema({
     order: v.number(),
   }).index("by_sentenceKey", ["sentenceKey"]),
 
+  // Раздел «Построение предложений» темы (per-topic). В отличие от
+  // crossSentences (глобальные, кросс-тематические, в «Повторении») эти
+  // привязаны к теме через topicKey и всегда доступны в разделе темы. blank —
+  // целевое слово темы, прячущееся в cloze-упражнении. Прогресс SRS не пишут.
+  topicSentences: defineTable({
+    sentenceKey: v.string(),
+    topicKey: v.string(),
+    words: v.array(v.string()),
+    answer: v.string(),
+    ru: v.string(),
+    blank: v.string(),
+    order: v.number(),
+  }).index("by_sentenceKey", ["sentenceKey"]),
+
   // ─── Per-user progress ─────────────────────────────────────────────────────
   // One row per (user, lesson, pt); a row is only created on the FIRST answer.
   progress: defineTable({

@@ -18,6 +18,7 @@ const course: Course = {
           words: [{ lessonKey: "l1", pt: "a", ru: "а" }],
         },
       ],
+      sentences: [],
     },
   ],
   crossSentences: [],

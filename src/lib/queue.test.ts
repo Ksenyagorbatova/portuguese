@@ -1,9 +1,15 @@
 import { describe, it, expect, vi } from "vitest";
-import { buildLessonQueue, buildMistakesQueue, buildReviewQueue, REVIEW_DUE_LIMIT } from "./queue";
+import {
+  buildLessonQueue,
+  buildMistakesQueue,
+  buildReviewQueue,
+  buildSentenceQueue,
+  REVIEW_DUE_LIMIT,
+} from "./queue";
 import { MC_TARGET, TYPE_TARGET, SESSION_SIZE } from "./learning";
 import { wKey } from "./srs";
 import { shuffle } from "./shuffle";
-import type { CardFields, Course, LessonView, SessionItem, SrsState, Stat } from "./types";
+import type { CardFields, Course, LessonView, SessionItem, SrsState, TopicView } from "./types";
 
 // shuffle → identity so queue order/slicing is deterministic to assert on
 // (vi.fn, чтобы отдельные тесты могли подменить порядок через
@@ -23,9 +29,9 @@ function queueCounts(queue: SessionItem[]): { due: number; nw: number; rv: numbe
   const c = { due: 0, nw: 0, rv: 0, cr: 0 };
   for (const it of queue) {
     if (it.kind === "sentence") c.cr++;
-    else if (it.tag === "due") c.due++;
-    else if (it.tag === "new") c.nw++;
-    else if (it.tag === "review") c.rv++;
+    else if (it.kind === "word" && it.tag === "due") c.due++;
+    else if (it.kind === "word" && it.tag === "new") c.nw++;
+    else if (it.kind === "word" && it.tag === "review") c.rv++;
   }
   return c;
 }
@@ -58,18 +64,32 @@ const lesson: LessonView = {
   ],
 };
 const course: Course = {
-  topics: [{ topicKey: "t", label: "T", icon: "x", lessons: [lesson] }],
+  topics: [{ topicKey: "t", label: "T", icon: "x", lessons: [lesson], sentences: [] }],
   crossSentences: [],
 };
 
 describe("buildLessonQueue (статичная interleaved-очередь ≤ SESSION_SIZE)", () => {
   it("builds interleaved passes over unfinished words (3 слова × 6 показов = 18)", () => {
-    const q = buildLessonQueue(lesson, srsOf(), course);
+    const q = buildLessonQueue(lesson, srsOf());
     expect(q).toHaveLength(3 * FULL_REPS); // 18 < SESSION_SIZE — очередь короче лимита
     expect(q.every((i) => i.kind === "word")).toBe(true);
     // Проход = по одной карточке на каждое слово: первые 3 — все разные.
     const firstPass = q.slice(0, 3).map((i) => (i.kind === "word" ? i.word.pt : ""));
     expect(new Set(firstPass).size).toBe(3);
+  });
+
+  // Предложения ВЫНЕСЕНЫ из словарной сессии (раздел «Построение предложений»
+  // темы, buildSentenceQueue). Словарная очередь — только слова, никогда cross.
+  it("НЕ содержит предложений — словарная сессия это чистое заучивание слов", () => {
+    // Тема на 100%, required выучены — старый гейт вставил бы предложение;
+    // buildLessonQueue его больше не принимает (course-параметр убран).
+    const srs = srsOf({
+      learnedPts: ["a", "b", "c"],
+      topicStats: { t: { total: 3, seen: 3, learned: 3, due: 0 } },
+    });
+    const q = buildLessonQueue(lesson, srs);
+    expect(q.every((i) => i.kind === "word")).toBe(true);
+    expect(queueCounts(q).cr).toBe(0);
   });
 
   it("caps the queue at SESSION_SIZE and the denominator never grows past it", () => {
@@ -78,11 +98,7 @@ describe("buildLessonQueue (статичная interleaved-очередь ≤ SE
       lessonKey: "lb",
       words: Array.from({ length: 10 }, (_, i) => ({ lessonKey: "lb", pt: `w${i}`, ru: `п${i}` })),
     };
-    const bigCourse: Course = {
-      topics: [{ topicKey: "t", label: "T", icon: "x", lessons: [big] }],
-      crossSentences: [],
-    };
-    const q = buildLessonQueue(big, srsOf(), bigCourse);
+    const q = buildLessonQueue(big, srsOf());
     expect(q).toHaveLength(SESSION_SIZE); // 10 слов × 6 показов = 60 → cap 20
     // Interleaving: до первого повтора любого слова идут ВСЕ 10 разных слов.
     const pts = q.map((i) => (i.kind === "word" ? i.word.pt : ""));
@@ -94,7 +110,7 @@ describe("buildLessonQueue (статичная interleaved-очередь ≤ SE
       tags: { [wKey("l1", "c")]: "due" },
       cards: { [wKey("l1", "c")]: cardOf(1, 0) },
     });
-    const q = buildLessonQueue(lesson, srs, course);
+    const q = buildLessonQueue(lesson, srs);
     expect(q[0]).toMatchObject({ kind: "word", tag: "due", word: { pt: "c" } });
   });
 
@@ -103,7 +119,7 @@ describe("buildLessonQueue (статичная interleaved-очередь ≤ SE
       tags: { [wKey("l1", "a")]: "learned" },
       cards: { [wKey("l1", "a")]: cardOf(MC_TARGET, TYPE_TARGET) },
     });
-    const q = buildLessonQueue(lesson, srs, course);
+    const q = buildLessonQueue(lesson, srs);
     expect(q.length).toBeGreaterThan(0);
     expect(q.some((i) => i.kind === "word" && i.word.pt === "a")).toBe(false);
   });
@@ -114,7 +130,7 @@ describe("buildLessonQueue (статичная interleaved-очередь ≤ SE
       tags: { [wKey("l1", "b")]: "ongoing" },
       cards: { [wKey("l1", "b")]: cardOf(MC_TARGET, TYPE_TARGET - 1) },
     });
-    const q = buildLessonQueue(lesson, srs, course);
+    const q = buildLessonQueue(lesson, srs);
     const bShows = q.filter((i) => i.kind === "word" && i.word.pt === "b").length;
     expect(bShows).toBe(1);
     expect(q).toHaveLength(2 * FULL_REPS + 1); // a и c — по 6, b — 1
@@ -127,7 +143,7 @@ describe("buildLessonQueue (статичная interleaved-очередь ≤ SE
     const tags = Object.fromEntries(
       lesson.words.map((w) => [wKey("l1", w.pt), "learned"] as const),
     );
-    const q = buildLessonQueue(lesson, srsOf({ cards: learnedAll, tags }), course);
+    const q = buildLessonQueue(lesson, srsOf({ cards: learnedAll, tags }));
     expect(q).toHaveLength(3); // каждое слово по одному показу
     expect(queueCounts(q).rv).toBe(3);
   });
@@ -158,8 +174,6 @@ describe("buildMistakesQueue (мини-сессия «Повторить эти 
   });
 
   it("gives an already-learned (review) miss at least ONE show", () => {
-    // Промах на выученном слове: remainingReps 0, но мини-сессию запускали
-    // ровно ради него — слово обязано получить показ.
     const srs = srsOf({
       tags: { [wKey("l1", "a")]: "learned" },
       cards: { [wKey("l1", "a")]: cardOf(MC_TARGET, TYPE_TARGET) },
@@ -170,7 +184,7 @@ describe("buildMistakesQueue (мини-сессия «Повторить эти 
   });
 });
 
-describe("buildReviewQueue", () => {
+describe("buildReviewQueue (+ гейт кросс-предложений: тема ≥80% и required выучены)", () => {
   it("excludes words from lessons whose theory was not seen", () => {
     expect(buildReviewQueue(course, srsOf())).toHaveLength(0);
   });
@@ -194,7 +208,7 @@ describe("buildReviewQueue", () => {
       })),
     };
     const manyCourse: Course = {
-      topics: [{ topicKey: "t", label: "T", icon: "x", lessons: [many] }],
+      topics: [{ topicKey: "t", label: "T", icon: "x", lessons: [many], sentences: [] }],
       crossSentences: [],
     };
     const srs = srsOf({
@@ -203,163 +217,82 @@ describe("buildReviewQueue", () => {
     });
     expect(queueCounts(buildReviewQueue(manyCourse, srs)).due).toBe(REVIEW_DUE_LIMIT);
   });
-});
 
-describe("cross-sentence gate (topic ≥80% + required learned)", () => {
-  const gateLesson: LessonView = {
-    lessonKey: "l1",
-    label: "L1",
-    theory: { intro: "", tip: "", sections: [] },
-    words: ["a", "b", "c", "d", "e"].map((pt) => ({ lessonKey: "l1", pt, ru: pt })),
-  };
+  // Кросс-предложения остались ТОЛЬКО в «Повторении». Гейт: все required
+  // выучены И приходят из тем ≥80%.
   const gateCourse: Course = {
-    topics: [{ topicKey: "t", label: "T", icon: "x", lessons: [gateLesson] }],
+    topics: [
+      {
+        topicKey: "t",
+        label: "T",
+        icon: "x",
+        lessons: [{ ...lesson, words: ["a", "b", "c", "d", "e"].map((pt) => ({ lessonKey: "l1", pt, ru: pt })) }],
+        sentences: [],
+      },
+    ],
     crossSentences: [
       { sentenceKey: "cs1", words: ["A", "B"], answer: "A B", ru: "—", required: ["a", "b"] },
     ],
   };
-  const stat = (learned: number): Record<string, Stat> => ({
-    t: { total: 5, seen: 5, learned, due: 0 },
-  });
-
-  it("hides the sentence while the topic is below 80% learned", () => {
-    const srs = srsOf({ learnedPts: ["a", "b"], topicStats: stat(3) }); // 60%
-    expect(queueCounts(buildLessonQueue(gateLesson, srs, gateCourse)).cr).toBe(0);
-  });
-
-  it("shows the sentence once the topic hits 80% AND required words are learned", () => {
-    const srs = srsOf({ learnedPts: ["a", "b"], topicStats: stat(4) }); // 80%
-    expect(queueCounts(buildLessonQueue(gateLesson, srs, gateCourse)).cr).toBe(1);
-  });
-
-  it("hides the sentence if a required word is not learned, even at 80%", () => {
-    const srs = srsOf({ learnedPts: ["a"], topicStats: stat(4) }); // b missing
-    expect(queueCounts(buildLessonQueue(gateLesson, srs, gateCourse)).cr).toBe(0);
-  });
-
-  it("keeps words + injected sentences within SESSION_SIZE total", () => {
-    // 5 недоученных слов × 6 показов = 30 кандидатов + 1 предложение: бюджет
-    // слов ужимается так, чтобы ОБЩИЙ размер очереди не превысил SESSION_SIZE.
-    const srs = srsOf({ learnedPts: ["a", "b"], topicStats: stat(4) });
-    const q = buildLessonQueue(gateLesson, srs, gateCourse);
-    expect(q.length).toBeLessThanOrEqual(SESSION_SIZE);
-    expect(queueCounts(q).cr).toBe(1);
-  });
-
-  // Дубль pt в двух темах: слово считается готовым, когда готова ХОТЯ БЫ ОДНА
-  // из его тем — иначе добавление дубля молча переносило бы гейт на последнюю
-  // тему по порядку. (Контент сейчас дублей не содержит — content.test.ts это
-  // запрещает; ветка остаётся защитой от их возвращения.)
-  it("treats a duplicated word as ready when ANY of its topics is ready", () => {
-    const lessonA: LessonView = {
-      lessonKey: "a1",
-      label: "A1",
-      theory: { intro: "", tip: "", sections: [] },
-      words: [
-        { lessonKey: "a1", pt: "x", ru: "х" },
-        { lessonKey: "a1", pt: "y", ru: "у" },
-      ],
-    };
-    const lessonB: LessonView = {
-      lessonKey: "b1",
-      label: "B1",
-      theory: { intro: "", tip: "", sections: [] },
-      words: [
-        { lessonKey: "b1", pt: "x", ru: "х" }, // дубль x во второй теме
-        { lessonKey: "b1", pt: "z", ru: "з" },
-      ],
-    };
-    const dupCourse: Course = {
-      topics: [
-        { topicKey: "tA", label: "A", icon: "x", lessons: [lessonA] },
-        { topicKey: "tB", label: "B", icon: "x", lessons: [lessonB] },
-      ],
-      crossSentences: [
-        { sentenceKey: "cs-dup", words: ["X"], answer: "X", ru: "—", required: ["x"] },
-      ],
-    };
-    // Тема A освоена полностью, тема B не начата: гейт должен открыться по A
-    // (старый last-wins смотрел только на B и прятал предложение).
-    const srs = srsOf({
-      learnedPts: ["x", "y"],
-      topicStats: {
-        tA: { total: 2, seen: 2, learned: 2, due: 0 },
-        tB: { total: 2, seen: 0, learned: 0, due: 0 },
-      },
+  const gateSrs = (learned: number, learnedPts: string[]) =>
+    srsOf({
+      seenTheory: ["l1"],
+      learnedPts,
+      tags: Object.fromEntries(learnedPts.map((pt) => [wKey("l1", pt), "learned"] as const)),
+      topicStats: { t: { total: 5, seen: 5, learned, due: 0 } },
     });
-    const q = buildLessonQueue(lessonA, srs, dupCourse);
-    expect(q.filter((i) => i.kind === "sentence")).toHaveLength(1);
+
+  it("показывает предложение в повторении при теме ≥80% и выученных required", () => {
+    expect(queueCounts(buildReviewQueue(gateCourse, gateSrs(4, ["a", "b", "c", "d"]))).cr).toBe(1);
+  });
+
+  it("прячет предложение, пока тема ниже 80%", () => {
+    expect(queueCounts(buildReviewQueue(gateCourse, gateSrs(3, ["a", "b", "c"]))).cr).toBe(0);
+  });
+
+  it("прячет предложение, если required-слово не выучено (даже при 80%)", () => {
+    expect(queueCounts(buildReviewQueue(gateCourse, gateSrs(4, ["a", "c", "d", "e"]))).cr).toBe(0);
   });
 });
 
-describe("тематический фильтр предложений (сессия урока — только предложения своей темы)", () => {
-  // Две темы: tA освоена целиком (x, y выучены), tB не начата (p, q новые).
-  // Предложение построено из слов tA — по гейту выученности оно «открыто».
-  const lessonA: LessonView = {
-    lessonKey: "a1",
-    label: "A1",
-    theory: { intro: "", tip: "", sections: [] },
-    words: [
-      { lessonKey: "a1", pt: "x", ru: "х" },
-      { lessonKey: "a1", pt: "y", ru: "у" },
-    ],
-  };
-  const lessonB: LessonView = {
-    lessonKey: "b1",
-    label: "B1",
-    theory: { intro: "", tip: "", sections: [] },
-    words: [
-      { lessonKey: "b1", pt: "p", ru: "п" },
-      { lessonKey: "b1", pt: "q", ru: "к" },
-    ],
-  };
-  const mkCourse = (required: string[]): Course => ({
-    topics: [
-      { topicKey: "tA", label: "A", icon: "x", lessons: [lessonA] },
-      { topicKey: "tB", label: "B", icon: "x", lessons: [lessonB] },
-    ],
-    crossSentences: [
-      { sentenceKey: "cs1", words: ["X", "Y"], answer: "X Y", ru: "—", required },
-    ],
-  });
-  const readyA = srsOf({
-    learnedPts: ["x", "y"],
-    tags: { [wKey("a1", "x")]: "learned", [wKey("a1", "y")]: "learned" },
-    cards: {
-      [wKey("a1", "x")]: cardOf(MC_TARGET, TYPE_TARGET),
-      [wKey("a1", "y")]: cardOf(MC_TARGET, TYPE_TARGET),
-    },
-    topicStats: {
-      tA: { total: 2, seen: 2, learned: 2, due: 0 },
-      tB: { total: 2, seen: 0, learned: 0, due: 0 },
-    },
+describe("buildSentenceQueue (раздел «Построение предложений» темы)", () => {
+  const mkTopic = (n: number): TopicView => ({
+    topicKey: "t",
+    label: "T",
+    icon: "x",
+    lessons: [lesson],
+    sentences: Array.from({ length: n }, (_, i) => ({
+      sentenceKey: `ts_${i}`,
+      topicKey: "t",
+      words: [`W${i}`, "é?"],
+      answer: `W${i} é?`,
+      ru: `фраза ${i}`,
+      blank: `W${i}`,
+    })),
   });
 
-  it("НЕ вставляет предложение чужой темы в сессию урока (жалоба: конструктор не к месту)", () => {
-    // Учим урок темы B — открытое предложение темы A в его сессию не лезет.
-    expect(queueCounts(buildLessonQueue(lessonB, readyA, mkCourse(["x"]))).cr).toBe(0);
+  it("пустая тема (нет предложений) → пустая очередь", () => {
+    expect(buildSentenceQueue({ ...mkTopic(0) })).toEqual([]);
   });
 
-  it("вставляет предложение своей темы в сессию урока", () => {
-    expect(queueCounts(buildLessonQueue(lessonA, readyA, mkCourse(["x"]))).cr).toBe(1);
+  it("строит очередь из всех предложений темы, ≤ SESSION_SIZE", () => {
+    const q = buildSentenceQueue(mkTopic(5), () => 0);
+    expect(q).toHaveLength(5);
+    expect(q.every((i) => i.kind === "build" || i.kind === "cloze")).toBe(true);
   });
 
-  it("предложение из слов ДВУХ тем принадлежит обеим — показывается в уроках каждой", () => {
-    const both = srsOf({
-      learnedPts: ["x", "y", "p", "q"],
-      topicStats: {
-        tA: { total: 2, seen: 2, learned: 2, due: 0 },
-        tB: { total: 2, seen: 2, learned: 2, due: 0 },
-      },
-    });
-    const course = mkCourse(["x", "p"]);
-    expect(queueCounts(buildLessonQueue(lessonA, both, course)).cr).toBe(1);
-    expect(queueCounts(buildLessonQueue(lessonB, both, course)).cr).toBe(1);
+  it("каппирует большую тему по SESSION_SIZE", () => {
+    const q = buildSentenceQueue(mkTopic(SESSION_SIZE + 8), () => 0.9);
+    expect(q).toHaveLength(SESSION_SIZE);
   });
 
-  it("глобальное повторение темы не фильтрует — смешение тем там уместно", () => {
-    // readyA — уже готовый SrsState (srsOf отработал внутри фикстуры).
-    const srs = { ...readyA, seenTheory: ["a1"] };
-    expect(queueCounts(buildReviewQueue(mkCourse(["x"]), srs)).cr).toBe(1);
+  it("rnd < 0.5 → cloze, иначе build (микс типов)", () => {
+    expect(buildSentenceQueue(mkTopic(3), () => 0).every((i) => i.kind === "cloze")).toBe(true);
+    expect(buildSentenceQueue(mkTopic(3), () => 0.9).every((i) => i.kind === "build")).toBe(true);
+  });
+
+  it("предложения несут исходный TopicSentenceView (topicKey/blank/answer)", () => {
+    const [item] = buildSentenceQueue(mkTopic(1), () => 0);
+    expect(item).toMatchObject({ kind: "cloze", sentence: { topicKey: "t", blank: "W0", answer: "W0 é?" } });
   });
 });

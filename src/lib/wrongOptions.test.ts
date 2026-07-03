@@ -35,6 +35,7 @@ const course: Course = {
           ],
         },
       ],
+      sentences: [],
     },
   ],
   crossSentences: [],

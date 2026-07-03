@@ -13,11 +13,12 @@ export const getCourse = query({
     const userId = await getAuthUserId(ctx);
     if (!userId) return null;
 
-    const [topics, lessons, words, crossSentences] = await Promise.all([
+    const [topics, lessons, words, crossSentences, topicSentences] = await Promise.all([
       ctx.db.query("topics").collect(),
       ctx.db.query("lessons").collect(),
       ctx.db.query("words").collect(),
       ctx.db.query("crossSentences").collect(),
+      ctx.db.query("topicSentences").collect(),
     ]);
 
     // Group children, then sort each group by its captured `order`.
@@ -32,6 +33,12 @@ export const getCourse = query({
       const arr = wordsByLesson.get(w.lessonKey);
       if (arr) arr.push(w);
       else wordsByLesson.set(w.lessonKey, [w]);
+    }
+    const sentencesByTopic = new Map<string, typeof topicSentences>();
+    for (const s of topicSentences) {
+      const arr = sentencesByTopic.get(s.topicKey);
+      if (arr) arr.push(s);
+      else sentencesByTopic.set(s.topicKey, [s]);
     }
 
     const byOrder = <T extends { order: number }>(a: T, b: T) => a.order - b.order;
@@ -51,6 +58,14 @@ export const getCourse = query({
             ru: w.ru,
             note: w.note,
           })),
+        })),
+        sentences: (sentencesByTopic.get(t.topicKey) ?? []).sort(byOrder).map((s) => ({
+          sentenceKey: s.sentenceKey,
+          topicKey: s.topicKey,
+          words: s.words,
+          answer: s.answer,
+          ru: s.ru,
+          blank: s.blank,
         })),
       })),
       crossSentences: [...crossSentences].sort(byOrder).map((s) => ({

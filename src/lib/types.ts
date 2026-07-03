@@ -5,13 +5,35 @@ export type WordView = { lessonKey: string; pt: string; ru: string; note?: strin
 export type TheorySection = { heading: string; words: string[] };
 export type Theory = { intro: string; tip: string; sections: TheorySection[] };
 export type LessonView = { lessonKey: string; label: string; theory: Theory; words: WordView[] };
-export type TopicView = { topicKey: string; label: string; icon: string; lessons: LessonView[] };
+export type TopicView = {
+  topicKey: string;
+  label: string;
+  icon: string;
+  lessons: LessonView[];
+  // Раздел «Построение предложений» темы (per-topic, в отличие от глобальных
+  // crossSentences). Может быть пустым — тогда строка раздела не показывается.
+  sentences: TopicSentenceView[];
+};
 export type CrossSentenceView = {
   sentenceKey: string;
   words: string[];
   answer: string;
   ru: string;
   required: string[];
+};
+// Предложение раздела «Построение предложений». Одно предложение порождает ОБА
+// упражнения: сборку из банка слов (build) и выбор пропущенного слова (cloze).
+//   words  — токены-эталон в правильном порядке (пунктуация прилипает к токену)
+//   answer — words.join(" ")
+//   blank  — целевое слово темы (ровно один из words), которое прячется в cloze;
+//            дистракторы к нему берутся из слов темы (см. buildSentenceQueue)
+export type TopicSentenceView = {
+  sentenceKey: string;
+  topicKey: string;
+  words: string[];
+  answer: string;
+  ru: string;
+  blank: string;
 };
 export type Course = { topics: TopicView[]; crossSentences: CrossSentenceView[] };
 
@@ -68,10 +90,21 @@ export type AnswerResult = {
 
 export type SessionItem =
   | { kind: "word"; word: WordView; tag: BadgeTag }
-  | { kind: "sentence"; sentence: CrossSentenceView; tag: "cross" };
+  | { kind: "sentence"; sentence: CrossSentenceView; tag: "cross" }
+  // Раздел «Построение предложений»: сборка из банка (build) и выбор
+  // пропущенного слова (cloze). Оба несут TopicSentenceView; прогресс SRS не
+  // двигают (как и "sentence") — влияют только на счёт сессии.
+  | { kind: "build"; sentence: TopicSentenceView; tag: "cross" }
+  | { kind: "cloze"; sentence: TopicSentenceView; tag: "cross" };
 
 // Where a session was launched from (drives the "next step" suggestion).
-export type SessionOrigin = "review" | { topicKey: string; lessonKey: string };
+//   "review" — вкладка «Повторение»; { topicKey, lessonKey } — словарная сессия
+//   урока; { topicKey, kind:"sentences" } — раздел «Построение предложений» темы
+//   (без шага вперёд и финала курса — предложения прогресс не двигают).
+export type SessionOrigin =
+  | "review"
+  | { topicKey: string; lessonKey: string }
+  | { topicKey: string; kind: "sentences" };
 
 // Финал-трамплин: главный CTA экрана Complete по ФАКТИЧЕСКОМУ прогрессу.
 //   continue — в уроке остались недоученные слова (рестарт того же урока);
