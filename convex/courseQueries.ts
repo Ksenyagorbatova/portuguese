@@ -3,8 +3,8 @@ import { query } from "./_generated/server";
 
 // getCourse — returns the entire course content tree (was the TOPICS +
 // CROSS_SENTENCES constants in the original HTML). Identical for every user,
-// so it is fetched once and cached. ~13 topics / ~20 lessons / ~200 words /
-// ~25 sentences ≈ 260 docs — well within Convex query limits, no pagination.
+// so it is fetched once and cached. ~20 topics / ~40 lessons / ~430 words /
+// ~55 sentences ≈ 550 docs — well within Convex query limits, no pagination.
 // Auth-gated like getSrsState: незалогиненному содержимое курса не отдаём
 // (null → клиентский Shell показывает Splash при любом falsy значении).
 export const getCourse = query({

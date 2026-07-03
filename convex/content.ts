@@ -24,7 +24,7 @@ export type CrossSentence = {
   required: string[];
 };
 
-// Each topic has sub-lessons (max 10 words each).
+// Each topic has sub-lessons (usually ~10 words; larger lessons close over several sessions).
 // Cross-topic sentences reference words from multiple topics.
 // Sentences appear only when required words are learned.
 
@@ -93,7 +93,7 @@ export const TOPICS: Record<string, Topic> = {
         theory: {
           intro:
             "Короткие фразы-реакции на все случаи жизни. Parabéns — и «поздравляю», и «с днём рождения». Bem-vindo меняется по роду: женщине говорят bem-vinda.",
-          tip: "Saúde! — говорят и как тост, и когда кто-то чихнул. Fixe! — «класс!», словечко именно португальской молодёжи.",
+          tip: "Saúde! — тост «за здоровье!», а чихнувшему в Португалии говорят Santinho! Fixe — универсальное разговорное «класс!».",
           sections: [
             {
               heading: "Пожелания",
@@ -108,7 +108,7 @@ export const TOPICS: Record<string, Topic> = {
           { pt: "Bem-vindo!", ru: "Добро пожаловать!", note: "женщине — bem-vinda" },
           { pt: "Bom apetite!", ru: "Приятного аппетита!" },
           { pt: "Boa viagem!", ru: "Счастливого пути!" },
-          { pt: "Saúde!", ru: "Будь здоров! / За здоровье!", note: "тост и при чихании" },
+          { pt: "Saúde!", ru: "За здоровье!", note: "тост; чихнувшему говорят Santinho!" },
           { pt: "Força!", ru: "Держись! / Давай!" },
           { pt: "Não faz mal.", ru: "Ничего страшного." },
           { pt: "Que pena!", ru: "Как жаль!" },
@@ -130,9 +130,11 @@ export const TOPICS: Record<string, Topic> = {
             "В Португалии местоимение часто опускают: Sou russo вместо Eu sou russo — окончание глагола уже показывает лицо. Você в лицо незнакомцу звучит суховато — вежливее o senhor / a senhora.",
           tip: "Eu sou o Ivan. E a senhora, como se chama? — Я Иван. А вас как зовут? (вежливо к женщине)",
           sections: [
-            { heading: "Единственное число", words: ["eu", "tu", "você", "ele", "ela"] },
+            {
+              heading: "Единственное число",
+              words: ["eu", "tu", "você", "ele", "ela", "o senhor / a senhora"],
+            },
             { heading: "Множественное число", words: ["nós", "vocês", "eles", "elas"] },
-            { heading: "Вежливое «вы»", words: ["o senhor / a senhora"] },
           ],
         },
         words: [
@@ -145,7 +147,7 @@ export const TOPICS: Record<string, Topic> = {
           { pt: "vocês", ru: "вы (к нескольким)" },
           { pt: "eles", ru: "они (муж. или смешанные)" },
           { pt: "elas", ru: "они (жен.)" },
-          { pt: "o senhor / a senhora", ru: "вежливое «вы»", note: "к мужчине / к женщине" },
+          { pt: "o senhor / a senhora", ru: "господин / госпожа", note: "вежливое «вы» к мужчине / к женщине" },
         ],
       },
       {
@@ -153,25 +155,25 @@ export const TOPICS: Record<string, Topic> = {
         label: "Часть 2 — Мой, твой, наш",
         theory: {
           intro:
-            "Притяжательные согласуются с ВЕЩЬЮ, а не с владельцем: o meu carro (машина — муж. род), a minha casa (дом — жен. род). Обычно с артиклем: o meu, a minha.",
+            "Притяжательные согласуются с ВЕЩЬЮ, а не с владельцем: carro — мужского рода, поэтому o meu carro; casa — женского, поэтому a minha casa. Обычно с артиклем: o meu, a minha.",
           tip: "Este é o meu marido. — Это мой муж. A nossa casa é pequena. — Наш дом маленький. O carro dele. — Его машина.",
           sections: [
             {
               heading: "Чей?",
-              words: ["meu / minha", "teu / tua", "seu / sua", "nosso / nossa", "dele", "dela"],
+              words: ["meu / minha", "teu / tua", "seu / sua", "nosso / nossa", "dele / dela"],
             },
-            { heading: "Этот и тот", words: ["este / esta", "esse / essa"] },
+            { heading: "Этот и тот", words: ["este / esta", "esse / essa", "isto"] },
           ],
         },
         words: [
           { pt: "meu / minha", ru: "мой / моя", note: "o meu carro, a minha casa" },
           { pt: "teu / tua", ru: "твой / твоя" },
-          { pt: "seu / sua", ru: "ваш / ваша", note: "«его/её» чаще dele/dela" },
+          { pt: "seu / sua", ru: "ваш / ваша (к você)", note: "«его/её» чаще dele/dela" },
           { pt: "nosso / nossa", ru: "наш / наша" },
-          { pt: "dele", ru: "его", note: "o carro dele = его машина" },
-          { pt: "dela", ru: "её" },
+          { pt: "dele / dela", ru: "его / её", note: "o carro dele = его машина" },
           { pt: "este / esta", ru: "этот / эта" },
-          { pt: "esse / essa", ru: "тот / та (рядом)", note: "вдалеке — aquele / aquela" },
+          { pt: "esse / essa", ru: "тот / та (у собеседника)", note: "вдалеке — aquele / aquela" },
+          { pt: "isto", ru: "это", note: "Isto é um livro. = Это книга." },
         ],
       },
       {
@@ -186,7 +188,6 @@ export const TOPICS: Record<string, Topic> = {
               heading: "Вопросы",
               words: ["quem", "o que", "onde", "quando", "como", "quanto", "qual", "porquê"],
             },
-            { heading: "Полезное рядом", words: ["Que horas são?", "isto"] },
           ],
         },
         words: [
@@ -198,8 +199,6 @@ export const TOPICS: Record<string, Topic> = {
           { pt: "quanto", ru: "сколько", note: "Quanto custa? = Сколько стоит?" },
           { pt: "qual", ru: "какой / который", note: "Qual é o seu nome? = Как ваше имя?" },
           { pt: "porquê", ru: "почему", note: "в начале фразы — porque é que..." },
-          { pt: "Que horas são?", ru: "Который час?" },
-          { pt: "isto", ru: "это", note: "Isto é um livro. = Это книга." },
         ],
       },
     ],
@@ -242,17 +241,14 @@ export const TOPICS: Record<string, Topic> = {
         label: "Числа 11–100",
         theory: {
           intro:
-            "11–15 надо просто запомнить. 16–19: dez + seis/sete... → dezasseis. 20 — vinte, 30 — trinta, 100 — cem, 1000 — mil.",
+            "11–15 надо просто запомнить. 16–19: dez + seis/sete... → dezasseis. 20 — vinte, 30 — trinta, 100 — cem.",
           tip: "«Tenho vinte anos» — «Мне двадцать лет». Возраст всегда с глаголом ter (иметь).",
           sections: [
             {
               heading: "11–20",
               words: ["onze", "doze", "treze", "catorze", "quinze", "dezasseis", "dezassete", "dezoito", "dezanove", "vinte"],
             },
-            {
-              heading: "Десятки и большие числа",
-              words: ["trinta", "quarenta", "cinquenta", "sessenta", "setenta", "oitenta", "noventa", "cem", "mil"],
-            },
+            { heading: "Десятки", words: ["trinta", "quarenta", "cinquenta", "sessenta", "cem"] },
           ],
         },
         words: [
@@ -271,6 +267,18 @@ export const TOPICS: Record<string, Topic> = {
           { pt: "cinquenta", ru: "пятьдесят" },
           { pt: "cem", ru: "сто" },
           { pt: "sessenta", ru: "шестьдесят" },
+        ],
+      },
+      {
+        id: "numbers_3",
+        label: "Числа 70–90 и тысяча",
+        theory: {
+          intro:
+            "Последние десятки: setenta (70), oitenta (80), noventa (90) — и mil (1000). Составные числа просто складываются: vinte e um — 21, trinta e cinco — 35.",
+          tip: "Custa noventa euros. — Стоит девяносто евро. Mil euros?! É caro! — Тысяча евро?! Это дорого!",
+          sections: [{ heading: "70–1000", words: ["setenta", "oitenta", "noventa", "mil"] }],
+        },
+        words: [
           { pt: "setenta", ru: "семьдесят" },
           { pt: "oitenta", ru: "восемьдесят" },
           { pt: "noventa", ru: "девяносто" },
@@ -513,10 +521,7 @@ export const TOPICS: Record<string, Topic> = {
           tip: "Este é o meu amigo João. — Это мой друг Жуан. A pessoa — всегда женского рода, даже о мужчине.",
           sections: [
             { heading: "Свои люди", words: ["amigo", "amiga", "namorado", "namorada"] },
-            {
-              heading: "Люди вообще",
-              words: ["homem", "criança", "bebé", "pessoa", "gente"],
-            },
+            { heading: "Люди вообще", words: ["homem", "criança", "bebé", "pessoa"] },
           ],
         },
         words: [
@@ -528,7 +533,6 @@ export const TOPICS: Record<string, Topic> = {
           { pt: "criança", ru: "ребёнок" },
           { pt: "bebé", ru: "младенец", note: "в Португалии bebé, в Бразилии bebê" },
           { pt: "pessoa", ru: "человек", note: "всегда жен. род: a pessoa" },
-          { pt: "gente", ru: "люди / народ", note: "toda a gente = все" },
         ],
       },
     ],
@@ -607,7 +611,7 @@ export const TOPICS: Record<string, Topic> = {
         theory: {
           intro:
             "Цвета согласуются с родом: carro vermelho (красная машина), casa vermelha. Исключения без изменений: azul, verde, laranja, cor-de-rosa.",
-          tip: "Ele é alto e magro. — Он высокий и худой. Ela tem olhos azuis. — У неё голубые глаза. (ter = иметь)",
+          tip: "O carro é vermelho. — Машина красная. Ela tem olhos azuis. — У неё голубые глаза. (ter = иметь)",
           sections: [
             {
               heading: "Цвета",
@@ -770,7 +774,7 @@ export const TOPICS: Record<string, Topic> = {
           { pt: "colher", ru: "ложка" },
           { pt: "garrafa", ru: "бутылка", note: "uma garrafa de água = бутылка воды" },
           { pt: "ementa", ru: "меню", note: "в Португалии ementa; menu — комплексный обед" },
-          { pt: "empregado", ru: "официант", note: "подзывают: se faz favor!" },
+          { pt: "empregado", ru: "официант", note: "полностью: empregado de mesa; подзывают: se faz favor!" },
           { pt: "bacalhau", ru: "треска", note: "национальное блюдо — говорят, 365 рецептов" },
           { pt: "pastel de nata", ru: "пирожное с заварным кремом", note: "главный десерт страны" },
         ],
@@ -819,7 +823,7 @@ export const TOPICS: Record<string, Topic> = {
           tip: "Manhã = утро. Tarde = день/вечер. Noite = ночь. De manhã = утром. À tarde = днём/вечером.",
           sections: [
             { heading: "Части суток", words: ["manhã", "tarde", "noite", "meio-dia", "meia-noite"] },
-            { heading: "Время", words: ["hora", "minuto", "mês", "ano", "cedo", "logo"] },
+            { heading: "Время", words: ["hora", "minuto", "mês", "ano", "cedo", "logo", "Que horas são?"] },
           ],
         },
         words: [
@@ -834,6 +838,7 @@ export const TOPICS: Record<string, Topic> = {
           { pt: "ano", ru: "год" },
           { pt: "cedo", ru: "рано" },
           { pt: "logo", ru: "позже / скоро", note: "até logo = до скорого" },
+          { pt: "Que horas são?", ru: "Который час?" },
         ],
       },
     ],
@@ -899,7 +904,7 @@ export const TOPICS: Record<string, Topic> = {
           { pt: "data", ru: "дата" },
           { pt: "aniversário", ru: "день рождения", note: "Feliz aniversário! = С днём рождения!" },
           { pt: "festa", ru: "праздник / вечеринка" },
-          { pt: "feriado", ru: "нерабочий день / гос. праздник" },
+          { pt: "feriado", ru: "выходной / нерабочий день" },
           { pt: "Natal", ru: "Рождество", note: "Feliz Natal! = Счастливого Рождества!" },
           { pt: "Páscoa", ru: "Пасха" },
         ],
@@ -981,7 +986,7 @@ export const TOPICS: Record<string, Topic> = {
         theory: {
           intro:
             "Multibanco — и банкомат, и главная платёжная система Португалии, работает везде. Posso pagar com cartão? — Можно картой?",
-          tip: "Quanto custa? — Сколько стоит? Fica três euros e cinquenta. — Выходит 3,50 €.",
+          tip: "Quanto custa? — Сколько стоит? São três euros e cinquenta. — Три евро пятьдесят.",
           sections: [
             { heading: "Деньги", words: ["dinheiro", "euro", "cêntimo", "preço", "grátis"] },
             { heading: "Оплата", words: ["cartão", "troco", "recibo", "multibanco", "caixa"] },
@@ -996,7 +1001,7 @@ export const TOPICS: Record<string, Topic> = {
           { pt: "cartão", ru: "банковская карта", note: "pagar com cartão = платить картой" },
           { pt: "troco", ru: "сдача" },
           { pt: "recibo", ru: "чек / квитанция" },
-          { pt: "multibanco", ru: "банкомат / оплата картой", note: "главная платёжная система страны" },
+          { pt: "multibanco", ru: "банкомат", note: "главная платёжная система страны" },
           { pt: "caixa", ru: "касса" },
         ],
       },
@@ -1145,13 +1150,13 @@ export const TOPICS: Record<string, Topic> = {
         },
         words: [
           { pt: "computador", ru: "компьютер" },
-          { pt: "telefone", ru: "телефон" },
+          { pt: "telefone", ru: "телефон (стационарный)" },
           { pt: "chave", ru: "ключ" },
           { pt: "livro", ru: "книга" },
           { pt: "roupa", ru: "одежда" },
           { pt: "frigorífico", ru: "холодильник" },
           { pt: "telemóvel", ru: "мобильный телефон", note: "в Португалии telemóvel, не celular" },
-          { pt: "relógio", ru: "часы" },
+          { pt: "relógio", ru: "часы (прибор)" },
         ],
       },
     ],
@@ -1226,7 +1231,7 @@ export const TOPICS: Record<string, Topic> = {
           { pt: "sede", ru: "жажда", note: "Tenho sede. = Хочу пить." },
           { pt: "sono", ru: "сонливость", note: "Tenho sono. = Хочу спать." },
           { pt: "medo", ru: "страх", note: "Tenho medo de... = Я боюсь..." },
-          { pt: "saudade", ru: "тоска / скучание", note: "Tenho saudades tuas. = Скучаю по тебе." },
+          { pt: "saudade", ru: "тоска / ностальгия", note: "Tenho saudades tuas. = Скучаю по тебе." },
         ],
       },
     ],
@@ -1310,7 +1315,7 @@ export const TOPICS: Record<string, Topic> = {
           { pt: "Tem...?", ru: "У вас есть...?" },
           { pt: "Fala inglês?", ru: "Вы говорите по-английски?" },
           { pt: "Não sei.", ru: "Я не знаю." },
-          { pt: "Está bem.", ru: "Хорошо. / Ладно." },
+          { pt: "Está bem.", ru: "Хорошо. / Ладно.", note: "не путать с Estou bem. (я в порядке)" },
         ],
       },
     ],
@@ -1343,7 +1348,7 @@ export const CROSS_SENTENCES: CrossSentence[] = [
   { words: ["Ela", "tem", "olhos", "azuis", "e", "cabelo", "castanho."], answer: "Ela tem olhos azuis e cabelo castanho.", ru: "У неё голубые глаза и каштановые волосы.", required: ["azul", "castanho", "olho", "cabelo"] },
   // food + numbers
   { words: ["Quero", "dois", "cafés,", "por", "favor."], answer: "Quero dois cafés, por favor.", ru: "Хочу два кофе, пожалуйста.", required: ["dois / duas", "café", "querer"] },
-  { words: ["A", "conta", "é", "vinte", "euros."], answer: "A conta é vinte euros.", ru: "Счёт — двадцать евро.", required: ["conta", "vinte"] },
+  { words: ["A", "conta", "são", "vinte", "euros."], answer: "A conta são vinte euros.", ru: "Счёт — двадцать евро.", required: ["conta", "vinte"] },
   // body + verbs
   { words: ["Tenho", "dores", "de", "cabeça."], answer: "Tenho dores de cabeça.", ru: "У меня болит голова.", required: ["cabeça", "ter"] },
   { words: ["Estou", "cansado", "e", "doente."], answer: "Estou cansado e doente.", ru: "Я устал и болен.", required: ["cansado", "doente", "estar"] },
@@ -1364,7 +1369,7 @@ export const CROSS_SENTENCES: CrossSentence[] = [
   { words: ["O", "que", "é", "isto?"], answer: "O que é isto?", ru: "Что это?", required: ["o que", "isto"] },
   // basics (наречия-связки)
   { words: ["Agora", "já", "percebo", "tudo!"], answer: "Agora já percebo tudo!", ru: "Теперь я уже всё понимаю!", required: ["agora", "já", "tudo"] },
-  { words: ["Talvez", "depois,", "agora", "não."], answer: "Talvez depois, agora não.", ru: "Может быть потом, сейчас нет.", required: ["talvez", "depois", "agora", "não"] },
+  { words: ["Talvez", "depois,", "agora", "não."], answer: "Talvez depois, agora não.", ru: "Может быть, потом — сейчас нет.", required: ["talvez", "depois", "agora", "não"] },
   // pronouns + verbs
   { words: ["Eu", "não", "vejo", "nada."], answer: "Eu não vejo nada.", ru: "Я ничего не вижу.", required: ["eu", "ver", "nada"] },
   { words: ["Vou", "dormir.", "Boa", "noite!"], answer: "Vou dormir. Boa noite!", ru: "Иду спать. Спокойной ночи!", required: ["ir", "dormir", "Boa noite"] },
@@ -1381,14 +1386,14 @@ export const CROSS_SENTENCES: CrossSentence[] = [
   { words: ["Um", "pastel", "de", "nata", "e", "um", "café."], answer: "Um pastel de nata e um café.", ru: "Одно пирожное ната и один кофе.", required: ["pastel de nata", "café"] },
   { words: ["Quero", "outro", "café,", "por", "favor."], answer: "Quero outro café, por favor.", ru: "Хочу ещё один кофе, пожалуйста.", required: ["querer", "outro", "café", "Por favor"] },
   // calendar
-  { words: ["O", "meu", "aniversário", "é", "em", "maio."], answer: "O meu aniversário é em maio.", ru: "Мой день рождения в мае.", required: ["aniversário", "maio", "meu / minha"] },
+  { words: ["O", "meu", "aniversário", "é", "em", "outubro."], answer: "O meu aniversário é em outubro.", ru: "Мой день рождения в октябре.", required: ["aniversário", "outubro", "meu / minha"] },
   { words: ["O", "Natal", "é", "em", "dezembro."], answer: "O Natal é em dezembro.", ru: "Рождество в декабре.", required: ["Natal", "dezembro", "ser"] },
   { words: ["No", "verão", "vou", "à", "praia."], answer: "No verão vou à praia.", ru: "Летом я хожу на пляж.", required: ["verão", "ir", "praia"] },
   // shopping + numbers
   { words: ["Quanto", "custa?", "São", "dez", "euros."], answer: "Quanto custa? São dez euros.", ru: "Сколько стоит? Десять евро.", required: ["Quanto custa?", "dez", "euro"] },
   { words: ["Posso", "pagar", "com", "cartão?"], answer: "Posso pagar com cartão?", ru: "Могу я заплатить картой?", required: ["poder", "pagar", "cartão"] },
   { words: ["O", "mercado", "está", "fechado", "hoje."], answer: "O mercado está fechado hoje.", ru: "Рынок сегодня закрыт.", required: ["mercado", "fechado", "hoje", "estar"] },
-  { words: ["A", "conta", "é", "setenta", "euros."], answer: "A conta é setenta euros.", ru: "Счёт — семьдесят евро.", required: ["conta", "setenta", "euro"] },
+  { words: ["A", "conta", "são", "setenta", "euros."], answer: "A conta são setenta euros.", ru: "Счёт — семьдесят евро.", required: ["conta", "setenta", "euro"] },
   // home + feelings
   { words: ["O", "telemóvel", "está", "na", "mesa."], answer: "O telemóvel está na mesa.", ru: "Телефон на столе.", required: ["telemóvel", "mesa", "estar"] },
   { words: ["Estou", "feliz", "porque", "hoje", "é", "sexta-feira."], answer: "Estou feliz porque hoje é sexta-feira.", ru: "Я счастлив, потому что сегодня пятница.", required: ["feliz", "porque", "sexta-feira", "estar"] },
