@@ -61,6 +61,13 @@ Per-user таблицы (`progress`/`theorySeen`/`userStats`) prune НЕ тро�
   на `(lessonKey, pt)` (см. [`srs-scheduling.md`](srs-scheduling.md)).
 - `CROSS_SENTENCES` — только **дописывать в конец** (ключ берётся из индекса;
   вставка в середину сдвинет ключи у всех последующих).
+- Если переезд слова между уроками всё же нужен (меняется `lessonKey`) — это
+  делается ТОЛЬКО парой «правка `content.ts` + разовая миграция прогресса» в
+  [`convex/migrations.ts`](../../convex/migrations.ts) (internalMutation,
+  переносит строки `progress` со старого ключа на новый; идемпотентна; запускается
+  вручную `npx convex run migrations:<fn> --prod` после деплоя — CI миграции не
+  гоняет). Первый пример — `rebalanceNumbers` (перебалансировка «Чисел»,
+  [`specs/fix/numbers-rebalance.md`](../fix/numbers-rebalance.md)).
 
 **`note: undefined`** на re-seed: Convex трактует это как «поле отсутствует» при
 insert, а `patch({ note: undefined })` чистит устаревшую заметку.
