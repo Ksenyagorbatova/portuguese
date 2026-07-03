@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type {
   AnswerResult,
   CardFields,
@@ -175,6 +175,15 @@ export function Session({
     }
   }, [showCourse]);
 
+  // Пул дистракторов cloze (blank-слова темы текущего предложения) — считаем один
+  // раз на карточку, а не на каждый рендер Session. Хук безусловен (до atEnd).
+  const clozePool = useMemo(() => {
+    const it = queue[idx];
+    if (!it || it.kind !== "cloze") return [];
+    const topic = course.topics.find((t) => t.topicKey === it.sentence.topicKey);
+    return topic ? topic.sentences.map((s) => s.blank) : [];
+  }, [queue, idx, course]);
+
   if (atEnd) {
     if (showCourse && courseComplete) {
       return (
@@ -236,14 +245,12 @@ export function Session({
       />
     );
   } else if (item.kind === "cloze") {
-    // Дистракторы cloze — другие blank-слова той же темы.
-    const topic = course.topics.find((t) => t.topicKey === item.sentence.topicKey);
-    const pool = topic ? topic.sentences.map((s) => s.blank) : [];
+    // Дистракторы cloze — другие blank-слова той же темы (clozePool, useMemo выше).
     exercise = (
       <ClozeExercise
         key={idx}
         sentence={item.sentence}
-        pool={pool}
+        pool={clozePool}
         isLast={isLast}
         onAnswered={handleAnswered}
         onNext={advance}

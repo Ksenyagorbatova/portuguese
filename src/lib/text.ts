@@ -44,3 +44,10 @@ export function sentenceMatch(user: string, correct: string): boolean {
     s.trim().replace(/\s+/g, " ").toLowerCase().replace(/[.!?,]/g, "");
   return norm(user) === norm(correct);
 }
+
+// Single-word/token normalization: case-, accent- and trailing-punctuation-
+// insensitive, so a blank «Olá» matches the token «Olá!». For whole sentences
+// use sentenceMatch. (Cloze-упражнение и инвариант content.test сверяют по нему.)
+export function normWord(s: string): string {
+  return deaccent(s.trim()).replace(/[.!?,]/g, "");
+}

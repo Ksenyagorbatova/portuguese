@@ -103,8 +103,8 @@ export type SessionItem =
 //   (без шага вперёд и финала курса — предложения прогресс не двигают).
 export type SessionOrigin =
   | "review"
-  | { topicKey: string; lessonKey: string }
-  | { topicKey: string; kind: "sentences" };
+  | { kind: "lesson"; topicKey: string; lessonKey: string }
+  | { kind: "sentences"; topicKey: string };
 
 // Финал-трамплин: главный CTA экрана Complete по ФАКТИЧЕСКОМУ прогрессу.
 //   continue — в уроке остались недоученные слова (рестарт того же урока);

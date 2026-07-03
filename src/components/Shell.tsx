@@ -82,7 +82,7 @@ export function Shell({
     setView({
       kind: "session",
       queue: buildLessonQueue(lesson, s),
-      origin: { topicKey, lessonKey: lesson.lessonKey },
+      origin: { kind: "lesson", topicKey, lessonKey: lesson.lessonKey },
     });
   }
   // Старт раздела «Построение предложений» темы — сессия только из предложений
@@ -93,7 +93,7 @@ export function Shell({
     setScore({ correct: 0, total: 0 });
     setNonce((n) => n + 1);
     setSessionDone(false);
-    setView({ kind: "session", queue: buildSentenceQueue(topic), origin: { topicKey, kind: "sentences" } });
+    setView({ kind: "session", queue: buildSentenceQueue(topic), origin: { kind: "sentences", topicKey } });
   }
   function openLesson(topicKey: string, lesson: LessonView) {
     if (!s.seenTheory.includes(lesson.lessonKey)) {
@@ -149,7 +149,7 @@ export function Shell({
   // следующей темы. Для review-сессий шага вперёд нет (CTA «Ещё раз»).
   function nextStepOf(origin: SessionOrigin): NextStep | null {
     if (origin === "review") return null;
-    if ("kind" in origin) return null; // раздел предложений — без шага вперёд
+    if (origin.kind === "sentences") return null; // раздел предложений — без шага вперёд
     const ti = c.topics.findIndex((t: TopicView) => t.topicKey === origin.topicKey);
     const topic = c.topics[ti];
     if (!topic) return null;
@@ -176,7 +176,7 @@ export function Shell({
     bestStreak: number;
   } | null {
     if (origin === "review") return null;
-    if ("kind" in origin) return null; // раздел предложений — не закрывает курс
+    if (origin.kind === "sentences") return null; // раздел предложений — не закрывает курс
     const topics = c.topics;
     const allLearned =
       topics.length > 0 &&
@@ -201,7 +201,7 @@ export function Shell({
   // при добитом уроке, иначе «Сессия завершена!».
   function headingOf(origin: SessionOrigin): CompleteHeading {
     if (origin === "review") return "session";
-    if ("kind" in origin) return "session"; // раздел предложений — просто «Сессия завершена»
+    if (origin.kind === "sentences") return "session"; // раздел предложений — просто «Сессия завершена»
     const ts = s.topicStats[origin.topicKey];
     if (ts && ts.total > 0 && ts.learned === ts.total) return "topic";
     if (lessonRemaining(origin.topicKey, origin.lessonKey) === 0) return "lesson";
@@ -220,7 +220,7 @@ export function Shell({
     if (view.kind !== "session") return;
     if (view.origin === "review") {
       startReview();
-    } else if ("kind" in view.origin) {
+    } else if (view.origin.kind === "sentences") {
       startSentences(view.origin.topicKey);
     } else {
       const lesson = findLesson(view.origin.topicKey, view.origin.lessonKey);

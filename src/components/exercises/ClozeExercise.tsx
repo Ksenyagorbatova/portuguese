@@ -1,7 +1,8 @@
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import type { AnswerResult, TopicSentenceView } from "../../lib/types";
 import { shuffle } from "../../lib/shuffle";
-import { deaccent } from "../../lib/text";
+import { normWord } from "../../lib/text";
+import { hotkeyIndex } from "../../lib/hotkeys";
 import { speakAuto } from "../../lib/speech";
 import { hapticOk, hapticErr } from "../../lib/haptics";
 import { Badge } from "../Badge";
@@ -16,18 +17,8 @@ import { ResultFeedback, RetryBox, NextButton } from "../Feedback";
 
 const KEYS = ["A", "B", "C", "D"];
 
-// Сравнение без регистра/диакритики/хвостовой пунктуации — токен в words может
-// нести пунктуацию ("Olá!"), а blank/варианты чистые ("Olá").
-const norm = (s: string) => deaccent(s.trim()).replace(/[.!?,]/g, "");
-
-// Хоткей → индекс опции (1–4 / A–D, латиница; фоллбэк по физической позиции
-// KeyA–KeyD для нелатинских раскладок — как в McExercise).
-function hotkeyIndex(key: string, code: string): number {
-  if (/^[1-4]$/.test(key)) return key.charCodeAt(0) - "1".charCodeAt(0);
-  if (/^[a-dA-D]$/.test(key)) return key.toLowerCase().charCodeAt(0) - "a".charCodeAt(0);
-  if (!/^[a-zA-Z]$/.test(key) && /^Key[A-D]$/.test(code)) return code.charCodeAt(3) - "A".charCodeAt(0);
-  return -1;
-}
+// Сравнение без регистра/диакритики/хвостовой пунктуации (normWord из lib/text):
+// токен в words может нести пунктуацию ("Olá!"), а blank/варианты чистые ("Olá").
 
 export function ClozeExercise({
   sentence,
@@ -44,13 +35,13 @@ export function ClozeExercise({
 }) {
   // Позиция пропуска: первый токен words, совпавший с blank (нормализованно).
   const blankIdx = useMemo(
-    () => sentence.words.findIndex((w) => norm(w) === norm(sentence.blank)),
+    () => sentence.words.findIndex((w) => normWord(w) === normWord(sentence.blank)),
     [sentence],
   );
   // Варианты: цель + до 3 дистракторов из пула (другие blank-и темы), исключая
   // совпадающие с целью по норме (чтобы не было двух правильных).
   const options = useMemo(() => {
-    const distractors = shuffle(pool.filter((p) => norm(p) !== norm(sentence.blank))).slice(0, 3);
+    const distractors = shuffle(pool.filter((p) => normWord(p) !== normWord(sentence.blank))).slice(0, 3);
     return shuffle([sentence.blank, ...distractors]);
   }, [sentence, pool]);
 
@@ -59,7 +50,7 @@ export function ClozeExercise({
   const [resolved, setResolved] = useState<{ ok: boolean } | null>(null);
   const pendingRef = useRef(false);
 
-  const isCorrectOpt = (o: string) => norm(o) === norm(sentence.blank);
+  const isCorrectOpt = (o: string) => normWord(o) === normWord(sentence.blank);
 
   function finish(ok: boolean, firstTry: boolean) {
     if (pendingRef.current) return;
@@ -89,7 +80,7 @@ export function ClozeExercise({
     if (resolved || e.repeat || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
     const t = e.target as HTMLElement | null;
     if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
-    const i = hotkeyIndex(e.key, e.code);
+    const i = hotkeyIndex(e.key, e.code, options.length);
     if (i < 0 || i >= options.length) return;
     const o = options[i];
     if (wrongPicked.has(o)) return;
