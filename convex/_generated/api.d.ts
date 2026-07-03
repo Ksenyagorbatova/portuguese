@@ -12,6 +12,7 @@ import type * as auth from "../auth.js";
 import type * as content from "../content.js";
 import type * as courseQueries from "../courseQueries.js";
 import type * as http from "../http.js";
+import type * as migrations from "../migrations.js";
 import type * as progress from "../progress.js";
 import type * as seed from "../seed.js";
 
@@ -26,6 +27,7 @@ declare const fullApi: ApiFromModules<{
   content: typeof content;
   courseQueries: typeof courseQueries;
   http: typeof http;
+  migrations: typeof migrations;
   progress: typeof progress;
   seed: typeof seed;
 }>;

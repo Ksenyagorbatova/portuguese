@@ -238,17 +238,16 @@ export const TOPICS: Record<string, Topic> = {
       },
       {
         id: "numbers_2",
-        label: "Числа 11–100",
+        label: "Числа 11–20",
         theory: {
           intro:
-            "11–15 надо просто запомнить. 16–19: dez + seis/sete... → dezasseis. 20 — vinte, 30 — trinta, 100 — cem.",
+            "11–15 надо просто запомнить. 16–19 — составные: dez + seis/sete… → dezasseis, dezassete, dezoito, dezanove. 20 — vinte.",
           tip: "«Tenho vinte anos» — «Мне двадцать лет». Возраст всегда с глаголом ter (иметь).",
           sections: [
             {
               heading: "11–20",
               words: ["onze", "doze", "treze", "catorze", "quinze", "dezasseis", "dezassete", "dezoito", "dezanove", "vinte"],
             },
-            { heading: "Десятки", words: ["trinta", "quarenta", "cinquenta", "sessenta", "cem"] },
           ],
         },
         words: [
@@ -262,26 +261,31 @@ export const TOPICS: Record<string, Topic> = {
           { pt: "dezoito", ru: "восемнадцать" },
           { pt: "dezanove", ru: "девятнадцать" },
           { pt: "vinte", ru: "двадцать" },
-          { pt: "trinta", ru: "тридцать" },
-          { pt: "quarenta", ru: "сорок" },
-          { pt: "cinquenta", ru: "пятьдесят" },
-          { pt: "cem", ru: "сто" },
-          { pt: "sessenta", ru: "шестьдесят" },
         ],
       },
       {
         id: "numbers_3",
-        label: "Числа 70–90 и тысяча",
+        label: "Числа 30–1000",
         theory: {
           intro:
-            "Последние десятки: setenta (70), oitenta (80), noventa (90) — и mil (1000). Составные числа просто складываются: vinte e um — 21, trinta e cinco — 35.",
+            "Круглые десятки: trinta (30), quarenta (40), cinquenta (50), sessenta (60), setenta (70), oitenta (80), noventa (90), cem (100) — и mil (1000). Составные просто складываются: vinte e um — 21, trinta e cinco — 35.",
           tip: "Custa noventa euros. — Стоит девяносто евро. Mil euros?! É caro! — Тысяча евро?! Это дорого!",
-          sections: [{ heading: "70–1000", words: ["setenta", "oitenta", "noventa", "mil"] }],
+          sections: [
+            {
+              heading: "30–1000",
+              words: ["trinta", "quarenta", "cinquenta", "sessenta", "setenta", "oitenta", "noventa", "cem", "mil"],
+            },
+          ],
         },
         words: [
+          { pt: "trinta", ru: "тридцать" },
+          { pt: "quarenta", ru: "сорок" },
+          { pt: "cinquenta", ru: "пятьдесят" },
+          { pt: "sessenta", ru: "шестьдесят" },
           { pt: "setenta", ru: "семьдесят" },
           { pt: "oitenta", ru: "восемьдесят" },
           { pt: "noventa", ru: "девяносто" },
+          { pt: "cem", ru: "сто" },
           { pt: "mil", ru: "тысяча" },
         ],
       },
