@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { AnswerResult, CrossSentenceView } from "../../lib/types";
+import type { AnswerResult } from "../../lib/types";
 import { shuffle } from "../../lib/shuffle";
 import { sentenceMatch } from "../../lib/text";
 import { speakAuto } from "../../lib/speech";
@@ -16,7 +16,9 @@ export function SentenceBuilder({
   onAnswered,
   onNext,
 }: {
-  sentence: CrossSentenceView;
+  // Структурный тип: подходят и CrossSentenceView (повторение), и
+  // TopicSentenceView (раздел «Построение предложений») — нужны только эти поля.
+  sentence: { words: string[]; answer: string; ru: string };
   isLast: boolean;
   onAnswered: (result: AnswerResult) => void;
   onNext: () => void;

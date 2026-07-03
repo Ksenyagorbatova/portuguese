@@ -10,7 +10,7 @@ import type {
   TopicView,
   WordView,
 } from "../lib/types";
-import { buildLessonQueue, buildMistakesQueue, buildReviewQueue } from "../lib/queue";
+import { buildLessonQueue, buildMistakesQueue, buildReviewQueue, buildSentenceQueue } from "../lib/queue";
 import { SENTENCE_TOPIC_THRESHOLD } from "../lib/learning";
 import { adaptSrs, daysSinceStart } from "../lib/srs";
 import { isMuted, setMuted } from "../lib/speech";
@@ -81,9 +81,19 @@ export function Shell({
     setSessionDone(false);
     setView({
       kind: "session",
-      queue: buildLessonQueue(lesson, s, c),
-      origin: { topicKey, lessonKey: lesson.lessonKey },
+      queue: buildLessonQueue(lesson, s),
+      origin: { kind: "lesson", topicKey, lessonKey: lesson.lessonKey },
     });
+  }
+  // Старт раздела «Построение предложений» темы — сессия только из предложений
+  // (build/cloze), в обход теории. Раздел всегда доступен (гейта нет).
+  function startSentences(topicKey: string) {
+    const topic = c.topics.find((t: TopicView) => t.topicKey === topicKey);
+    if (!topic || topic.sentences.length === 0) return;
+    setScore({ correct: 0, total: 0 });
+    setNonce((n) => n + 1);
+    setSessionDone(false);
+    setView({ kind: "session", queue: buildSentenceQueue(topic), origin: { kind: "sentences", topicKey } });
   }
   function openLesson(topicKey: string, lesson: LessonView) {
     if (!s.seenTheory.includes(lesson.lessonKey)) {
@@ -139,6 +149,7 @@ export function Shell({
   // следующей темы. Для review-сессий шага вперёд нет (CTA «Ещё раз»).
   function nextStepOf(origin: SessionOrigin): NextStep | null {
     if (origin === "review") return null;
+    if (origin.kind === "sentences") return null; // раздел предложений — без шага вперёд
     const ti = c.topics.findIndex((t: TopicView) => t.topicKey === origin.topicKey);
     const topic = c.topics[ti];
     if (!topic) return null;
@@ -165,6 +176,7 @@ export function Shell({
     bestStreak: number;
   } | null {
     if (origin === "review") return null;
+    if (origin.kind === "sentences") return null; // раздел предложений — не закрывает курс
     const topics = c.topics;
     const allLearned =
       topics.length > 0 &&
@@ -189,6 +201,7 @@ export function Shell({
   // при добитом уроке, иначе «Сессия завершена!».
   function headingOf(origin: SessionOrigin): CompleteHeading {
     if (origin === "review") return "session";
+    if (origin.kind === "sentences") return "session"; // раздел предложений — просто «Сессия завершена»
     const ts = s.topicStats[origin.topicKey];
     if (ts && ts.total > 0 && ts.learned === ts.total) return "topic";
     if (lessonRemaining(origin.topicKey, origin.lessonKey) === 0) return "lesson";
@@ -207,6 +220,8 @@ export function Shell({
     if (view.kind !== "session") return;
     if (view.origin === "review") {
       startReview();
+    } else if (view.origin.kind === "sentences") {
+      startSentences(view.origin.topicKey);
     } else {
       const lesson = findLesson(view.origin.topicKey, view.origin.lessonKey);
       if (lesson) startLesson(view.origin.topicKey, lesson);
@@ -258,7 +273,13 @@ export function Shell({
       tab === "review" ? (
         <ReviewTab course={c} srs={s} onStart={startReview} onGoTopics={() => switchTab("topics")} />
       ) : (
-        <TopicsTab course={c} srs={s} onOpenLesson={openLesson} onOpenTheory={openTheory} />
+        <TopicsTab
+          course={c}
+          srs={s}
+          onOpenLesson={openLesson}
+          onOpenTheory={openTheory}
+          onOpenSentences={startSentences}
+        />
       );
   }
 

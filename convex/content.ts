@@ -23,6 +23,16 @@ export type CrossSentence = {
   ru: string;
   required: string[];
 };
+// Предложение раздела «Построение предложений» темы. topicKey — тема раздела;
+// blank — целевое слово темы (ровно один из words, без хвостовой пунктуации),
+// которое прячется в cloze. Порядок в TOPIC_SENTENCES → sentenceKey (append-only).
+export type TopicSentence = {
+  topicKey: string;
+  words: string[];
+  answer: string;
+  ru: string;
+  blank: string;
+};
 
 // Each topic has sub-lessons (usually ~10 words; larger lessons close over several sessions).
 // Cross-topic sentences reference words from multiple topics.
@@ -1409,4 +1419,32 @@ export const CROSS_SENTENCES: CrossSentence[] = [
   // phrases
   { words: ["Fala", "inglês?", "Não,", "desculpe."], answer: "Fala inglês? Não, desculpe.", ru: "Вы говорите по-английски? Нет, извините.", required: ["Fala inglês?", "não", "Desculpe"] },
   { words: ["Está", "bem,", "até", "amanhã!"], answer: "Está bem, até amanhã!", ru: "Хорошо, до завтра!", required: ["Está bem.", "Até amanhã"] },
+];
+
+// ─── Раздел «Построение предложений» (per-topic) ─────────────────────────────
+// Предложения/словосочетания темы для отдельного раздела «Часть N — Построение
+// предложений». В КАЖДОМ есть минимум одно слово темы, опора — на слова темы и
+// пройденных ранее (плюс минимальные связки уровня A0: é, está, o/a). blank —
+// целевое слово темы (чистое, без хвостовой пунктуации), которое прячется в
+// cloze; оно обязано присутствовать среди words (сверяется нормализованно, тест
+// content.test.ts). answer === words.join(" "). Порядок → sentenceKey (ts_NNNN),
+// append-only: дописывать в КОНЕЦ (вставка в середину сдвинет ключи).
+export const TOPIC_SENTENCES: TopicSentence[] = [
+  // greetings — приветствия, вежливость, реакции (всё из слов темы)
+  { topicKey: "greetings", words: ["Olá!", "Bom", "dia!"], answer: "Olá! Bom dia!", ru: "Привет! Доброе утро!", blank: "Olá" },
+  { topicKey: "greetings", words: ["Bom", "dia!", "Estou", "bem,", "obrigada."], answer: "Bom dia! Estou bem, obrigada.", ru: "Доброе утро! Я в порядке, спасибо.", blank: "obrigada" },
+  { topicKey: "greetings", words: ["Obrigado!", "De", "nada."], answer: "Obrigado! De nada.", ru: "Спасибо! Не за что.", blank: "Obrigado" },
+  { topicKey: "greetings", words: ["Desculpe,", "não", "faz", "mal."], answer: "Desculpe, não faz mal.", ru: "Извините, ничего страшного.", blank: "Desculpe" },
+  { topicKey: "greetings", words: ["Parabéns!", "Boa", "sorte!"], answer: "Parabéns! Boa sorte!", ru: "Поздравляю! Удачи!", blank: "Parabéns" },
+  { topicKey: "greetings", words: ["Prazer!", "Até", "logo!"], answer: "Prazer! Até logo!", ru: "Приятно познакомиться! До свидания!", blank: "Prazer" },
+  { topicKey: "greetings", words: ["Boa", "noite!", "Até", "amanhã!"], answer: "Boa noite! Até amanhã!", ru: "Спокойной ночи! До завтра!", blank: "amanhã" },
+  // pronouns — местоимения и вопросы (опора на слова из теории темы: carro, casa, livro, nome)
+  { topicKey: "pronouns", words: ["Quem", "é?"], answer: "Quem é?", ru: "Кто это?", blank: "Quem" },
+  { topicKey: "pronouns", words: ["O", "que", "é", "isto?"], answer: "O que é isto?", ru: "Что это?", blank: "isto" },
+  { topicKey: "pronouns", words: ["Este", "é", "o", "meu", "carro."], answer: "Este é o meu carro.", ru: "Это моя машина.", blank: "meu" },
+  { topicKey: "pronouns", words: ["Esta", "é", "a", "minha", "casa."], answer: "Esta é a minha casa.", ru: "Это мой дом.", blank: "minha" },
+  { topicKey: "pronouns", words: ["Onde", "está", "o", "meu", "livro?"], answer: "Onde está o meu livro?", ru: "Где моя книга?", blank: "Onde" },
+  { topicKey: "pronouns", words: ["Como", "se", "chama?"], answer: "Como se chama?", ru: "Как вас зовут?", blank: "Como" },
+  { topicKey: "pronouns", words: ["Qual", "é", "o", "seu", "nome?"], answer: "Qual é o seu nome?", ru: "Как ваше имя?", blank: "Qual" },
+  { topicKey: "pronouns", words: ["De", "quem", "é", "este", "carro?"], answer: "De quem é este carro?", ru: "Чья это машина?", blank: "este" },
 ];

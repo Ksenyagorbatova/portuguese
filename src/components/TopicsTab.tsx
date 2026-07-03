@@ -82,12 +82,14 @@ function TopicBlock({
   srs,
   onOpenLesson,
   onOpenTheory,
+  onOpenSentences,
   defaultOpen,
 }: {
   topic: TopicView;
   srs: SrsState;
   onOpenLesson: (topicKey: string, lesson: LessonView) => void;
   onOpenTheory: (topicKey: string, lesson: LessonView) => void;
+  onOpenSentences: (topicKey: string) => void;
   defaultOpen?: boolean;
 }) {
   const [open, setOpen] = useState(!!defaultOpen);
@@ -135,6 +137,35 @@ function TopicBlock({
               onOpenTheory={onOpenTheory}
             />
           ))}
+          {/* Раздел «Построение предложений» — доп. часть темы, всегда доступен
+              (без теории и счётчика слов); только если у темы есть предложения. */}
+          {topic.sentences.length > 0 && (
+            <div
+              className="m-lesson"
+              role="button"
+              tabIndex={0}
+              onClick={() => onOpenSentences(topic.topicKey)}
+              onKeyDown={(e) => {
+                if (e.target !== e.currentTarget) return;
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onOpenSentences(topic.topicKey);
+                }
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div className="m-lesson-name">
+                  Часть {topic.lessons.length + 1} — Построение предложений
+                </div>
+                <div className="m-lesson-meta">Сборка фраз и пропущенные слова</div>
+              </div>
+              <div className="m-lesson-actions">
+                <span className="m-chev">
+                  <Icon name="chevron-right" />
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -146,11 +177,13 @@ export function TopicsTab({
   srs,
   onOpenLesson,
   onOpenTheory,
+  onOpenSentences,
 }: {
   course: Course;
   srs: SrsState;
   onOpenLesson: (topicKey: string, lesson: LessonView) => void;
   onOpenTheory: (topicKey: string, lesson: LessonView) => void;
+  onOpenSentences: (topicKey: string) => void;
 }) {
   return (
     <div className="m-topics">
@@ -161,6 +194,7 @@ export function TopicsTab({
           srs={srs}
           onOpenLesson={onOpenLesson}
           onOpenTheory={onOpenTheory}
+          onOpenSentences={onOpenSentences}
           defaultOpen={i === 0}
         />
       ))}

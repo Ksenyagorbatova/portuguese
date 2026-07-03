@@ -19,7 +19,7 @@ describe("seedContent", () => {
     expect(second).toEqual(first);
     expect(first.topics).toBeGreaterThan(0);
     expect(first.words).toBeGreaterThan(0);
-    expect(first.pruned).toEqual({ topics: 0, lessons: 0, words: 0, crossSentences: 0 });
+    expect(first.pruned).toEqual({ topics: 0, lessons: 0, words: 0, crossSentences: 0, topicSentences: 0 });
 
     // DB holds exactly the reported number of rows — upsert, not duplicate.
     const topics = await t.run((ctx) => ctx.db.query("topics").collect());
@@ -65,10 +65,19 @@ describe("seedContent — prune контентных сирот", () => {
         required: [],
         order: 999,
       });
+      await ctx.db.insert("topicSentences", {
+        sentenceKey: "ts_9999",
+        topicKey: "ghost_topic",
+        words: ["x"],
+        answer: "x",
+        ru: "х",
+        blank: "x",
+        order: 999,
+      });
     });
 
     const res = await t.mutation(internal.seed.seedContent, {});
-    expect(res.pruned).toEqual({ topics: 1, lessons: 1, words: 1, crossSentences: 1 });
+    expect(res.pruned).toEqual({ topics: 1, lessons: 1, words: 1, crossSentences: 1, topicSentences: 1 });
 
     // Таблицы вернулись ровно к каноническому составу content.ts.
     expect(await t.run((ctx) => ctx.db.query("topics").collect())).toHaveLength(first.topics);

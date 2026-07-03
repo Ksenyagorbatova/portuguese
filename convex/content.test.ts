@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CROSS_SENTENCES, TOPICS } from "./content";
+import { CROSS_SENTENCES, TOPICS, TOPIC_SENTENCES } from "./content";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Инварианты целостности контента — чистые проверки поверх content.ts,
@@ -148,6 +148,69 @@ describe("целостность контента", () => {
         .filter(({ pt }) => pt.includes("||"))
         .map(({ lessonKey, pt }) => `${lessonKey}: pt "${pt}"`),
     ];
+    expect(bad).toEqual([]);
+  });
+});
+
+describe("целостность раздела «Построение предложений» (TOPIC_SENTENCES)", () => {
+  // Зеркалит normWord из src/lib/text (deaccent + без хвостовой пунктуации): blank
+  // чистый ("Olá"), токен в words может нести пунктуацию ("Olá!"). Копия, а не
+  // импорт — convex-тесты изолированы от src-модулей (моки, отдельный рантайм).
+  const norm = (s: string) =>
+    s
+      .normalize("NFD")
+      .replace(new RegExp("[\\u0300-\\u036f]", "g"), "")
+      .toLowerCase()
+      .replace(/[.!?,]/g, "")
+      .trim();
+  const topicKeys = new Set(Object.keys(TOPICS));
+
+  it("answer === words.join(' ')", () => {
+    const bad = TOPIC_SENTENCES.filter((s) => s.words.join(" ") !== s.answer).map(
+      (s) => `«${s.answer}» ≠ words.join(' ') = «${s.words.join(" ")}»`,
+    );
+    expect(bad).toEqual([]);
+  });
+
+  it("topicKey каждого предложения существует среди тем", () => {
+    const bad = TOPIC_SENTENCES.filter((s) => !topicKeys.has(s.topicKey)).map(
+      (s) => `«${s.answer}»: тема "${s.topicKey}" не существует`,
+    );
+    expect(bad).toEqual([]);
+  });
+
+  // blank обязан присутствовать среди words (нормализованно) — иначе
+  // ClozeExercise не найдёт позицию пропуска (blankIdx === -1) и покажет
+  // предложение без прочерка.
+  it("blank присутствует среди words (нормализованно)", () => {
+    const bad = TOPIC_SENTENCES.filter((s) => !s.words.some((w) => norm(w) === norm(s.blank))).map(
+      (s) => `«${s.answer}»: blank "${s.blank}" нет среди words`,
+    );
+    expect(bad).toEqual([]);
+  });
+
+  // Дистракторы cloze — другие blank-слова той же темы (buildSentenceQueue/
+  // ClozeExercise). Совпади blank двух предложений темы по норме — дистрактор
+  // оказался бы вторым правильным ответом.
+  it("blank-слова одной темы уникальны по норме", () => {
+    const byTopic = new Map<string, string[]>();
+    for (const s of TOPIC_SENTENCES) {
+      const arr = byTopic.get(s.topicKey) ?? [];
+      arr.push(norm(s.blank));
+      byTopic.set(s.topicKey, arr);
+    }
+    const bad: string[] = [];
+    for (const [tk, blanks] of byTopic)
+      for (const d of findDuplicates(blanks)) bad.push(`${tk}: дубль blank "${d}"`);
+    expect(bad).toEqual([]);
+  });
+
+  // Cloze показывает 4 варианта (1 верный + 3 дистрактора) — теме нужно ≥4
+  // предложения, чтобы дистракторов хватило.
+  it("у темы с предложениями их не меньше 4", () => {
+    const count = new Map<string, number>();
+    for (const s of TOPIC_SENTENCES) count.set(s.topicKey, (count.get(s.topicKey) ?? 0) + 1);
+    const bad = [...count.entries()].filter(([, n]) => n < 4).map(([tk, n]) => `${tk}: только ${n}`);
     expect(bad).toEqual([]);
   });
 });

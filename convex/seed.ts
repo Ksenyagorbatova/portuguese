@@ -3,7 +3,7 @@ import { v } from "convex/values";
 import { createAccount } from "@convex-dev/auth/server";
 import { internal } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
-import { TOPICS, CROSS_SENTENCES } from "./content";
+import { TOPICS, CROSS_SENTENCES, TOPIC_SENTENCES } from "./content";
 
 // Idempotent content seed. Upserts by natural key (topicKey / lessonKey /
 // (lessonKey,pt) / sentenceKey), so it is safe to run on every deploy:
@@ -30,6 +30,7 @@ export const seedContent = internalMutation({
     const liveLessonKeys = new Set<string>();
     const liveWordKeys = new Set<string>(); // `${lessonKey}||${pt}`
     const liveSentenceKeys = new Set<string>();
+    const liveTopicSentenceKeys = new Set<string>();
 
     let ti = 0;
     for (const [topicKey, topic] of Object.entries(TOPICS)) {
@@ -106,11 +107,34 @@ export const seedContent = internalMutation({
       else await ctx.db.insert("crossSentences", doc);
     }
 
+    // Раздел «Построение предложений» (per-topic). Те же правила upsert/prune,
+    // натуральный ключ ts_NNNN из индекса (append-only, как cs_NNNN).
+    for (let i = 0; i < TOPIC_SENTENCES.length; i++) {
+      const s = TOPIC_SENTENCES[i];
+      const sentenceKey = `ts_${String(i + 1).padStart(4, "0")}`;
+      liveTopicSentenceKeys.add(sentenceKey);
+      const exS = await ctx.db
+        .query("topicSentences")
+        .withIndex("by_sentenceKey", (q) => q.eq("sentenceKey", sentenceKey))
+        .unique();
+      const doc = {
+        sentenceKey,
+        topicKey: s.topicKey,
+        words: s.words,
+        answer: s.answer,
+        ru: s.ru,
+        blank: s.blank,
+        order: i,
+      };
+      if (exS) await ctx.db.patch(exS._id, doc);
+      else await ctx.db.insert("topicSentences", doc);
+    }
+
     // ─── Prune: контентные строки, чьих натуральных ключей больше нет в
     // content.ts. ТОЛЬКО контентные таблицы — progress/theorySeen/userStats не
     // трогаем НИКОГДА: прогресс пользователей переживает любой ре-сид, а
     // осиротевшие progress-строки просто лежат без вреда (их никто не читает).
-    const pruned = { topics: 0, lessons: 0, words: 0, crossSentences: 0 };
+    const pruned = { topics: 0, lessons: 0, words: 0, crossSentences: 0, topicSentences: 0 };
     for (const t of await ctx.db.query("topics").collect())
       if (!liveTopicKeys.has(t.topicKey)) {
         await ctx.db.delete(t._id);
@@ -131,12 +155,18 @@ export const seedContent = internalMutation({
         await ctx.db.delete(s._id);
         pruned.crossSentences++;
       }
+    for (const s of await ctx.db.query("topicSentences").collect())
+      if (!liveTopicSentenceKeys.has(s.sentenceKey)) {
+        await ctx.db.delete(s._id);
+        pruned.topicSentences++;
+      }
 
     return {
       topics: topicCount,
       lessons: lessonCount,
       words: wordCount,
       crossSentences: CROSS_SENTENCES.length,
+      topicSentences: TOPIC_SENTENCES.length,
       pruned,
     };
   },
@@ -205,7 +235,8 @@ export const seedLocal = internalAction({
     lessons: number;
     words: number;
     crossSentences: number;
-    pruned: { topics: number; lessons: number; words: number; crossSentences: number };
+    topicSentences: number;
+    pruned: { topics: number; lessons: number; words: number; crossSentences: number; topicSentences: number };
   }> => {
     // Две независимые защиты держат это вне облака. Env читаем через
     // `globalThis.process` (не голый `process`), чтобы файл тайпчекался и под

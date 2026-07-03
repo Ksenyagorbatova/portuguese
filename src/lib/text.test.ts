@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { deaccent, normStr, variantsMatch, sentenceMatch } from "./text";
+import { deaccent, normStr, normWord, variantsMatch, sentenceMatch } from "./text";
 
 describe("deaccent", () => {
   it("strips Portuguese accents and lowercases", () => {
@@ -104,5 +104,20 @@ describe("sentenceMatch", () => {
   });
   it("rejects a different sentence", () => {
     expect(sentenceMatch("boa noite", "bom dia")).toBe(false);
+  });
+});
+
+describe("normWord (cloze blank ↔ токен предложения)", () => {
+  it("нечувствителен к регистру, диакритике и хвостовой пунктуации", () => {
+    expect(normWord("Obrigada.")).toBe("obrigada");
+    expect(normWord("Desculpe,")).toBe("desculpe");
+    expect(normWord("amanhã!")).toBe("amanha");
+  });
+  it("чистый blank совпадает с токеном, несущим пунктуацию", () => {
+    expect(normWord("Olá")).toBe(normWord("Olá!"));
+    expect(normWord("isto")).toBe(normWord("isto?"));
+  });
+  it("различает разные слова", () => {
+    expect(normWord("meu") === normWord("minha")).toBe(false);
   });
 });

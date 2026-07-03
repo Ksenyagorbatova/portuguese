@@ -5,6 +5,8 @@ import type {
   LessonView,
   SessionItem,
   SrsState,
+  TopicSentenceView,
+  TopicView,
   WordView,
 } from "./types";
 import { shuffle } from "./shuffle";
@@ -27,6 +29,9 @@ const sentenceItem = (sentence: CrossSentenceView): SessionItem => ({
   sentence,
   tag: "cross",
 });
+// Элементы раздела «Построение предложений» темы (per-topic TopicSentenceView).
+const buildItem = (sentence: TopicSentenceView): SessionItem => ({ kind: "build", sentence, tag: "cross" });
+const clozeItem = (sentence: TopicSentenceView): SessionItem => ({ kind: "cloze", sentence, tag: "cross" });
 
 // Map each word's pt → EVERY topicKey it belongs to. Контент сейчас держит
 // слово ровно в одном уроке (инвариант content.test.ts), но карта остаётся
@@ -47,15 +52,11 @@ function wordTopicMap(course: Course): Map<string, Set<string>> {
 // A sentence appears only when (a) all its required words are learned AND
 // (b) every required word comes from at least one ≥80%-learned topic. So
 // combinations show up once a topic is almost fully mastered — not before.
-// forTopicKey (сессия урока) добавляет (c): предложение принадлежит теме
-// урока — хотя бы одно required-слово из неё. Без него (глобальное
-// повторение) смешение тем уместно; в сессии же урока чужие предложения
-// читались как «конструктор не к месту» (жалоба).
-function eligibleSentences(
-  course: Course,
-  srs: SrsState,
-  forTopicKey?: string,
-): CrossSentenceView[] {
+// Используется только в глобальном «Повторении» (buildReviewQueue): словарные
+// сессии урока предложений больше НЕ несут (они вынесены в раздел «Построение
+// предложений» темы — buildSentenceQueue), поэтому тематического фильтра
+// (forTopicKey) здесь больше нет.
+function eligibleSentences(course: Course, srs: SrsState): CrossSentenceView[] {
   const learned = new Set(srs.learnedPts);
   const wordTopic = wordTopicMap(course);
   const topicReady = (topicKey: string) => {
@@ -63,18 +64,12 @@ function eligibleSentences(
     return !!st && st.total > 0 && st.learned / st.total >= SENTENCE_TOPIC_THRESHOLD;
   };
   return course.crossSentences.filter((s) => {
-    if (forTopicKey && !s.required.some((r) => wordTopic.get(r)?.has(forTopicKey))) return false;
     if (!s.required.every((r) => learned.has(r))) return false;
     return s.required.every((r) => {
       const topics = wordTopic.get(r);
       return !!topics && [...topics].some(topicReady);
     });
   });
-}
-
-// Тема, которой принадлежит урок (для тематического фильтра предложений).
-function topicKeyOfLesson(course: Course, lessonKey: string): string | undefined {
-  return course.topics.find((t) => t.lessons.some((l) => l.lessonKey === lessonKey))?.topicKey;
 }
 
 const badgeOfWith =
@@ -136,30 +131,29 @@ function interleavedReps(
 // progress lives on the server, so the next session resumes the grind. Once the
 // whole lesson is learned the session falls back to a one-pass review of its
 // words. Per-card exercise type (MC/Type) is decided later in Session.tsx.
-export function buildLessonQueue(lesson: LessonView, srs: SrsState, course: Course): SessionItem[] {
+export function buildLessonQueue(lesson: LessonView, srs: SrsState): SessionItem[] {
   const cardOf = (w: WordView) => srs.cards[wKey(w.lessonKey, w.pt)];
-
-  // Предложения занимают часть бюджета: слова + предложения ≤ SESSION_SIZE.
-  // Только предложения темы ЭТОГО урока — см. eligibleSentences (c).
-  const sentences = shuffle(
-    eligibleSentences(course, srs, topicKeyOfLesson(course, lesson.lessonKey)),
-  ).slice(0, 2);
-  const wordBudget = Math.max(0, SESSION_SIZE - sentences.length);
-
+  // Словарная сессия — ЧИСТОЕ заучивание слов: предложения сюда больше НЕ
+  // подмешиваются (раньше 2 вставлялись на позиции 4/7). Они вынесены в
+  // отдельный раздел «Построение предложений» темы — см. buildSentenceQueue.
   const unfinished = lesson.words.filter((w) => remainingReps(cardOf(w)) > 0);
-  const q: SessionItem[] =
-    unfinished.length > 0
-      ? interleavedReps(unfinished, srs, wordBudget, (w) => remainingReps(cardOf(w)), true)
-      : // Урок выучен целиком — повторение: каждое слово по одному показу.
-        shuffle(lesson.words)
-          .slice(0, wordBudget)
-          .map((w) => wordItem(w, badgeOfWith(srs)(w)));
+  return unfinished.length > 0
+    ? interleavedReps(unfinished, srs, SESSION_SIZE, (w) => remainingReps(cardOf(w)), true)
+    : // Урок выучен целиком — повторение: каждое слово по одному показу.
+      shuffle(lesson.words)
+        .slice(0, SESSION_SIZE)
+        .map((w) => wordItem(w, badgeOfWith(srs)(w)));
+}
 
-  sentences.forEach((s, i) => {
-    const pos = Math.min(4 + i * 3, q.length);
-    q.splice(pos, 0, sentenceItem(s));
-  });
-  return q;
+// Сессия раздела «Построение предложений» темы: статичная очередь из предложений
+// темы, каждое случайно как сборка (build) или выбор пропущенного слова (cloze).
+// Раздел всегда доступен (гейта освоенности нет — механика узнавания не требует
+// знать слова наизусть); предложения прогресс SRS не двигают. rnd инжектируется
+// ради детерминизма в тестах.
+export function buildSentenceQueue(topic: TopicView, rnd: () => number = Math.random): SessionItem[] {
+  return shuffle(topic.sentences)
+    .slice(0, SESSION_SIZE)
+    .map((s) => (rnd() < 0.5 ? clozeItem(s) : buildItem(s)));
 }
 
 // Мини-сессия «Повторить эти N слов» с финала: только промахнутые слова, та же

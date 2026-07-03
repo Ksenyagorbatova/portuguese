@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type {
   AnswerResult,
   CardFields,
@@ -15,6 +15,7 @@ import { isMuted, canSpeakPortuguese } from "../lib/speech";
 import { McExercise } from "./exercises/McExercise";
 import { TypeExercise } from "./exercises/TypeExercise";
 import { SentenceBuilder } from "./exercises/SentenceBuilder";
+import { ClozeExercise } from "./exercises/ClozeExercise";
 import { Complete } from "./Complete";
 import { CourseComplete } from "./CourseComplete";
 import { Icon } from "./Icon";
@@ -133,7 +134,7 @@ export function Session({
     onScore(ns.correct, ns.total);
 
     const item = queue[idx];
-    if (item.kind === "sentence") return; // предложения в разбор ошибок не попадают
+    if (item.kind !== "word") return; // предложения (sentence/build/cloze) в разбор ошибок не попадают
     const key = wKey(item.word.lessonKey, item.word.pt);
     const cur = wp[key] ?? { mc: 0, type: 0 };
     const next: WordProgress = {
@@ -173,6 +174,15 @@ export function Session({
       }
     }
   }, [showCourse]);
+
+  // Пул дистракторов cloze (blank-слова темы текущего предложения) — считаем один
+  // раз на карточку, а не на каждый рендер Session. Хук безусловен (до atEnd).
+  const clozePool = useMemo(() => {
+    const it = queue[idx];
+    if (!it || it.kind !== "cloze") return [];
+    const topic = course.topics.find((t) => t.topicKey === it.sentence.topicKey);
+    return topic ? topic.sentences.map((s) => s.blank) : [];
+  }, [queue, idx, course]);
 
   if (atEnd) {
     if (showCourse && courseComplete) {
@@ -224,11 +234,23 @@ export function Session({
   const posPct = queue.length > 0 ? Math.round((idx / queue.length) * 100) : 0;
 
   let exercise;
-  if (item.kind === "sentence") {
+  if (item.kind === "sentence" || item.kind === "build") {
     exercise = (
       <SentenceBuilder
         key={idx}
         sentence={item.sentence}
+        isLast={isLast}
+        onAnswered={handleAnswered}
+        onNext={advance}
+      />
+    );
+  } else if (item.kind === "cloze") {
+    // Дистракторы cloze — другие blank-слова той же темы (clozePool, useMemo выше).
+    exercise = (
+      <ClozeExercise
+        key={idx}
+        sentence={item.sentence}
+        pool={clozePool}
         isLast={isLast}
         onAnswered={handleAnswered}
         onNext={advance}

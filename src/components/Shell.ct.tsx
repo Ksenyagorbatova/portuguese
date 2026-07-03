@@ -17,7 +17,7 @@ const lesson = {
   ],
 };
 const course = {
-  topics: [{ topicKey: "t1", label: "Приветствия", icon: "👋", lessons: [lesson] }],
+  topics: [{ topicKey: "t1", label: "Приветствия", icon: "👋", lessons: [lesson], sentences: [] }],
   crossSentences: [],
 };
 
@@ -218,6 +218,7 @@ test("a 100%-finished topic rolls the Complete CTA over to the next topic", asyn
             words: [{ lessonKey: "l1", pt: "olá", ru: "привет" }],
           },
         ],
+        sentences: [],
       },
       {
         topicKey: "t2",
@@ -235,6 +236,7 @@ test("a 100%-finished topic rolls the Complete CTA over to the next topic", asyn
             ],
           },
         ],
+        sentences: [],
       },
     ],
     crossSentences: [],
