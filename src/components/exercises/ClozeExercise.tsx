@@ -111,8 +111,12 @@ export function ClozeExercise({
     return wrongPicked.has(o) ? "m-opt wrong" : "m-opt";
   }
 
-  const before = sentence.words.slice(0, blankIdx).join(" ");
-  const after = sentence.words.slice(blankIdx + 1).join(" ");
+  // blank обязан быть среди words (гарантирует content.test, norm идентичен).
+  // Guard на случай, если инвариант всё же обойдён: прячем первый токен, а не
+  // рвём предложение отрицательным slice.
+  const gapIdx = blankIdx >= 0 ? blankIdx : 0;
+  const before = sentence.words.slice(0, gapIdx).join(" ");
+  const after = sentence.words.slice(gapIdx + 1).join(" ");
 
   return (
     <div className="m-card">
