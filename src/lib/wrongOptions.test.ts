@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { allWordsOf, getWrong } from "./wrongOptions";
+import { allWordsOf, getWrong, getWrongForAudio } from "./wrongOptions";
 import type { Course } from "./types";
 
 // Make distractor selection deterministic: shuffle() becomes identity.
@@ -78,5 +78,53 @@ describe("getWrong", () => {
 
   it("never returns more than the available pool", () => {
     expect(getWrong(course, correct, 99)).toHaveLength(6);
+  });
+});
+
+describe("getWrongForAudio", () => {
+  // Урок спряжения с акцент-минимальной парой tem/têm: на слух (TTS) формы
+  // неотличимы — близнец в вариантах аудио-вопроса делал бы его неотвечаемым.
+  const conjCourse: Course = {
+    topics: [
+      {
+        topicKey: "t",
+        label: "T",
+        icon: "x",
+        lessons: [
+          {
+            lessonKey: "ter",
+            label: "Ter",
+            theory: { intro: "", tip: "", sections: [] },
+            words: [
+              { lessonKey: "ter", pt: "tem", ru: "(он/она/você) имеет" },
+              { lessonKey: "ter", pt: "têm", ru: "(они/vocês) имеют" },
+              { lessonKey: "ter", pt: "tens", ru: "(ты) имеешь" },
+              { lessonKey: "ter", pt: "temos", ru: "(мы) имеем" },
+            ],
+          },
+          {
+            lessonKey: "other",
+            label: "Other",
+            theory: { intro: "", tip: "", sections: [] },
+            words: [{ lessonKey: "other", pt: "olá", ru: "привет" }],
+          },
+        ],
+        sentences: [],
+      },
+    ],
+    crossSentences: [],
+  };
+  const tem = { lessonKey: "ter", pt: "tem", ru: "(он/она/você) имеет" };
+
+  it("исключает только-акцентного близнеца (deaccent-равного) и добирает из курса", () => {
+    const wrong = getWrongForAudio(conjCourse, tem, 3);
+    expect(wrong).toHaveLength(3);
+    expect(wrong.map((w) => w.pt)).not.toContain("têm");
+    // Недобор из-за фильтра компенсируется словом другого урока.
+    expect(wrong.map((w) => w.pt)).toEqual(["tens", "temos", "olá"]);
+  });
+
+  it("обычный getWrong близнеца НЕ фильтрует (в зрительном MC он желателен)", () => {
+    expect(getWrong(conjCourse, tem, 3).map((w) => w.pt)).toContain("têm");
   });
 });

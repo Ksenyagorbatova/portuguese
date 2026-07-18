@@ -3,7 +3,7 @@ import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { AnswerResult, BadgeTag, CardFields, Course, WordView } from "../../lib/types";
 import { shuffle } from "../../lib/shuffle";
-import { getWrong } from "../../lib/wrongOptions";
+import { getWrong, getWrongForAudio } from "../../lib/wrongOptions";
 import { hotkeyIndex } from "../../lib/hotkeys";
 import { localDay } from "../../lib/day";
 import { nextDueLabel, wKey } from "../../lib/srs";
@@ -40,7 +40,16 @@ export function McExercise({
   onNext: () => void;
 }) {
   const recordAnswer = useMutation(api.progress.recordAnswer);
-  const options = useMemo(() => shuffle([word, ...getWrong(course, word)]), [word, course]);
+  // Для аудио-вопроса дистракторы без только-акцентных близнецов (tem/têm
+  // звучат одинаково — см. getWrongForAudio); в зрительных MC близнец остаётся.
+  const options = useMemo(
+    () =>
+      shuffle([
+        word,
+        ...(mode === "audio_ru" ? getWrongForAudio(course, word) : getWrong(course, word)),
+      ]),
+    [word, course, mode],
+  );
   const [wrongPicked, setWrongPicked] = useState<Set<string>>(new Set());
   const [tries, setTries] = useState(0);
   const [resolved, setResolved] = useState<Resolved | null>(null);
