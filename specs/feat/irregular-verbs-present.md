@@ -13,20 +13,36 @@
 
 ## Изменения данных / API
 
-Только контент ([`convex/content.ts`](../../convex/content.ts)) — кода нет.
+Контент ([`convex/content.ts`](../../convex/content.ts)) + один точечный
+код-фикс, вскрытый ревью (см. «Code-review»):
 
 - Новая тема `irregular_present` «Неправильные глаголы» (🔀), в списке сразу
   после `verbs` (инфинитивы уже там — тема продолжает их формами).
 - 8 уроков `irr_pres_{ser,estar,ter,ir,vir,dar,por,haver}`, «Часть N — Verbo
   (перевод)». В уроках 1–7 по 5 слов-форм: eu / tu / ele-ela-você / nós /
-  eles-elas-vocês. Урок 8 — 3 слова: `há`, `não há`, `há muito tempo`.
+  eles-elas-vocês. Урок 8 (haver) — 4 слова: `há`, `não há`, `há muito tempo`,
+  `Há quanto tempo?` (4-е добавлено по ревью: урок из 3 слов всегда добирал
+  MC-дистрактора со всего курса, где «comer = есть/кушать» давал двусмысленный
+  выбор рядом с «há = есть/имеется»).
 - Теория каждого урока — «таблица» через секции «Единственное/Множественное
   число»; intro несёт узус (ser vs estar, «у меня есть» = ter, ir+инфинитив
-  как будущее, pôr a mesa), tip — примеры-предложения.
+  как будущее, pôr a mesa); tip — самостоятельная подсказка, НЕ дублирующая
+  примеры из notes (estar a + inf, ter de, транспорт через de, dá-me,
+  há + время = «назад»).
 - +22 предложения `TOPIC_SENTENCES` темы (дописаны в конец, append-only) для
   раздела «Построение предложений».
+- **Код:** `getWrongForAudio` в
+  [`src/lib/wrongOptions.ts`](../../src/lib/wrongOptions.ts) (+ параметр
+  `accept` у `getWrong`) и его использование в
+  [`McExercise.tsx`](../../src/components/exercises/McExercise.tsx) для
+  `audio_ru`: из дистракторов аудио-вопроса исключаются только-акцентные
+  близнецы правильного ответа (deaccent-равный `pt`).
 - Обновлён golden-снапшот пар `(lessonKey, pt)`: в диффе только добавления
-  (+38 строк), существующие пары не тронуты.
+  (+39 строк), существующие пары не тронуты.
+- [`content-authoring/SKILL.md`](../../.claude/skills/content-authoring/SKILL.md):
+  новый раздел с правилами `TOPIC_SENTENCES` (append-only, blank-нормы,
+  ≥4 предложений, «ровно один верный ответ» — явный субъект + различающий
+  контекст/перевод).
 
 ## Поведение (для пользователя)
 
@@ -49,13 +65,13 @@
   на глагол.
 - **haver ≠ полная парадигма.** В живом presente существует только `há`
   (hei/hás/havemos/hão мертвы вне книжного haver de) — часть 8 учит `há`,
-  `não há`, `há muito tempo`, intro объясняет почему.
+  `não há`, `há muito tempo`, `Há quanto tempo?`, intro объясняет почему.
 - **`pt` — голая форма без местоимения** («sou», не «eu sou»): иначе MC ru→pt
   решается подбором местоимения (eu=я), а не знанием формы; лицо указано в
   `ru` скобкой «(я) есть»; для 3-х лиц — «(он/она/você)» / «(они/vocês)»,
   консистентно с темой pronouns («você = вы к одному», «vocês = к нескольким»).
 - **Инфинитивы не дублируются**: `ser`/`estar`/… как слова живут в теме
-  `verbs` — глобальная уникальность `pt` не нарушена; все 38 новых `pt`
+  `verbs` — глобальная уникальность `pt` не нарушена; все 39 новых `pt`
   свободны (проверено тестом-инвариантом).
 - **Предложения — с явным субъектом** (Eu sou…, Ela tem…, O livro está…): без
   субъекта cloze-пропуск формы имел бы несколько грамматически верных ответов
@@ -66,23 +82,53 @@
   курса accent-insensitive (`variantsMatch`/`deaccent`). Осознанно принято:
   различие тренируют MC, карточки теории и intro («различие только в ê»);
   менять общий нормалайзер ради пары форм — нет.
+- **Аудио и акцент-минимальные пары.** В `mc_audio_ru` близнец (têm при
+  звучащем tem) в вариантах делал бы вопрос неотвечаемым на слух, а неверный
+  ответ на due-слове роняет интервал SM-2 (`recordAnswer`: `dueReview` не
+  смотрит на `mode`) — поэтому `getWrongForAudio` фильтрует deaccent-равных
+  кандидатов, недобор компенсируется обычным добором из курса. Трейдофф: пары
+  с реально разным звучанием (avó/avô) тоже фильтруются — аудио-вопрос по ним
+  становится чуть легче, но никогда не «монеткой». Зрительные MC близнеца
+  сохраняют (там различие и тренируется).
+- **Cloze-однозначность** держится на конвенции «явный субъект + различающий
+  контекст/перевод», инварианта-теста нет (семантику тестом не поймать) —
+  правило зафиксировано в скилле `content-authoring`, чтобы будущие темы его
+  не потеряли.
 
 ## Тестирование
 
-Чисто-контентная правка: покрыта существующими инвариант-тестами
-[`convex/content.test.ts`](../../convex/content.test.ts) (уникальность ключей,
-каждое слово в секции теории, blank-инварианты предложений, `answer ===
-words.join(" ")`) + осознанным обновлением golden-снапшота (только добавления;
-`npx vitest run --project backend -u` после ручной сверки диффа). Backend
-90/90 зелёные, `npm run check` зелёный. Новых тестов не требуется — код сида и
-форм данных не менялся ([test-policy](../../.claude/skills/test-policy/SKILL.md):
-структурные тесты остаются как есть).
+- Контент покрыт существующими инвариант-тестами
+  [`convex/content.test.ts`](../../convex/content.test.ts) (уникальность
+  ключей, каждое слово в секции теории, blank-инварианты предложений,
+  `answer === words.join(" ")`) + осознанным обновлением golden-снапшота
+  (только добавления; сверка диффа руками перед `-u`).
+- Код-фикс — по TDD (красный → фикс → зелёный):
+  [`wrongOptions.test.ts`](../../src/lib/wrongOptions.test.ts) —
+  `getWrongForAudio` исключает deaccent-близнеца и добирает из курса; обычный
+  `getWrong` близнеца сохраняет;
+  [`McExercise.ct.tsx`](../../src/components/exercises/McExercise.ct.tsx) —
+  в `audio_ru` варианта «(они/vocês) имеют» нет (а вариантов по-прежнему 4),
+  в зрительном `pt_ru` близнец остаётся. Фикстура из урока ровно на 4 слова
+  делает выбор дистракторов детерминированным без мока shuffle.
+- Прогоны: `npm run test` 228/228, `npm run verify` и `npm run build` зелёные.
 
 ## Карта файлов
 
 - изменено: [`convex/content.ts`](../../convex/content.ts) — тема
-  `irregular_present` (8 уроков, 38 слов) + 22 `TOPIC_SENTENCES`;
-- изменено: `convex/__snapshots__/content.test.ts.snap` — +38 пар;
+  `irregular_present` (8 уроков, 39 слов) + 22 `TOPIC_SENTENCES`; плюс
+  выравнивание note `estar` в теме `verbs` («я нахожусь»);
+- изменено: [`src/lib/wrongOptions.ts`](../../src/lib/wrongOptions.ts) —
+  параметр `accept`, новый `getWrongForAudio`;
+- изменено: [`src/components/exercises/McExercise.tsx`](../../src/components/exercises/McExercise.tsx)
+  — `audio_ru` берёт дистракторов из `getWrongForAudio`;
+- изменено: [`src/lib/wrongOptions.test.ts`](../../src/lib/wrongOptions.test.ts),
+  [`src/components/exercises/McExercise.ct.tsx`](../../src/components/exercises/McExercise.ct.tsx)
+  — тесты фикса;
+- изменено: `convex/__snapshots__/content.test.ts.snap` — +39 пар;
+- изменено: [`convex/courseQueries.ts`](../../convex/courseQueries.ts) —
+  устаревший комментарий об объёме курса (≈720 доков);
+- изменено: [`.claude/skills/content-authoring/SKILL.md`](../../.claude/skills/content-authoring/SKILL.md)
+  — правила авторинга `TOPIC_SENTENCES`;
 - изменено: [`specs/feature/content-and-seed.md`](../feature/content-and-seed.md)
   — актуализированы объёмы контента.
 

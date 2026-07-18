@@ -420,7 +420,7 @@ export const TOPICS: Record<string, Topic> = {
         },
         words: [
           { pt: "ser", ru: "быть (постоянно)", note: "eu sou = я есть" },
-          { pt: "estar", ru: "быть (временно/место)", note: "eu estou = я сейчас" },
+          { pt: "estar", ru: "быть (временно/место)", note: "eu estou = я нахожусь" },
           { pt: "ter", ru: "иметь", note: "eu tenho = у меня есть" },
           { pt: "fazer", ru: "делать", note: "eu faço = я делаю" },
           { pt: "ir", ru: "идти / ехать", note: "eu vou = я иду" },
@@ -500,7 +500,7 @@ export const TOPICS: Record<string, Topic> = {
         theory: {
           intro:
             "Ser — «быть» для постоянного: имя, профессия, национальность. Спряжение полностью своё — учим наизусть. Местоимение обычно опускают: Sou russo — окончание само показывает лицо.",
-          tip: "Eu sou de Moscovo. — Я из Москвы.\nTu és médico? — Ты врач?\nNós somos amigos. — Мы друзья.",
+          tip: "Профессия и происхождение — всегда ser: Sou médico. — Я врач.\nDe onde és? — Откуда ты?\nА «как дела» и «где ты» — это estar, не ser.",
           sections: [
             { heading: "Единственное число", words: ["sou", "és", "é"] },
             { heading: "Множественное число", words: ["somos", "são"] },
@@ -520,7 +520,7 @@ export const TOPICS: Record<string, Topic> = {
         theory: {
           intro:
             "Estar — «быть» для временного: состояние и место. Ser — кто ты, estar — как ты и где ты: Sou russo, estou em Lisboa.",
-          tip: "Estou bem, obrigado. — У меня всё хорошо, спасибо.\nComo estás? — Как ты?\nEles estão no café. — Они в кафе.",
+          tip: "Estar a + инфинитив — «прямо сейчас», европейская конструкция:\nEstou a comer. — Я сейчас ем.\nEstás a ouvir? — Ты слушаешь?",
           sections: [
             { heading: "Единственное число", words: ["estou", "estás", "está"] },
             { heading: "Множественное число", words: ["estamos", "estão"] },
@@ -540,7 +540,7 @@ export const TOPICS: Record<string, Topic> = {
         theory: {
           intro:
             "Ter — «иметь». Русское «у меня есть» по-португальски — «я имею»: Tenho um carro. Возраст — тоже ter: Tenho trinta anos. Внимание: tem — один человек, têm — несколько (различие только в ê).",
-          tip: "Tenho dois filhos. — У меня двое детей.\nTens tempo? — У тебя есть время?\nEla tem vinte anos. — Ей двадцать лет.",
+          tip: "Ter de + инфинитив — «должен»: Tenho de ir. — Мне надо идти.\nВозраст — тоже ter: Quantos anos tens? — Сколько тебе лет?",
           sections: [
             { heading: "Единственное число", words: ["tenho", "tens", "tem"] },
             { heading: "Множественное число", words: ["temos", "têm"] },
@@ -560,7 +560,7 @@ export const TOPICS: Record<string, Topic> = {
         theory: {
           intro:
             "Ir — «идти, ехать»: движение туда. Ir + инфинитив — готовое будущее: Vou comprar pão. — Куплю хлеба.",
-          tip: "Vou para casa. — Я иду домой.\nVais ao café? — Идёшь в кафе?\nVamos à praia! — Пойдём на пляж!",
+          tip: "Транспорт — через de: vamos de carro, de autocarro. Пешком — a pé.\nVamos! — «Пошли!»",
           sections: [
             { heading: "Единственное число", words: ["vou", "vais", "vai"] },
             { heading: "Множественное число", words: ["vamos", "vão"] },
@@ -580,7 +580,7 @@ export const TOPICS: Record<string, Topic> = {
         theory: {
           intro:
             "Vir — «приходить, приезжать»: движение сюда, к говорящему (пара к ir — туда). Внимание: vem — один, vêm — несколько (различие в ê); vimos — «мы приходим».",
-          tip: "Vens comigo? — Пойдёшь со мной?\nEles vêm de Lisboa. — Они (приезжают) из Лиссабона.\nO autocarro vem aí. — Автобус подходит.",
+          tip: "Vem cá! — Иди сюда!\nVenho já. — Сейчас приду.\nПара направлений: ir — туда, vir — сюда, к говорящему.",
           sections: [
             { heading: "Единственное число", words: ["venho", "vens", "vem"] },
             { heading: "Множественное число", words: ["vimos", "vêm"] },
@@ -599,8 +599,8 @@ export const TOPICS: Record<string, Topic> = {
         label: "Часть 6 — Dar (давать)",
         theory: {
           intro:
-            "Dar — «давать» (dou, dás, dá…). Кроме estar и dar, все глаголы на -ar правильные. Часто с предлогом a: dar o livro ao professor — дать книгу учителю.",
-          tip: "Dou um presente à minha mãe. — Дарю подарок маме.\nDás-me o livro? — Дашь мне книгу?\nO professor dá aulas. — Учитель ведёт уроки.",
+            "Dar — «давать» (dou, dás, dá…). Dar и estar — единственные по-настоящему неправильные глаголы на -ar. Часто с предлогом a: dar o livro ao professor — дать книгу учителю.",
+          tip: "Просьба — через dá-me:\nDá-me a conta, por favor. — Дайте счёт, пожалуйста.\nDá-me um momento! — Секундочку!",
           sections: [
             { heading: "Единственное число", words: ["dou", "dás", "dá"] },
             { heading: "Множественное число", words: ["damos", "dão"] },
@@ -619,8 +619,8 @@ export const TOPICS: Record<string, Topic> = {
         label: "Часть 7 — Pôr (класть, ставить)",
         theory: {
           intro:
-            "Pôr — «класть, ставить», единственный глагол вне трёх спряжений (не -ar/-er/-ir). Почти все формы — с õ: pões, põe, põem. Идиома: pôr a mesa — накрыть на стол.",
-          tip: "Ponho o livro na mesa. — Кладу книгу на стол.\nOnde pões as chaves? — Куда ты кладёшь ключи?\nEla põe a mesa. — Она накрывает на стол.",
+            "Pôr — «класть, ставить» — глагол вне трёх спряжений (не -ar/-er/-ir). Три формы — с õ: pões, põe, põem (ponho и pomos — без). Идиома: pôr a mesa — накрыть на стол.",
+          tip: "Onde é que eu ponho isto? — Куда мне это положить?\nPõe aqui. — Положи сюда.",
           sections: [
             { heading: "Единственное число", words: ["ponho", "pões", "põe"] },
             { heading: "Множественное число", words: ["pomos", "põem"] },
@@ -636,20 +636,21 @@ export const TOPICS: Record<string, Topic> = {
       },
       {
         id: "irr_pres_haver",
-        label: "Часть 8 — Há (есть, имеется)",
+        label: "Часть 8 — Haver: há (есть, имеется)",
         theory: {
           intro:
             "Há — форма глагола haver: «есть, имеется». Одна форма для любого числа: Há um café. / Há dois cafés. Остальные формы haver в современном языке почти не встречаются — учим только há.",
-          tip: "Há um restaurante perto? — Поблизости есть ресторан?\nNão há pão em casa. — Дома нет хлеба.\nMoro aqui há muito tempo. — Я живу здесь давно.",
+          tip: "Há um restaurante perto? — Поблизости есть ресторан?\nHá + время = «назад»: há dois anos — два года назад.",
           sections: [
             { heading: "Есть или нет", words: ["há", "não há"] },
-            { heading: "Как давно", words: ["há muito tempo"] },
+            { heading: "Как давно", words: ["há muito tempo", "Há quanto tempo?"] },
           ],
         },
         words: [
           { pt: "há", ru: "есть / имеется", note: "Há dois cafés. = есть два кафе" },
           { pt: "não há", ru: "нет / не имеется", note: "Não há problema. = нет проблем" },
-          { pt: "há muito tempo", ru: "давно / уже давно", note: "Moro aqui há muito tempo." },
+          { pt: "há muito tempo", ru: "давно / уже давно", note: "Moro aqui há muito tempo. = живу здесь давно" },
+          { pt: "Há quanto tempo?", ru: "Как давно?", note: "Há quanto tempo moras aqui? = как давно ты здесь живёшь?" },
         ],
       },
     ],
@@ -1721,15 +1722,17 @@ export const TOPIC_SENTENCES: TopicSentence[] = [
   { topicKey: "phrases", words: ["Está", "bem,", "obrigado."], answer: "Está bem, obrigado.", ru: "Хорошо, спасибо.", blank: "bem" },
   { topicKey: "phrases", words: ["Como", "se", "diz", "isto?"], answer: "Como se diz isto?", ru: "Как это сказать?", blank: "diz" },
   // irregular_present — спряжение неправильных глаголов. У каждого предложения
-  // явный субъект (местоимение/существительное): без него cloze-пропуск формы
-  // имел бы несколько грамматически верных ответов среди дистракторов-форм.
+  // с ЛИЧНОЙ формой — явный субъект (местоимение/существительное): без него
+  // cloze-пропуск формы имел бы несколько грамматически верных ответов среди
+  // дистракторов-форм. Исключение — безличное há («Não há…»): у него субъекта
+  // не бывает, а альтернативной EP-формы для этого слота нет.
   { topicKey: "irregular_present", words: ["Eu", "sou", "de", "Moscovo."], answer: "Eu sou de Moscovo.", ru: "Я из Москвы.", blank: "sou" },
   { topicKey: "irregular_present", words: ["Tu", "és", "médico?"], answer: "Tu és médico?", ru: "Ты врач?", blank: "és" },
   { topicKey: "irregular_present", words: ["Ela", "é", "professora."], answer: "Ela é professora.", ru: "Она учительница.", blank: "é" },
   { topicKey: "irregular_present", words: ["Nós", "somos", "amigos."], answer: "Nós somos amigos.", ru: "Мы друзья.", blank: "somos" },
   { topicKey: "irregular_present", words: ["Eu", "estou", "no", "hotel."], answer: "Eu estou no hotel.", ru: "Я в отеле.", blank: "estou" },
   { topicKey: "irregular_present", words: ["Tu", "estás", "em", "casa?"], answer: "Tu estás em casa?", ru: "Ты дома?", blank: "estás" },
-  { topicKey: "irregular_present", words: ["O", "livro", "está", "na", "mesa."], answer: "O livro está na mesa.", ru: "Книга на столе.", blank: "está" },
+  { topicKey: "irregular_present", words: ["A", "água", "está", "na", "mesa."], answer: "A água está na mesa.", ru: "Вода на столе.", blank: "está" },
   { topicKey: "irregular_present", words: ["Nós", "estamos", "no", "café."], answer: "Nós estamos no café.", ru: "Мы в кафе.", blank: "estamos" },
   { topicKey: "irregular_present", words: ["Eu", "tenho", "um", "carro."], answer: "Eu tenho um carro.", ru: "У меня есть машина.", blank: "tenho" },
   { topicKey: "irregular_present", words: ["Ela", "tem", "dois", "filhos."], answer: "Ela tem dois filhos.", ru: "У неё двое детей.", blank: "tem" },
@@ -1744,5 +1747,5 @@ export const TOPIC_SENTENCES: TopicSentence[] = [
   { topicKey: "irregular_present", words: ["Ela", "dá", "aulas", "de", "português."], answer: "Ela dá aulas de português.", ru: "Она ведёт уроки португальского.", blank: "dá" },
   { topicKey: "irregular_present", words: ["Eu", "ponho", "o", "livro", "na", "mesa."], answer: "Eu ponho o livro na mesa.", ru: "Я кладу книгу на стол.", blank: "ponho" },
   { topicKey: "irregular_present", words: ["Ela", "põe", "a", "mesa."], answer: "Ela põe a mesa.", ru: "Она накрывает на стол.", blank: "põe" },
-  { topicKey: "irregular_present", words: ["Há", "um", "café", "perto?"], answer: "Há um café perto?", ru: "Поблизости есть кафе?", blank: "Há" },
+  { topicKey: "irregular_present", words: ["Não", "há", "pão", "em", "casa."], answer: "Não há pão em casa.", ru: "Дома нет хлеба.", blank: "há" },
 ];

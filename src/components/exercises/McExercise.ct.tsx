@@ -606,6 +606,80 @@ test("audio_ru: ответ сообщается как mode «audio» — не �
   expect(result!.mode).toBe("audio");
 });
 
+// ── Аудио и акцент-минимальные пары (tem/têm): близнец на слух неотличим ─────
+// Урок из ровно 4 слов даёт ровно 3 same-lesson кандидатов — все трое попадают
+// в варианты детерминированно (без мока shuffle), поэтому ассерты стабильны.
+const temWord: WordView = { lessonKey: "ter", pt: "tem", ru: "(он/она/você) имеет" };
+const conjCourse: Course = {
+  topics: [
+    {
+      topicKey: "t",
+      label: "T",
+      icon: "x",
+      lessons: [
+        {
+          lessonKey: "ter",
+          label: "Ter",
+          theory: { intro: "", tip: "", sections: [] },
+          words: [
+            temWord,
+            { lessonKey: "ter", pt: "têm", ru: "(они/vocês) имеют" },
+            { lessonKey: "ter", pt: "tens", ru: "(ты) имеешь" },
+            { lessonKey: "ter", pt: "temos", ru: "(мы) имеем" },
+          ],
+        },
+        {
+          lessonKey: "other",
+          label: "Other",
+          theory: { intro: "", tip: "", sections: [] },
+          words: [{ lessonKey: "other", pt: "olá", ru: "привет" }],
+        },
+      ],
+      sentences: [],
+    },
+  ],
+  crossSentences: [],
+};
+
+test("audio_ru: только-акцентный близнец (têm) исключён из вариантов — на слух не отличить", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <McExercise
+      word={temWord}
+      mode="audio_ru"
+      tag="review"
+      card={dueCard}
+      course={conjCourse}
+      isLast={false}
+      onAnswered={() => {}}
+      onNext={() => {}}
+    />,
+  );
+  await expect(component.getByRole("button", { name: "(он/она/você) имеет" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "(они/vocês) имеют" })).toHaveCount(0);
+  // Недобор компенсирован словом другого урока — вариантов по-прежнему 4.
+  await expect(component.locator(".m-opts button")).toHaveCount(4);
+});
+
+test("pt_ru (зрительный MC): близнец têm остаётся в вариантах — различие видно глазами", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <McExercise
+      word={temWord}
+      mode="pt_ru"
+      tag="review"
+      card={dueCard}
+      course={conjCourse}
+      isLast={false}
+      onAnswered={() => {}}
+      onNext={() => {}}
+    />,
+  );
+  await expect(component.getByRole("button", { name: "(они/vocês) имеют" })).toBeVisible();
+});
+
 test("audio_ru: хоткеи 1–5 выбирают вариант (как в остальных MC)", async ({ mount, page }) => {
   const component = await mount(
     <McExercise
