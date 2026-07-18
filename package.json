@@ -28,7 +28,7 @@
   "dependencies": {
     "@auth/core": "^0.37.0",
     "@convex-dev/auth": "^0.0.93",
-    "convex": "^1.40.0",
+    "convex": "^1.41.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
