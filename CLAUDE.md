@@ -139,7 +139,7 @@ worktree-логика — только для *linked* worktree (детект �
 - **Первое в свежем worktree:** `npm run wt:setup` — ставит зависимости, поднимает
   ИЗОЛИРОВАННЫЙ локальный Convex-деплой (свои функции/схема/данные), провижинит
   Convex Auth env и сеет контент + dev-аккаунт **`dev@example.com` / `12345678q`**
-  (регистрация выключена → без сида не залогиниться). Идемпотентно; пере-сид —
+  (быстрый вход без регистрации в пустом деплое). Идемпотентно; пере-сид —
   `npm run wt:seed`. No-op в основном checkout.
 - **Порты:** `npm run dev` (Vite) и `npm run test:ct` (CT) в worktree берут
   смещённый порт (детерминированно от пути), `strictPort` снят — параллельные
@@ -160,8 +160,8 @@ worktree-логика — только для *linked* worktree (детект �
   Покрывают Convex-функции: SM-2 (`recordAnswer` с `mode`; интервал двигается
   только на «событие повторения», потолок `MAX_INTERVAL`), этапные счётчики
   `mcCorrect/typeCorrect` и «выучено» по ОБОИМ навыкам, классификацию
-  (`getSrsState`), идемпотентность сида, `getCourse`, серверную блокировку
-  регистрации.
+  (`getSrsState`), идемпотентность сида, `getCourse`, регистрацию (включена;
+  гейт `SIGNUP_ENABLED`) и нормализацию email.
   Авторизованный контекст: `t.withIdentity({ subject: ` + "`${userId}|session`" + ` })`;
   загрузка модулей: `import.meta.glob(["./**/*.*s", "!./**/*.test.ts"])`.
 - **Фронт-юнит** — Vitest + jsdom + Testing Library, файлы `src/**/*.test.ts(x)`.
@@ -224,9 +224,10 @@ worktree-логика — только для *linked* worktree (детект �
 - **Тема** — тройной переключатель light/dark/system (дефолт `system`, следит за ОС),
   anti-flash в [`index.html`](index.html).
   → [`specs/feature/theme-system-mode.md`](specs/feature/theme-system-mode.md).
-- **Авторизация** — Password (email). Регистрация сейчас ОТКЛЮЧЕНА флагом
-  `SIGNUP_ENABLED` (парные флаги: сервер [`convex/auth.ts`](convex/auth.ts) + клиент
-  [`src/components/SignIn.tsx`](src/components/SignIn.tsx)).
+- **Авторизация** — Password (email). Регистрация ВКЛЮЧЕНА (с 2026-09-26) —
+  гейт `SIGNUP_ENABLED = true` остаётся рубильником (парные флаги: сервер
+  [`convex/auth.ts`](convex/auth.ts) + клиент
+  [`src/components/SignIn.tsx`](src/components/SignIn.tsx); закрыть — оба в `false`).
   → [`specs/feature/auth-and-signup-gate.md`](specs/feature/auth-and-signup-gate.md).
 - **Готчи:** `getSrsState` отдаёт `cards`/`tags` МАССИВАМИ (не Record) — `pt`
   содержит не-ASCII (á, ã, ç…), запрещённый в именах полей Convex; клиент собирает

@@ -63,7 +63,7 @@ npm run dev             # http://localhost:5173/ (dev сервится с кор
 зелёный (`npm run verify`, форсится pre-push hook'ом). Три уровня:
 
 - **Бэкенд** — Vitest + `convex-test`, файлы `convex/*.test.ts`
-  (SM-2, счётчики освоения, классификация слов, сид, блокировка регистрации).
+  (SM-2, счётчики освоения, классификация слов, сид, регистрация и её гейт).
 - **Фронт-юнит** — Vitest + jsdom + Testing Library, файлы `src/**/*.test.ts(x)`
   (чистая логика `src/lib`).
 - **Компонентное** — Playwright CT, файлы `src/**/*.ct.tsx`

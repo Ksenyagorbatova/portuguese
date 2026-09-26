@@ -6,14 +6,15 @@ import type { DataModel } from "./_generated/dataModel";
 
 // Password (email + password) works out of the box — no external setup needed.
 //
-// ─── Public registration is currently DISABLED ───────────────────────────────
-// Flip SIGNUP_ENABLED back to true to re-open sign-up. Nothing is removed: the
-// Password provider stays fully wired up. The block lives in profile(), which
-// Convex Auth's Password.authorize() calls for EVERY flow (and passes `flow`)
-// BEFORE creating/fetching the account — so a "signUp" is rejected before any
-// user/account row is written, while "signIn" (and future reset/verify) are
-// untouched. The matching client-side flag lives in src/components/SignIn.tsx —
-// flip BOTH to fully restore registration.
+// ─── Public registration is ENABLED (re-opened 2026-09-26) ───────────────────
+// Owner's decision for the iOS/TestFlight rollout: testers must be able to
+// create an account from the phone. The gate stays in place as a kill switch:
+// flip SIGNUP_ENABLED to false to close sign-up again. The block lives in
+// profile(), which Convex Auth's Password.authorize() calls for EVERY flow (and
+// passes `flow`) BEFORE creating/fetching the account — so with the flag off a
+// "signUp" is rejected before any user/account row is written, while "signIn"
+// (and future reset/verify) are untouched. The matching client-side flag lives
+// in src/components/SignIn.tsx — keep BOTH in sync.
 //
 // To enable OAuth later:
 //   1. Create GitHub/Google OAuth apps with callback URL
@@ -24,11 +25,13 @@ import type { DataModel } from "./_generated/dataModel";
 // import GitHub from "@auth/core/providers/github";
 // import Google from "@auth/core/providers/google";
 
-// Flip to true to re-open public registration (also flip the client flag).
-export const SIGNUP_ENABLED = false;
+// Public registration switch (also flip the client flag in SignIn.tsx).
+// false → server rejects every signUp with REGISTRATION_DISABLED.
+export const SIGNUP_ENABLED = true;
 
 // Error code thrown when sign-up is attempted while disabled (the client can
-// match on this to show a friendly message).
+// match on this to show a friendly message). Unused while SIGNUP_ENABLED is
+// true — kept so closing registration again is a one-line change.
 export const REGISTRATION_DISABLED = "REGISTRATION_DISABLED";
 
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({

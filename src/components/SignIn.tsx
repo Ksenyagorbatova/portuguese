@@ -5,10 +5,11 @@ import { useAuthActions } from "@convex-dev/auth/react";
 // setting their OAuth env vars (see README). Until then, Password-only.
 const OAUTH_ENABLED = false;
 
-// Public registration toggle. Keep in sync with SIGNUP_ENABLED in
-// convex/auth.ts (the server enforces it; this only hides the UI). When false,
-// the sign-up switch is hidden and only existing users can sign in.
-const SIGNUP_ENABLED = false;
+// Public registration toggle — ENABLED since 2026-09-26 (iOS/TestFlight: testers
+// sign up from the phone). Keep in sync with SIGNUP_ENABLED in convex/auth.ts
+// (the server enforces it; this only shows/hides the UI). When false, the
+// sign-up switch is hidden and only existing users can sign in.
+const SIGNUP_ENABLED = true;
 
 export function SignIn() {
   const { signIn } = useAuthActions();
@@ -49,10 +50,17 @@ export function SignIn() {
 
         <form className="m-form" onSubmit={onSubmit}>
           <div className="m-field">
+            {/* iOS-клавиатура иначе делает первую букву заглавной и
+                «исправляет» адрес автокоррекцией (сервер нормализует регистр,
+                но не опечатки автозамены). */}
             <input
               className="m-input"
               name="email"
               type="email"
+              inputMode="email"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               placeholder="Email"
               aria-label="Email"
               autoComplete="email"

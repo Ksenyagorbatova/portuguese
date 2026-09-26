@@ -35,34 +35,87 @@ function signInWith(t: ReturnType<typeof convexTest>, email: string, password: s
   });
 }
 
-describe("registration disabled", () => {
-  it("ships with the SIGNUP_ENABLED flag off", () => {
-    expect(SIGNUP_ENABLED).toBe(false);
+function signUpWith(t: ReturnType<typeof convexTest>, email: string, password: string) {
+  return t.action(api.auth.signIn, {
+    provider: "password",
+    params: { email, password, flow: "signUp" },
+  });
+}
+
+const countAuthRows = (t: ReturnType<typeof convexTest>) =>
+  t.run(async (ctx) => ({
+    users: (await ctx.db.query("users").collect()).length,
+    accounts: (await ctx.db.query("authAccounts").collect()).length,
+  }));
+
+// Публичная регистрация ВКЛЮЧЕНА (решение владельца 2026-09-26, iOS/TestFlight):
+// оба флага SIGNUP_ENABLED = true. Гейт в profile() остаётся — откат одним флагом.
+describe("registration enabled", () => {
+  it("ships with the SIGNUP_ENABLED flag on", () => {
+    expect(SIGNUP_ENABLED).toBe(true);
   });
 
-  it("rejects the password signUp flow on the server", async () => {
+  it("signUp creates exactly one user + password account and signs the user in", async () => {
     const t = convexTest(schema, modules);
-    await expect(
-      t.action(api.auth.signIn, {
-        provider: "password",
-        params: { email: "newcomer@example.com", password: "password123", flow: "signUp" },
-      }),
-    ).rejects.toThrow(/REGISTRATION_DISABLED/);
+    await stubJwtEnv();
 
-    // And no user/account row leaked through.
-    const users = await t.run((ctx) => ctx.db.query("users").collect());
-    expect(users).toHaveLength(0);
+    const res = await signUpWith(t, "newcomer@example.com", "password123");
+    // Сразу впускает — выпущены токены сессии.
+    expect(res.tokens?.token).toBeTruthy();
+
+    expect(await countAuthRows(t)).toEqual({ users: 1, accounts: 1 });
+    const account = await t.run(async (ctx) => (await ctx.db.query("authAccounts").collect())[0]);
+    expect(account.provider).toBe("password");
+    expect(account.providerAccountId).toBe("newcomer@example.com");
+    // Секрет хранится хешем, не plaintext.
+    expect(account.secret).toBeTruthy();
+    expect(account.secret).not.toBe("password123");
   });
 
-  it("does not block the signIn flow with the registration error", async () => {
+  it("signUp normalizes the email (trim + lower) into the account id", async () => {
     const t = convexTest(schema, modules);
-    // No such account → must fail, but NOT because registration is disabled.
-    await expect(
-      t.action(api.auth.signIn, {
-        provider: "password",
-        params: { email: "nobody@example.com", password: "password123", flow: "signIn" },
-      }),
-    ).rejects.not.toThrow(/REGISTRATION_DISABLED/);
+    await stubJwtEnv();
+
+    await signUpWith(t, "  NewComer@Example.COM ", "password123");
+    const account = await t.run(async (ctx) => (await ctx.db.query("authAccounts").collect())[0]);
+    expect(account.providerAccountId).toBe("newcomer@example.com");
+    const user = await t.run(async (ctx) => (await ctx.db.query("users").collect())[0]);
+    expect(user.email).toBe("newcomer@example.com");
+  });
+
+  it("a second signUp with the same email (any case) is rejected without a duplicate", async () => {
+    const t = convexTest(schema, modules);
+    await stubJwtEnv();
+
+    await signUpWith(t, "newcomer@example.com", "password123");
+    await expect(signUpWith(t, "NEWCOMER@example.com", "otherPass99")).rejects.toThrow(
+      /already exists/,
+    );
+    expect(await countAuthRows(t)).toEqual({ users: 1, accounts: 1 });
+    // Исходный пароль не перезаписан попыткой повторной регистрации.
+    const ok = await signInWith(t, "newcomer@example.com", "password123");
+    expect(ok.tokens?.token).toBeTruthy();
+  });
+
+  it("the registered credentials work for a later signIn", async () => {
+    const t = convexTest(schema, modules);
+    await stubJwtEnv();
+
+    await signUpWith(t, "newcomer@example.com", "password123");
+    const res = await signInWith(t, "newcomer@example.com", "password123");
+    expect(res.tokens?.token).toBeTruthy();
+    // Неверный пароль к зарегистрированному аккаунту — отказ.
+    await expect(signInWith(t, "newcomer@example.com", "wrong-password-1")).rejects.toThrow(
+      /InvalidSecret/,
+    );
+  });
+
+  it("rejects a password shorter than 8 characters before writing any row", async () => {
+    const t = convexTest(schema, modules);
+    await expect(signUpWith(t, "newcomer@example.com", "short7!")).rejects.toThrow(
+      /Invalid password/,
+    );
+    expect(await countAuthRows(t)).toEqual({ users: 0, accounts: 0 });
   });
 });
 
