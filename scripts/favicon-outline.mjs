@@ -7,8 +7,8 @@
 // один и тот же логотип везде (Bricolage 800, как в шапке приложения).
 //
 // Источник глифов — @fontsource/bricolage-grotesque (WOFF, начертание 800,
-// latin). Шрифт и opentype.js закреплены точными версиями (без ^; dependabot их
-// не бампает) — перегенерация детерминирована, страж — favicon-outline.test.ts.
+// latin). Шрифт и opentype.js закреплены точными версиями (без ^) —
+// перегенерация детерминирована, страж — favicon-outline.test.ts.
 // Параметры надписи — как у бывшего SVG-текста:
 // font-size 21, letter-spacing -0.6, центр строки по x = 21 (text-anchor
 // middle), середина em-бокса по hhea ascender/descender на y = 21
