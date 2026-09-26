@@ -1,9 +1,10 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { exportJWK, exportPKCS8, generateKeyPair } from "jose";
 import { isLinkedWorktree } from "./worktree.mjs";
+import { isDirectRun } from "./is-direct-run.mjs";
 
 // Поднять Convex Auth env-ключи на изолированном ЛОКАЛЬНОМ деплое и засеять
 // контент + рабочий dev-аккаунт. ТОЛЬКО ДЛЯ WORKTREE — см. CLAUDE.md «Worktree».
@@ -151,16 +152,7 @@ export async function provisionLocalAuthAndSeed({ root = rootDir, convexBin = co
 }
 
 // CLI-вход (`npm run wt:seed`): гейт по worktree, как у `npx convex`.
-function isDirectRun() {
-  if (!process.argv[1]) return false;
-  try {
-    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
-  } catch {
-    return false;
-  }
-}
-
-if (isDirectRun()) {
+if (isDirectRun(import.meta.url)) {
   if (!isLinkedWorktree()) {
     console.log(
       "ℹ Не git-worktree — пропускаю локальный сид.\n" +

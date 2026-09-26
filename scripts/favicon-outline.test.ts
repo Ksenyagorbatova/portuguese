@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { FAVICON_PATH, FONT_PATH, glyphPathData, outlineFavicon } from "./favicon-outline.mjs";
 
@@ -6,15 +7,6 @@ import { FAVICON_PATH, FONT_PATH, glyphPathData, outlineFavicon } from "./favico
 // (render-assets.mjs рендерит тот же SVG) рисуют глиф ШРИФТА ЗРИТЕЛЯ/МАШИНЫ.
 const favicon = readFileSync(FAVICON_PATH, "utf8");
 const font = readFileSync(FONT_PATH);
-
-// Исходный вид фавикона с <text> — как был до перевода в контуры.
-const LEGACY = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 42 42" width="42" height="42">
-  <rect width="42" height="42" rx="13" fill="url(#flag)"/>
-  <text x="21" y="21" fill="#ffffff"
-        font-family="'Bricolage Grotesque', system-ui, sans-serif"
-        font-weight="800" font-size="21" letter-spacing="-0.6"
-        text-anchor="middle" dominant-baseline="central">pt</text>
-</svg>`;
 
 // Габариты по опорным точкам path data (M/L/C/Q — пары чисел x y).
 function bbox(d: string) {
@@ -36,13 +28,6 @@ describe("favicon: «pt» as font outlines", () => {
     expect(outlineFavicon(favicon, font)).toBe(favicon);
   });
 
-  it("replaces the legacy <text> and keeps the rest of the SVG intact", () => {
-    const out = outlineFavicon(LEGACY, font);
-    expect(out).not.toMatch(/<text\b/);
-    expect(out).toContain('<rect width="42" height="42" rx="13" fill="url(#flag)"/>');
-    expect(out).toContain(`<path id="pt" fill="#ffffff" d="${glyphPathData(font)}"/>`);
-  });
-
   it("the glyphs are centred horizontally and fit inside the 42×42 tile", () => {
     const { minX, maxX, minY, maxY } = bbox(glyphPathData(font));
     expect(minX).toBeGreaterThan(4);
@@ -52,7 +37,16 @@ describe("favicon: «pt» as font outlines", () => {
     expect(maxY).toBeLessThan(38);
   });
 
-  it("fails loudly when the favicon has neither the text nor the outline", () => {
+  it("fails loudly when the favicon has no outline to regenerate", () => {
     expect(() => outlineFavicon("<svg/>", font)).toThrow(/favicon-outline/);
+  });
+
+  // Логотип выводится из этих двух пакетов: версии — точные (не ^), чтобы
+  // обновление шрифта или парсера было осознанным, а не попутным.
+  it("pins the font and the outliner to exact versions", () => {
+    const pkg = JSON.parse(readFileSync(path.resolve(__dirname, "../package.json"), "utf8"));
+    for (const dep of ["@fontsource/bricolage-grotesque", "opentype.js"]) {
+      expect(pkg.devDependencies[dep], dep).toMatch(/^\d+\.\d+\.\d+$/);
+    }
   });
 });

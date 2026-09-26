@@ -13,6 +13,7 @@
 // своим кодеком (./png.mjs) — без @capacitor/assets и sharp.
 //
 //   npm run ios:assets
+import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -59,6 +60,10 @@ async function renderPng(page, { size, background, svg }) {
   return encodeRgbPng(img.width, img.height, toOpaqueRgb(img));
 }
 
+function sha256(file) {
+  return createHash("sha256").update(readFileSync(file)).digest("hex");
+}
+
 function writeAsset(rel, data) {
   writeFileSync(path.join(xcassets, rel), data);
   console.log(`  ✔ ${rel} (${Math.round(data.length / 1024)} KB)`);
@@ -99,6 +104,13 @@ async function main() {
       Buffer.from(JSON.stringify({ images, info: { version: 1, author: "xcode" } }, null, 2) + "\n"),
     );
     writeAsset("PageBackground.colorset/Contents.json", Buffer.from(pageBackgroundColorset(PAGE)));
+    // Отпечаток фавикона, из которого отрисованы иконка и сплэш: правка
+    // favicon.svg без `npm run ios:assets` — красный assets-lock.test.ts.
+    writeFileSync(
+      path.join(root, "scripts/ios/assets.lock.json"),
+      JSON.stringify({ "public/favicon.svg": sha256(path.join(root, "public/favicon.svg")) }, null, 2) + "\n",
+    );
+    console.log("  ✔ scripts/ios/assets.lock.json");
   } finally {
     await browser.close();
   }
