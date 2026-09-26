@@ -40,6 +40,7 @@ export const SIGNUP_ENABLED = true;
 export const REGISTRATION_DISABLED = "REGISTRATION_DISABLED"; // kill switch closed
 export const ACCOUNT_EXISTS = "ACCOUNT_EXISTS"; // signUp on a taken email
 export const INVALID_EMAIL = "INVALID_EMAIL"; // malformed email (any flow)
+export const ACCOUNT_DELETED = "ACCOUNT_DELETED"; // session for a deleted user
 
 // The kill switch as a pure function (tested with enabled=false while the flag
 // is on): only the signUp flow is gated; signIn/reset are never affected.
@@ -62,6 +63,17 @@ const password = Password<DataModel>({
 
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   providers: [rejectSignUpForExistingAccounts(password) /*, GitHub, Google */],
+  callbacks: {
+    // Сессия — только существующему пользователю. Вход по паролю — две
+    // транзакции (поиск аккаунта → создание сессии), и account:deleteAccount
+    // может закоммититься между ними: без проверки вход создал бы сессию-сироту
+    // удалённому пользователю (refresh по ней работал бы до 30 дней). Бросок
+    // откатывает всю транзакцию входа; get кладёт users-документ в read set —
+    // параллельное удаление вызовет OCC-повтор, и он уже увидит null.
+    async beforeSessionCreation(ctx, { userId }) {
+      if ((await ctx.db.get(userId)) === null) throw new ConvexError(ACCOUNT_DELETED);
+    },
+  },
 });
 
 // trim + lowercase — каноническая форма email, под которой хранятся аккаунты

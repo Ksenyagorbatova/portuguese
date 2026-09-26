@@ -2,13 +2,14 @@ import { describe, it, expect } from "vitest";
 import { convexTest } from "convex-test";
 import { api, internal } from "./_generated/api";
 import schema from "./schema";
+import { asNewUser } from "../src/test/convexAuth";
 
 const modules = import.meta.glob(["./**/*.*s", "!./**/*.test.ts"]);
 
-// Авторизованный контекст: getAuthUserId парсит subject как `${userId}|session`.
+// Авторизованный контекст: пользователь с настоящей сессией (liveUserId
+// проверяет и users, и authSessions — см. src/test/convexAuth.ts).
 async function asUser(t: ReturnType<typeof convexTest>) {
-  const userId = await t.run((ctx) => ctx.db.insert("users", {}));
-  return t.withIdentity({ subject: `${userId}|session` });
+  return (await asNewUser(t)).as;
 }
 
 describe("getCourse", () => {

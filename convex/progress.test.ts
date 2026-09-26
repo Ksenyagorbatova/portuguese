@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { convexTest, type TestConvex } from "convex-test";
 import { api, internal } from "./_generated/api";
 import schema from "./schema";
+import { asNewUser } from "../src/test/convexAuth";
 // Кросс-слойный пин порогов: backend-тесты намеренно берут MC_TARGET/TYPE_TARGET
 // из КЛИЕНТСКОГО модуля (src/lib/learning — чистый TS без внешних API). Серверная
 // копия констант живёт в convex/progress.ts (Convex бандлится отдельно) — если
@@ -15,11 +16,11 @@ import { predictCardAfterAnswer } from "../src/lib/srsPredict";
 
 const modules = import.meta.glob(["./**/*.*s", "!./**/*.test.ts"]);
 
-// Create a user row and return a context authenticated as them. getAuthUserId
-// parses identity.subject as `${userId}|${sessionId}`.
+// Пользователь с настоящей сессией и контекст от его имени (liveUserId
+// проверяет и users, и authSessions — см. src/test/convexAuth.ts).
 async function asUser(t: ReturnType<typeof convexTest>) {
-  const userId = await t.run((ctx) => ctx.db.insert("users", {}));
-  return { userId, as: t.withIdentity({ subject: `${userId}|session` }) };
+  const { userId, as } = await asNewUser(t);
+  return { userId, as };
 }
 
 const W = { lessonKey: "l1", pt: "a" };

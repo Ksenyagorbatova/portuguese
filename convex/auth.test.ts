@@ -1,8 +1,8 @@
 import { afterEach, describe, it, expect, vi } from "vitest";
 import { convexTest } from "convex-test";
-import { exportPKCS8, generateKeyPair } from "jose";
-import { api, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 import schema from "./schema";
+import { signInWith, signUpWith, stubJwtEnv } from "../src/test/convexAuth";
 import {
   ACCOUNT_EXISTS,
   INVALID_EMAIL,
@@ -23,29 +23,6 @@ afterEach(() => {
 async function seedAccount(t: ReturnType<typeof convexTest>) {
   vi.stubEnv("ALLOW_DEV_SEED", "1");
   await t.action(internal.seed.seedLocal, {});
-}
-
-// Полный успешный signIn доходит до выпуска JWT — ему нужны env прод-деплоя.
-// Генерим одноразовый RS256-ключ (WebCrypto доступен в edge-runtime).
-async function stubJwtEnv() {
-  const { privateKey } = await generateKeyPair("RS256", { extractable: true });
-  vi.stubEnv("JWT_PRIVATE_KEY", await exportPKCS8(privateKey));
-  vi.stubEnv("CONVEX_SITE_URL", "https://test.convex.site");
-  vi.stubEnv("SITE_URL", "http://localhost:5173");
-}
-
-function signInWith(t: ReturnType<typeof convexTest>, email: string, password: string) {
-  return t.action(api.auth.signIn, {
-    provider: "password",
-    params: { email, password, flow: "signIn" },
-  });
-}
-
-function signUpWith(t: ReturnType<typeof convexTest>, email: string, password: string) {
-  return t.action(api.auth.signIn, {
-    provider: "password",
-    params: { email, password, flow: "signUp" },
-  });
 }
 
 const countAuthRows = (t: ReturnType<typeof convexTest>) =>

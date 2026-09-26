@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { query, mutation, internalMutation } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
-import { liveUserId } from "./account";
+import { liveUserId, requireLiveUserId } from "./account";
 
 // ─── SM-2 helpers (ported from the original updateCard/isDue) ────────────────
 type CardFields = {
@@ -184,10 +184,7 @@ export const recordAnswer = mutation({
     clientDay: v.optional(v.string()),
   },
   handler: async (ctx, { lessonKey, pt, quality, mode, clientDay }) => {
-    // liveUserId, а не голый getAuthUserId: токен удалённого аккаунта (JWT
-    // живёт до истечения) не должен писать строки-сироты — см. account.ts.
-    const userId = await liveUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
+    const userId = await requireLiveUserId(ctx);
 
     // Валидация натурального ключа: слово обязано существовать в контенте.
     // Иначе опечатка/рассинхрон клиента молча создал бы осиротевшую
@@ -337,10 +334,7 @@ export const recordAnswer = mutation({
 export const markTheorySeen = mutation({
   args: { lessonKey: v.string() },
   handler: async (ctx, { lessonKey }) => {
-    // liveUserId, а не голый getAuthUserId: токен удалённого аккаунта (JWT
-    // живёт до истечения) не должен писать строки-сироты — см. account.ts.
-    const userId = await liveUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
+    const userId = await requireLiveUserId(ctx);
 
     // Валидация ключа: урок обязан существовать (см. recordAnswer — та же
     // защита от осиротевших строк по опечатке клиента).
