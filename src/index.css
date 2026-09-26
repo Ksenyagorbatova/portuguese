@@ -152,6 +152,10 @@ body{
   text-rendering:optimizeLegibility;
   transition:background var(--dur) var(--ease);
 }
+/* iOS-оболочка: непрозрачная подложка под статус-баром/«островом» — при
+   прокрутке контент уходит под неё, а не под часы. Ниже модалки (z 50), клики
+   не ловит. В браузере инсет = 0 → высота 0. */
+body::before{content:"";position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top,0px);background:var(--page);z-index:40;pointer-events:none}
 .lucide{display:block;flex-shrink:0}
 
 /* ── View transition (between screens) ───────────────────────────────────

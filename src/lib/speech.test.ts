@@ -1,10 +1,21 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { speak, speakSmart, speakAuto, isMuted, setMuted, canSpeakPortuguese } from "./speech";
+import {
+  speak,
+  speakSmart,
+  speakAuto,
+  isMuted,
+  setMuted,
+  canSpeakPortuguese,
+  primeVoices,
+} from "./speech";
 
 class FakeUtterance {
   lang = "";
   rate = 1;
   voice: SpeechSynthesisVoice | null = null;
+  onstart: (() => void) | null = null;
+  onend: (() => void) | null = null;
+  onerror: ((e: { error: string }) => void) | null = null;
   constructor(public text: string) {}
 }
 
@@ -217,5 +228,51 @@ describe("speak — resume против зависания (Chrome/macOS)", () =
     speak("olá");
     expect(synth.speak).toHaveBeenCalledOnce();
     expect(synth.resume).toHaveBeenCalled();
+  });
+});
+
+// Диагностика для iOS-оболочки (решение 7 спеки): Capacitor пробрасывает
+// console.* в нативный лог, по нему проверяем голос и старт/конец озвучки в
+// симуляторе. Логи — побочный канал: поведение speak не меняется.
+describe("speech diagnostics ([speech] console.debug)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("logs start / end / error of an utterance with the spoken text", () => {
+    const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
+    const synth = mockSynth();
+    speak("olá?");
+    const utt = synth.speak.mock.calls[0][0];
+    utt.onstart?.();
+    utt.onend?.();
+    utt.onerror?.({ error: "synthesis-failed" });
+    expect(debug).toHaveBeenCalledWith("[speech] start olá");
+    expect(debug).toHaveBeenCalledWith("[speech] end olá");
+    expect(debug).toHaveBeenCalledWith("[speech] error synthesis-failed olá");
+  });
+
+  it("primeVoices logs the voice count and the chosen pt voice, and again on voiceschanged", () => {
+    const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
+    const synth = mockSynth([]);
+    primeVoices();
+    expect(debug).toHaveBeenLastCalledWith("[speech] voices=0 pt=none");
+
+    synth._setVoices([
+      { lang: "en-US", name: "Samantha" },
+      { lang: "pt-PT", name: "Joana" },
+    ]);
+    synth._fire("voiceschanged");
+    expect(debug).toHaveBeenLastCalledWith("[speech] voices=2 pt=Joana (pt-PT)");
+  });
+
+  it("diagnostics do not change what is spoken", () => {
+    vi.spyOn(console, "debug").mockImplementation(() => {});
+    const synth = mockSynth([{ lang: "pt-PT", name: "Joana" }]);
+    speak("sim / não...");
+    expect(synth.speak).toHaveBeenCalledOnce();
+    expect(synth.speak.mock.calls[0][0].text).toBe("sim");
+    expect(synth.speak.mock.calls[0][0].voice?.lang).toBe("pt-PT");
   });
 });

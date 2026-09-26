@@ -36,6 +36,11 @@ export function speak(text: string, opts?: { rate?: number }): void {
     utt.lang = "pt-PT";
     utt.rate = opts?.rate ?? DEFAULT_RATE;
     if (voice) utt.voice = voice;
+    // Диагностика (iOS-оболочка): Capacitor пробрасывает console.* в нативный
+    // лог — по нему видно, что движок реально начал/закончил говорить.
+    utt.onstart = () => console.debug(`[speech] start ${clean}`);
+    utt.onend = () => console.debug(`[speech] end ${clean}`);
+    utt.onerror = (e) => console.debug(`[speech] error ${e.error} ${clean}`);
     synth.speak(utt);
     // Chrome/macOS: после cancel() движок остаётся «paused», и следующий speak()
     // встаёт в очередь, но не звучит (классический баг Web Speech) — resume()
@@ -123,11 +128,17 @@ export function speakAuto(text: string): void {
 }
 
 // Chrome populates voices asynchronously; prime them once at startup so most
-// taps hit the synchronous path above.
+// taps hit the synchronous path above. Each (re)load logs what the engine offers
+// ([speech] voices=N pt=<name|none>) — the iOS-shell diagnostic for «есть ли
+// португальский голос в WKWebView».
 export function primeVoices(): void {
   if (!window.speechSynthesis) return;
-  window.speechSynthesis.getVoices();
-  window.speechSynthesis.addEventListener?.("voiceschanged", () =>
-    window.speechSynthesis.getVoices(),
-  );
+  logVoices();
+  window.speechSynthesis.addEventListener?.("voiceschanged", logVoices);
+}
+
+function logVoices(): void {
+  const count = window.speechSynthesis.getVoices().length;
+  const pt = pickPortugueseVoice();
+  console.debug(`[speech] voices=${count} pt=${pt ? `${pt.name} (${pt.lang})` : "none"}`);
 }

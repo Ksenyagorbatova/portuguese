@@ -55,3 +55,40 @@ test("every bottom padding of the app shell keeps the home-indicator inset (incl
     expect(r.bottom || r.padding, r.selector).toContain("safe-area-inset-bottom");
   }
 });
+
+// При прокрутке контент уходил под часы/«остров» (WebView под статус-баром):
+// фиксированная непрозрачная подложка высотой safe-area-inset-top цвета страницы
+// прячет его. Ниже модального оверлея (z 50), кликов не перехватывает.
+test("an opaque status-bar backdrop covers the top inset while scrolling", async ({
+  mount,
+  page,
+}) => {
+  await mount(<div className="m-app">x</div>);
+  const backdrop = await page.evaluate(() => {
+    const found: Array<{ height: string; background: string; zIndex: string; events: string }> =
+      [];
+    const walk = (rules: CSSRuleList) => {
+      for (const r of Array.from(rules)) {
+        if (r instanceof CSSStyleRule && r.selectorText === "body::before") {
+          found.push({
+            height: r.style.getPropertyValue("height"),
+            background: r.style.getPropertyValue("background"),
+            zIndex: r.style.getPropertyValue("z-index"),
+            events: r.style.getPropertyValue("pointer-events"),
+          });
+        } else if (r instanceof CSSGroupingRule) walk(r.cssRules);
+      }
+    };
+    for (const s of Array.from(document.styleSheets)) walk(s.cssRules);
+    const cs = getComputedStyle(document.body, "::before");
+    return { rules: found, position: cs.position, top: cs.top };
+  });
+  expect(backdrop.rules).toHaveLength(1);
+  const [rule] = backdrop.rules;
+  expect(rule.height).toContain("safe-area-inset-top");
+  expect(rule.background).toContain("var(--page)");
+  expect(Number(rule.zIndex)).toBeLessThan(50); // под .m-dialog-overlay
+  expect(rule.events).toBe("none");
+  expect(backdrop.position).toBe("fixed");
+  expect(backdrop.top).toBe("0px");
+});

@@ -16,9 +16,13 @@ const config: CapacitorConfig = {
   },
   plugins: {
     SplashScreen: {
+      // Сплэш прячет JS после первого кадра React (hideNativeSplash в
+      // src/main.tsx). launchShowDuration — только страховка, если JS не дошёл:
+      // с 0 плагин сплэш не показывает вовсе, и между LaunchScreen и первой
+      // отрисовкой WebView мелькал белый экран.
       launchAutoHide: true,
-      launchShowDuration: 0,
-      backgroundColor: "#f4f3ef",
+      launchShowDuration: 3000,
+      launchFadeOutDuration: 200,
     },
     Keyboard: {
       // Клавиатура ужимает <body>, а не весь WebView: поле ввода

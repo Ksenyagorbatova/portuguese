@@ -1,5 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
+
+// iOS-оболочка: стиль статус-бара следует resolved-теме через встроенный в
+// Capacitor 8 core плагин SystemBars. Платформа — через isNative() (./native).
+const native = vi.hoisted(() => ({ isNative: vi.fn(() => false) }));
+vi.mock("./native", () => native);
+const bars = vi.hoisted(() => ({
+  setStyle: vi.fn<(o: { style: string }) => Promise<void>>(),
+}));
+vi.mock("@capacitor/core", () => ({
+  SystemBars: bars,
+  SystemBarsStyle: { Dark: "DARK", Light: "LIGHT", Default: "DEFAULT" },
+}));
+
 import { nextThemeChoice, useTheme } from "./useTheme";
 
 // A controllable matchMedia stub: jsdom doesn't implement matchMedia, and the
@@ -55,6 +68,9 @@ beforeEach(() => {
   localStorage.clear();
   document.documentElement.removeAttribute("data-theme");
   document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.remove());
+  native.isNative.mockReturnValue(false);
+  bars.setStyle.mockReset();
+  bars.setStyle.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -153,5 +169,48 @@ describe("useTheme", () => {
     act(() => mm.set(true));
     expect(result.current.theme).toBe("light");
     expect(isDark()).toBe(false);
+  });
+});
+
+describe("useTheme — статус-бар в iOS-оболочке (SystemBars)", () => {
+  const styles = () => bars.setStyle.mock.calls.map(([o]) => o.style);
+
+  it("в вебе статус-бар не трогаем", () => {
+    stubMatchMedia(true);
+    const { result } = renderHook(() => useTheme());
+    act(() => result.current.cycle());
+    expect(bars.setStyle).not.toHaveBeenCalled();
+  });
+
+  it("натив: тёмная тема → DARK (светлый текст), светлая → LIGHT (тёмный текст)", () => {
+    native.isNative.mockReturnValue(true);
+    stubMatchMedia(true); // system → dark
+    const { result } = renderHook(() => useTheme());
+    expect(styles().at(-1)).toBe("DARK");
+
+    act(() => result.current.cycle()); // → light (явный выбор при тёмной ОС)
+    expect(styles().at(-1)).toBe("LIGHT");
+
+    act(() => result.current.cycle()); // → dark
+    expect(styles().at(-1)).toBe("DARK");
+  });
+
+  it("натив: на «system» следует живой смене темы ОС", () => {
+    native.isNative.mockReturnValue(true);
+    const mm = stubMatchMedia(false);
+    renderHook(() => useTheme());
+    expect(styles().at(-1)).toBe("LIGHT");
+
+    act(() => mm.set(true));
+    expect(styles().at(-1)).toBe("DARK");
+  });
+
+  it("натив: отказ плагина не роняет хук и не всплывает rejection'ом", async () => {
+    native.isNative.mockReturnValue(true);
+    bars.setStyle.mockRejectedValue(new Error("not implemented"));
+    stubMatchMedia(false);
+    const { result } = renderHook(() => useTheme());
+    expect(result.current.theme).toBe("light");
+    await new Promise((r) => setTimeout(r, 0));
   });
 });

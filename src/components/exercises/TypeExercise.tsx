@@ -120,6 +120,14 @@ export function TypeExercise({
           disabled={resolved !== null}
           autoFocus
           autoComplete="off"
+          // Мобильные клавиатуры (iOS-оболочка, Safari): без капитализации и
+          // автокоррекции — иначе iOS «исправляет» португальское слово под язык
+          // системы; клавиша ввода «Done» шлёт Enter (keyup-логика ниже).
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          enterKeyHint="done"
+          lang="pt-PT"
           placeholder="Ваш ответ…"
           onChange={(e) => setValue(e.target.value)}
           // Ответ — на keyUP, не keydown: после ответа фокус синхронно уезжает

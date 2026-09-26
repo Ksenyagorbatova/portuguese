@@ -233,9 +233,45 @@ upload в App Store Connect через `xcodebuild`, без fastlane), доку�
     unified log он не попадает; без TTY stdout буферизуется целиком. Смоук-прогоны
     запускают приложение `xcrun simctl launch --console-pty … > console.log` в фоне.
 18. **Без `@capacitor/assets`.** 3.0.5 тянет `@capacitor/cli@5` и `sharp@0.32`
-    (нативный бинарь) в devDependencies всех CI-джобов ради разовой генерации;
-    иконка/сплэш рендерятся своим скриптом прямо в `Assets.xcassets` (решение 13
-    уточняется в фазе 3).
+    (нативный бинарь) в devDependencies всех CI-джобов ради разовой генерации.
+    `scripts/ios/render-assets.mjs` (`npm run ios:assets`) рендерит дизайн прямо из
+    `public/favicon.svg` (единый источник) через Chromium playwright-core и пишет в
+    `Assets.xcassets`: `AppIcon-512@2x.png` 1024² full-bleed и сплэш 2732² —
+    светлый `#f4f3ef` + тёмный `#16150f` (appearance `dark`) с логотипом по центру.
+    Скриншот Chromium содержит альфа-канал → свой кодек `scripts/ios/png.mjs`
+    (decode всех 5 фильтров строк → RGB, colour type 2; тесты `png.test.ts`);
+    `sips -g hasAlpha` → `no`. Каталога `assets/` нет — исходник дизайна фавикон.
+19. **Статус-бар — встроенный в Capacitor 8 core `SystemBars`, без
+    `@capacitor/status-bar`.** Плагин status-bar на `viewDidAppear` сам
+    переустанавливает стиль из своего конфига (гонка с вызовом из JS) и дублирует
+    управление `bridge.statusBarStyle`; `SystemBars.setStyle` (DARK = светлый текст)
+    в эффекте `useTheme` — один источник. Плюс `body::before` — непрозрачная
+    подложка высотой `safe-area-inset-top` цвета страницы: при прокрутке контент
+    уходил под часы/«остров».
+20. **Сплэш прячет JS, а не таймер.** С `launchShowDuration: 0` плагин
+    `showOnLaunch()` сплэш не показывает вовсе, и после LaunchScreen был виден
+    белый WebView до первой отрисовки (видео холодного старта). Теперь
+    `launchAutoHide: true, launchShowDuration: 3000` — только страховка, а
+    `hideNativeSplash()` (`src/lib/native.ts`) зовётся компонентом
+    `HideNativeSplash` (сосед `ErrorBoundary` в `main.tsx` — уйдёт и при ошибке
+    рендера) после `window load` + двух кадров: первый кадр WebKit ждёт
+    render-blocking CSS Google Fonts. Фейд 200 мс — кросс-фейд в уже отрисованный
+    экран.
+21. **Фон WebView = цвет страницы по теме ОС** (`MainViewController` —
+    подкласс `CAPBridgeViewController` в `SceneDelegate.swift`, штатный способ
+    Capacitor): динамический `UIColor` #f4f3ef/#16150f вместо белого
+    `systemBackground` и `isOpaque = false` — никакого белого кадра до первой
+    отрисовки ни в светлой, ни в тёмной теме.
+22. **Озвучка — Web Speech API, плагин TTS не нужен (fallback решения 7 не
+    сработал за ненадобностью).** В WKWebView iOS 26.5: `[speech] voices=68
+    pt=Жуана (pt-PT)` (Joana, имя локализовано под `ru`), после ответа
+    `[speech] start/end`. Аудио-карточки (гейт `canSpeakPortuguese()`) показываются.
+23. **Клавиатура: `Keyboard.resize = body` достаточно** — поле ввода и
+    «Проверить» над клавиатурой (iPhone 17 Pro); «Done» (`enterkeyhint`) шлёт
+    Enter → существующая keyup-логика отвечает. iOS даёт полю `type=email`
+    ASCII-клавиатуру, а обычному текстовому — последнюю использованную раскладку
+    (у русскоязычного — кириллицу): для португальского ответа пользователь один
+    раз переключает раскладку глобусом, iOS её запоминает (см. ограничения).
 
 ## Тестирование
 
