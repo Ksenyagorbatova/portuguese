@@ -12,6 +12,7 @@ export function ConfirmDialog({
   cancelLabel,
   onConfirm,
   onCancel,
+  danger = false,
 }: {
   title: string;
   message: string;
@@ -19,6 +20,8 @@ export function ConfirmDialog({
   cancelLabel: string;
   onConfirm: () => void;
   onCancel: () => void;
+  // Необратимое действие (удаление аккаунта): подтверждение красного тона.
+  danger?: boolean;
 }) {
   const titleId = useId();
   const messageId = useId();
@@ -83,7 +86,11 @@ export function ConfirmDialog({
           {message}
         </div>
         <div className="m-dialog-actions">
-          <button ref={confirmRef} className="m-btn m-btn--primary m-btn--block" onClick={onConfirm}>
+          <button
+            ref={confirmRef}
+            className={`m-btn ${danger ? "m-btn--danger" : "m-btn--primary"} m-btn--block`}
+            onClick={onConfirm}
+          >
             {confirmLabel}
           </button>
           <button ref={cancelRef} className="m-btn m-btn--ghost m-btn--block" onClick={onCancel}>

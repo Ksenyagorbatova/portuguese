@@ -252,6 +252,10 @@ body::before{content:"";position:fixed;top:0;left:0;right:0;height:env(safe-area
 .m-btn--tinted:hover{background:var(--accent-100)}
 .m-btn--ghost{background:var(--surface);color:var(--ink-700);box-shadow:var(--e1);border:1px solid var(--line)}
 .m-btn--ghost:hover{background:var(--surface-2)}
+/* Необратимое действие (удаление аккаунта): тон «повторить» — светлая заливка,
+   красный текст и контур; AA в обеих темах (токены --due-* переопределены в dark). */
+.m-btn--danger{background:var(--due-bg);color:var(--due-ink);box-shadow:inset 0 0 0 1px var(--due-dot)}
+.m-btn--danger:hover{box-shadow:inset 0 0 0 2px var(--due-dot)}
 .m-btn--block{width:100%}
 .m-btn--lg{height:56px;font-size:16px;border-radius:var(--r-md)}
 
@@ -552,6 +556,14 @@ button.m-topic-head{width:100%;text-align:left}
 button.m-flip{width:100%}
 button.m-switch{display:block;width:100%;border-radius:var(--r-sm)}
 
+/* Строка аккаунта внизу главного экрана: email + «Удалить аккаунт». Тихая,
+   но на первом экране — Apple требует, чтобы удаление было легко найти. */
+.m-account{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:2px 10px;margin:24px 0 4px;font-size:13px;color:var(--ink-400)}
+.m-account-email{overflow-wrap:anywhere;text-align:center}
+button.m-account-delete{font:inherit;font-weight:600;color:var(--due-ink);background:none;border:none;padding:6px 8px;border-radius:var(--r-sm);cursor:pointer}
+button.m-account-delete:disabled{opacity:.6;cursor:default}
+.m-account .m-auth-err{flex-basis:100%;text-align:center}
+
 /* ── A11y: единый язык клавиатурного фокуса ────────────────────────────────
    То же кольцо, что у инпутов (.m-input:focus) — на ВСЕХ интерактивах, но
    только при клавиатурном фокусе (:focus-visible, не :focus — мышь колец не
@@ -560,7 +572,8 @@ button.m-switch{display:block;width:100%;border-radius:var(--r-sm)}
    у элементов с собственной тенью кольцо добавляется К ней ниже. */
 :where(.m-btn,.m-opt,.m-icon-btn,.m-logo,.m-seg-btn,.m-audio,.m-atile,
        .m-wtile,.m-flip,.m-topic-head,.m-lesson,.m-lesson-theory,
-       .m-session-exit,.m-theory-back,.m-mist-audio,.m-fb-audio,.m-switch):focus-visible{
+       .m-session-exit,.m-theory-back,.m-mist-audio,.m-fb-audio,.m-switch,
+       .m-account-delete):focus-visible{
   outline:none;
   box-shadow:0 0 0 4px var(--accent-ring);
 }
@@ -572,3 +585,4 @@ button.m-switch{display:block;width:100%;border-radius:var(--r-sm)}
 .m-session-exit:focus-visible,.m-icon-btn:focus-visible{
   box-shadow:var(--e1),0 0 0 4px var(--accent-ring);
 }
+.m-btn--danger:focus-visible{box-shadow:inset 0 0 0 1px var(--due-dot),0 0 0 4px var(--accent-ring)}

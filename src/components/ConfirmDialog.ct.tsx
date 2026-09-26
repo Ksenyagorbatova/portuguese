@@ -80,3 +80,18 @@ test("clicking the overlay backdrop cancels, clicking the card does not", async 
   await page.locator(".m-dialog-overlay").click({ position: { x: 5, y: 5 } });
   expect(cancelled).toBe(1);
 });
+
+// Опасное действие (удаление аккаунта): подтверждение красного тона, а не
+// основного зелёного; по умолчанию — прежний primary.
+test("the danger variant styles the confirm button as destructive", async ({ mount }) => {
+  const c = await mount(
+    <ConfirmDialog {...labels} danger onConfirm={() => {}} onCancel={() => {}} />,
+  );
+  await expect(c.getByRole("button", { name: "Выйти" })).toHaveClass(/m-btn--danger/);
+  await expect(c.getByRole("button", { name: "Выйти" })).not.toHaveClass(/m-btn--primary/);
+});
+
+test("without danger the confirm button stays primary", async ({ mount }) => {
+  const c = await mount(<ConfirmDialog {...labels} onConfirm={() => {}} onCancel={() => {}} />);
+  await expect(c.getByRole("button", { name: "Выйти" })).toHaveClass(/m-btn--primary/);
+});

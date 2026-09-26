@@ -25,6 +25,7 @@ import { Theory } from "./Theory";
 import { Session } from "./Session";
 import { Splash } from "./Splash";
 import { HideNativeSplash } from "./HideNativeSplash";
+import { AccountFooter } from "./AccountFooter";
 import type { ThemeChoice } from "../lib/useTheme";
 
 type Tab = "review" | "topics";
@@ -331,6 +332,8 @@ export function Shell({
       <div className="m-view" key={viewKey}>
         {content}
       </div>
+      {/* Аккаунт (email + удаление) — только на главном экране, не в сессии/теории. */}
+      {view.kind === "home" && <AccountFooter />}
     </>
   );
 }

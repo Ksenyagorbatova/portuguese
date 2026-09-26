@@ -21,6 +21,7 @@ beforeMount<HooksConfig>(async ({ hooksConfig }) => {
   // стабов, чтобы конфиг одного теста не протекал в следующий.
   delete window.__mutationMock;
   delete window.__signInError;
+  delete window.__signOutCalls;
   __setQueryData(hooksConfig?.queries ?? {});
   if (hooksConfig?.connection) window.__connectionMock = hooksConfig.connection;
   else delete window.__connectionMock;
