@@ -346,3 +346,48 @@ grep -iE "unhandled|typeerror|referenceerror|failed to load|convex.*error|auth.*
 --body-file specs/feat/ios-capacitor-app.pr.md` → шаги TestFlight; известные
 ограничения. Без голословного «работает» — только с доказательствами (скриншоты,
 логи, вывод команд). Явно подтверди: push, PR и загрузка в TestFlight не выполнялись.
+
+## 6. Что отличилось от плана (итог автономной сессии 2026-09-26)
+
+Факты, которые дорого выяснять заново; решения — в спеке (14–22).
+
+- **`xcodebuild` висит на «Resolve Package Graph».** Не сеть: SwiftPM перед
+  скачиванием бинарных артефактов `capacitor-swift-pm` ищет учётку github.com в
+  Keychain и ждёт модальный диалог. Лечение — `-packageAuthorizationProvider netrc`
+  (уже в `run-sim.sh`, `release.sh`, CI). После первого скачивания артефакты лежат в
+  `~/Library/Caches/org.swift.swiftpm/artifacts`, и MCP-сборка (без этого флага)
+  тоже проходит. Зависший `xcodebuild` виден только вне песочницы Bash
+  (`dangerouslyDisableSandbox`), там же его можно `kill`.
+- **Лог JS-консоли** — не `log stream`: `CAPLog` пишет в stdout. Рабочий способ —
+  фоновый `xcrun simctl launch --console-pty --terminate-running-process <udid> <bid>
+  > ~/Library/Logs/…/console.log` (путь в `/private/tmp/claude-*` процессам
+  симулятора не виден). Debug-лог Capacitor печатает `TO JS {…}` со ЗНАЧЕНИЯМИ
+  (включая токены из Preferences) — такие строки в отчёты не копировать.
+- **Ввод в симуляторе.** MCP `text` вводит HID-событиями: при русской активной
+  раскладке — кириллица; программная клавиатура после этого сворачивается
+  (устройство считает, что подключена аппаратная). Префы устройства:
+  `xcrun simctl spawn <udid> defaults write com.apple.keyboard.preferences
+  AutomaticMinimizationEnabled -bool false` и `HardwareKeyboardLastSeen -bool false`
+  (+ `KeyboardLastUsed en_US@sw=QWERTY;hw=Automatic`) и перезагрузка устройства.
+  Надёжнее: email/пароль — `xcrun simctl pbcopy` + долгий тап → «Вставить»; ответ в
+  Type-карточке — тапами по клавишам QWERTY. На iOS 17 первый показ клавиатуры
+  перекрыт подсказкой про свайп-ввод — `DidShowContinuousPathIntroduction -bool true`.
+- **MCP-инструмент симулятора просит разрешения владельца на КАЖДОЕ новое
+  устройство.** SE без владельца не разрешить → SE проверен через WebKit Remote
+  Inspector: npm `appium-remote-debugger` во временном каталоге (не в проекте),
+  сокет — `xcrun simctl getenv <udid> RWI_LISTEN_SOCKET`; приложение видно как
+  `process-App`, id страницы `PID.page` → `selectPage(pid, page)`; `execute` ждёт
+  строку `{status, value}`; между сессиями инспектора нужна пауза ~3 с.
+  Скриншоты — `xcrun simctl io <udid> screenshot`, ввод в WebView — JS
+  (нативный сеттер value + `input`, `KeyboardEvent` Enter); клавиатура при
+  программном `focus()` показывается (Capacitor: `keyboardShouldRequireUserInteraction = false`).
+- **Белый кадр при запуске** нашёлся только на видео холодного старта
+  (`xcrun simctl io <udid> recordVideo --codec=h264` → кадры через AVFoundation;
+  ffmpeg из кэша Playwright h264 не читает). Статичный скриншот его не ловит.
+- **`launchShowDuration: 0` ≠ «сплэш до готовности»** — плагин с нулём не
+  показывает сплэш вообще (см. спеку, решение 20).
+- **Статус-бар** — `SystemBars` из core вместо `@capacitor/status-bar` (решение 19).
+- **Не понадобились:** fallback CocoaPods, перебор `Keyboard.resize`, плагин TTS.
+- **Команды для следующей сессии:** сборка+установка —
+  `xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination "platform=iOS Simulator,id=$UDID" -derivedDataPath ios/DerivedData -packageAuthorizationProvider netrc CODE_SIGNING_ALLOWED=NO -quiet build`
+  → `xcrun simctl install $UDID ios/DerivedData/Build/Products/Debug-iphonesimulator/App.app`.
