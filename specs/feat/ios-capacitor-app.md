@@ -207,6 +207,36 @@ upload в App Store Connect через `xcodebuild`, без fastlane), доку�
     `assets/splash-dark.png` (фон `#16150f`); затем `npx capacitor-assets generate --ios`.
     Альфа-канала у iOS-иконки быть не должно.
 
+### Решения по ходу реализации (2026-09-26, автономная сессия)
+
+14. **Сборка из CLI — с `-packageAuthorizationProvider netrc`.** Первый резолв SPM
+    висел бесконечно на «Resolve Package Graph»: перед скачиванием бинарных
+    артефактов `capacitor-swift-pm` (Capacitor/Cordova.xcframework.zip с GitHub
+    Releases) SwiftPM ищет учётку github.com в связке ключей → модальный запрос
+    доступа к Keychain, который в неинтерактивном запуске некому подтвердить
+    (curl/nscurl те же URL качали за секунду). С `netrc`-провайдером резолв — 2 с.
+    Флаг — в `scripts/ios/run-sim.sh` и CI-джобе; скачанные артефакты оседают в
+    общем кэше `~/Library/Caches/org.swift.swiftpm/artifacts` (дальше сборки из
+    Xcode/MCP берут их оттуда без сети).
+15. **Safe-area сверху и в сессии — правка CSS (в спеке считалось «уже есть»).**
+    Был только `safe-area-inset-bottom`; с `contentInset: "never"` WebView
+    начинается под статус-баром, и шапка/бренд входа уезжали под Dynamic Island
+    (скриншот первого запуска). `.m-app` получил `env(safe-area-inset-top)` (оба
+    правила: базовое и ≤480px), «чистое поле» сессии — `+ env(safe-area-inset-bottom)`.
+    В браузере инсеты = 0 — веб не меняется. Тест — `SafeArea.ct.tsx` (CSSOM).
+16. **Локализация бандла — `ru`.** `CFBundleDevelopmentRegion = ru`,
+    `CFBundleLocalizations = [ru]`: интерфейс русский, системные строки UIKit/WebKit
+    (меню выделения, панель над клавиатурой) — тоже по-русски; App Store Connect
+    покажет язык «Русский». `navigator.language` в коде не используется.
+17. **Лог JS-консоли — через `simctl launch --console-pty`, не `log stream`.**
+    Capacitor печатает `console.*` через `CAPLog` = `Swift.print` (stdout), в
+    unified log он не попадает; без TTY stdout буферизуется целиком. Смоук-прогоны
+    запускают приложение `xcrun simctl launch --console-pty … > console.log` в фоне.
+18. **Без `@capacitor/assets`.** 3.0.5 тянет `@capacitor/cli@5` и `sharp@0.32`
+    (нативный бинарь) в devDependencies всех CI-джобов ради разовой генерации;
+    иконка/сплэш рендерятся своим скриптом прямо в `Assets.xcassets` (решение 13
+    уточняется в фазе 3).
+
 ## Тестирование
 
 **Автотесты (в том же PR, по [`test-policy`](../../.claude/skills/test-policy/SKILL.md)):**

@@ -10,6 +10,8 @@
   },
   "ignorePatterns": [
     "dist",
+    "dist-ios",
+    "ios",
     "convex/_generated",
     "test-results",
     "playwright-report",

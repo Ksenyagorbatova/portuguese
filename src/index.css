@@ -160,9 +160,11 @@ body{
 @keyframes m-view-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 
 /* ── App shell ─────────────────────────────────────────────────────────── */
+/* safe-area-inset-top: в iOS-оболочке (Capacitor, contentInset "never") WebView
+   начинается под статус-баром/«островом»; в браузере инсет = 0. */
 .m-app{
   max-width:680px;margin:0 auto;
-  padding:var(--s4) var(--s4) calc(var(--s8) + 56px + env(safe-area-inset-bottom,0px));
+  padding:calc(var(--s4) + env(safe-area-inset-top,0px)) var(--s4) calc(var(--s8) + 56px + env(safe-area-inset-bottom,0px));
   display:flex;flex-direction:column;gap:var(--stack);
 }
 
@@ -311,8 +313,9 @@ body{
    помещалась на экране без прокрутки — и на десктопе, и на мобиле (даже самый
    высокий случай: выбор из 4 вариантов + строка SRS + фидбэк). */
 /* В сессии нет нижней навигации — срезаем большой нижний паддинг .m-app
-   (он зарезервирован под неё), чтобы страница тренировки не прокручивалась. */
-.m-app:has(.m-session){padding-bottom:var(--s5)}
+   (он зарезервирован под неё), чтобы страница тренировки не прокручивалась.
+   Инсет home indicator (iOS) сохраняем; в браузере он = 0. */
+.m-app:has(.m-session){padding-bottom:calc(var(--s5) + env(safe-area-inset-bottom,0px))}
 .m-session-top{margin-bottom:8px}
 .m-session .m-card{padding:16px}
 .m-session .m-q-head{margin-bottom:8px}
@@ -527,7 +530,7 @@ body{
 
 /* ── Phones ≤ 480px ────────────────────────────────────────────────────── */
 @media (max-width:480px){
-  .m-app{padding:var(--s3) var(--s3) calc(var(--s8) + 48px + env(safe-area-inset-bottom,0px))}
+  .m-app{padding:calc(var(--s3) + env(safe-area-inset-top,0px)) var(--s3) calc(var(--s8) + 48px + env(safe-area-inset-bottom,0px))}
 }
 
 /* ── Touch: чипы хоткеев (A–E, ↵) не нужны без клавиатуры ──────────────── */
