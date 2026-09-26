@@ -7,7 +7,7 @@ const prefs = vi.hoisted(() => ({
 }));
 vi.mock("@capacitor/preferences", () => ({ Preferences: prefs }));
 
-const native = vi.hoisted(() => ({ isNative: vi.fn(() => false) }));
+const native = vi.hoisted(() => ({ hasNativePlugin: vi.fn((_name: string) => false) }));
 vi.mock("./native", () => native);
 
 import { nativeTokenStorage, pickTokenStorage } from "./authStorage";
@@ -45,12 +45,20 @@ describe("nativeTokenStorage", () => {
 
 describe("pickTokenStorage", () => {
   it("web: undefined → ConvexAuthProvider keeps its default localStorage", () => {
-    native.isNative.mockReturnValue(false);
+    native.hasNativePlugin.mockReturnValue(false);
     expect(pickTokenStorage()).toBeUndefined();
   });
 
-  it("native shell: the Preferences adapter", () => {
-    native.isNative.mockReturnValue(true);
+  it("native shell with the Preferences plugin: the Preferences adapter", () => {
+    native.hasNativePlugin.mockImplementation((name) => name === "Preferences");
     expect(pickTokenStorage()).toBe(nativeTokenStorage);
+  });
+
+  // Нативная сборка без плагина (не прогнали cap sync): Preferences.get
+  // реджектит, и ConvexAuthProvider навсегда застрял бы в AuthLoading.
+  it("native shell WITHOUT the plugin falls back to localStorage", () => {
+    native.hasNativePlugin.mockReturnValue(false);
+    expect(pickTokenStorage()).toBeUndefined();
+    expect(native.hasNativePlugin).toHaveBeenCalledWith("Preferences");
   });
 });

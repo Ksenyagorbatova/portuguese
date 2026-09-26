@@ -369,7 +369,9 @@ test("keyup-хвост Enter'а с предыдущей карточки не д
 // iOS (и любые мобильные клавиатуры): без этих атрибутов iOS капитализирует
 // первую букву и «исправляет» португальское слово автокоррекцией под язык
 // системы; клавиша ввода подписана «Done» и шлёт Enter (существующая
-// keyup-логика). lang="pt-PT" — подсказка клавиатуре/скринридеру.
+// keyup-логика). БЕЗ lang="pt-PT": раскладку iOS он не переключает, а
+// единственное доступное имя поля — русский плейсхолдер, который VoiceOver
+// прочёл бы португальским голосом; поле наследует lang="ru" документа.
 test("the answer input opts out of autocorrect/autocapitalize and labels the return key", async ({
   mount,
 }) => {
@@ -388,6 +390,6 @@ test("the answer input opts out of autocorrect/autocapitalize and labels the ret
   await expect(input).toHaveAttribute("autocorrect", "off");
   await expect(input).toHaveAttribute("spellcheck", "false");
   await expect(input).toHaveAttribute("enterkeyhint", "done");
-  await expect(input).toHaveAttribute("lang", "pt-PT");
+  await expect(input).not.toHaveAttribute("lang");
   await expect(input).toHaveAttribute("autocomplete", "off");
 });

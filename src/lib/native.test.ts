@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-const core = vi.hoisted(() => ({ isNativePlatform: vi.fn(() => false) }));
+const core = vi.hoisted(() => ({
+  isNativePlatform: vi.fn(() => false),
+  isPluginAvailable: vi.fn((_name: string) => false),
+}));
 vi.mock("@capacitor/core", () => ({ Capacitor: core }));
 
 const splash = vi.hoisted(() => ({
@@ -8,7 +11,7 @@ const splash = vi.hoisted(() => ({
 }));
 vi.mock("@capacitor/splash-screen", () => ({ SplashScreen: splash }));
 
-import { hideNativeSplash, isNative } from "./native";
+import { hasNativePlugin, hideNativeSplash, isNative } from "./native";
 
 // requestAnimationFrame под контролем теста: кадры «прокручиваются» вручную.
 let frames: FrameRequestCallback[] = [];
@@ -48,17 +51,35 @@ describe("isNative", () => {
   });
 });
 
+// Плагин реально зарегистрирован в нативной сборке — только в оболочке (в вебе
+// у плагинов есть web-реализации, isPluginAvailable там не про натив).
+describe("hasNativePlugin", () => {
+  it("is false in the browser even if the plugin has a web implementation", () => {
+    core.isNativePlatform.mockReturnValue(false);
+    core.isPluginAvailable.mockReturnValue(true);
+    expect(hasNativePlugin("Preferences")).toBe(false);
+  });
+
+  it("asks Capacitor inside the shell", () => {
+    core.isNativePlatform.mockReturnValue(true);
+    core.isPluginAvailable.mockImplementation((name) => name === "Preferences");
+    expect(hasNativePlugin("Preferences")).toBe(true);
+    expect(hasNativePlugin("Missing")).toBe(false);
+  });
+});
+
 // Нативный сплэш держится, пока WebKit реально не отрисовал страницу: иначе
 // между LaunchScreen и первым кадром WebView мелькает пустой фон.
 describe("hideNativeSplash", () => {
-  it("hides with a short fade two frames after the page has loaded", () => {
+  // Без аргументов: fade по умолчанию у плагина — 200 мс (SplashScreenSettings).
+  it("hides with the plugin's default fade two frames after the page has loaded", () => {
     core.isNativePlatform.mockReturnValue(true);
     hideNativeSplash();
     expect(splash.hide).not.toHaveBeenCalled();
     flushFrame(); // кадр 1
     expect(splash.hide).not.toHaveBeenCalled();
     flushFrame(); // кадр 2 — страница уже нарисована
-    expect(splash.hide).toHaveBeenCalledWith({ fadeOutDuration: 200 });
+    expect(splash.hide).toHaveBeenCalledWith();
   });
 
   it("waits for window load while subresources (render-blocking CSS) are pending", () => {

@@ -11,31 +11,25 @@ import { isNative } from "./native";
 // Error «не то» (системный дабл-бамп).
 
 export function hapticOk(): void {
-  if (isMuted()) return; // уважает mute (#3)
-  if (isNative()) {
-    void Haptics.impact({ style: ImpactStyle.Light }).catch(ignore);
-    return;
-  }
-  vibrate(10); // короткий «да»
+  haptic(() => Haptics.impact({ style: ImpactStyle.Light }), 10); // короткий «да»
 }
 
 export function hapticErr(): void {
-  if (isMuted()) return;
-  if (isNative()) {
-    void Haptics.notification({ type: NotificationType.Error }).catch(ignore);
-    return;
-  }
-  vibrate([8, 40, 8]); // дабл-бамп «не то»
+  haptic(() => Haptics.notification({ type: NotificationType.Error }), [8, 40, 8]); // дабл-бамп «не то»
 }
 
-function vibrate(pattern: number | number[]): void {
+// Общая развилка: mute (#3) глушит всё; в оболочке — Taptic Engine, в браузере —
+// Vibration API. Хаптика — украшение: отказ плагина не должен всплывать
+// необработанным rejection'ом посреди ответа, запрет вибрации — исключением.
+function haptic(native: () => Promise<void>, pattern: number | number[]): void {
+  if (isMuted()) return;
+  if (isNative()) {
+    void native().catch(() => {});
+    return;
+  }
   try {
     navigator.vibrate?.(pattern); // десктоп — no-op (метода нет)
   } catch {
     // окружение без вибрации / запрет — тихо игнорируем
   }
 }
-
-// Хаптика — украшение: отказ плагина не должен всплывать необработанным
-// rejection'ом посреди ответа.
-function ignore(): void {}

@@ -1,6 +1,6 @@
 import { Preferences } from "@capacitor/preferences";
 import type { TokenStorage } from "@convex-dev/auth/react";
-import { isNative } from "./native";
+import { hasNativePlugin } from "./native";
 
 // Токены Convex Auth в iOS-оболочке — в @capacitor/preferences (UserDefaults),
 // а не в localStorage WKWebView: WebKit вправе чистить script-writable storage
@@ -22,6 +22,8 @@ export const nativeTokenStorage: TokenStorage = {
 
 // Проп `storage` для ConvexAuthProvider: в нативной оболочке — адаптер выше, в
 // вебе — undefined (провайдер остаётся на своём localStorage, как раньше).
+// Нативная сборка без плагина (не прогнали cap sync) — тоже localStorage:
+// иначе Preferences.get реджектит и провайдер навсегда застревает в AuthLoading.
 export function pickTokenStorage(): TokenStorage | undefined {
-  return isNative() ? nativeTokenStorage : undefined;
+  return hasNativePlugin("Preferences") ? nativeTokenStorage : undefined;
 }

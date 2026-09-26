@@ -4,8 +4,10 @@
 // Xcode (ios/App/App/Assets.xcassets):
 //   • AppIcon.appiconset/AppIcon-512@2x.png — 1024², full-bleed (углы скругляет
 //     iOS), RGB без альфа-канала: иконку с альфой App Store Connect отвергает;
-//   • Splash.imageset/splash-2732x2732*.png — логотип по центру на фоне темы:
-//     светлый #f4f3ef и тёмный #16150f (appearance dark), ×3 масштаба.
+//   • Splash.imageset/splash-2732x2732*.png — логотип по центру на фоне темы
+//     (--page из src/index.css: светлая и тёмная — appearance dark), ×3 масштаба;
+//   • PageBackground.colorset — тот же --page цветом каталога: фон WebView до
+//     первой отрисовки (MainViewController в ios/App/App/SceneDelegate.swift).
 // Рендер — Chromium из playwright-core (уже стоит для Playwright CT; при
 // отсутствии: `npx playwright install chromium`). PNG перекодируется в RGB
 // своим кодеком (./png.mjs) — без @capacitor/assets и sharp.
@@ -16,13 +18,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
 import { decodePng, encodeRgbPng, toOpaqueRgb } from "./png.mjs";
+import { pageBackgroundColorset, readPageColors } from "./page-colors.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const xcassets = path.join(root, "ios/App/App/Assets.xcassets");
 
-// Фон страницы по темам — те же значения, что --page в src/index.css и
-// THEME_COLOR в src/lib/useTheme.ts.
-const PAGE = { light: "#f4f3ef", dark: "#16150f" };
+// Фон страницы по темам — --page из src/index.css (единственный источник;
+// рассинхрон с каталогом ассетов ловит scripts/ios/page-colors.test.ts).
+const PAGE = readPageColors(path.join(root, "src/index.css"));
 const ICON_SIZE = 1024;
 const SPLASH_SIZE = 2732;
 // Логотип на сплэше: ~100pt на iPhone 17 Pro после aspect-fill LaunchScreen.
@@ -95,6 +98,7 @@ async function main() {
       "Splash.imageset/Contents.json",
       Buffer.from(JSON.stringify({ images, info: { version: 1, author: "xcode" } }, null, 2) + "\n"),
     );
+    writeAsset("PageBackground.colorset/Contents.json", Buffer.from(pageBackgroundColorset(PAGE)));
   } finally {
     await browser.close();
   }

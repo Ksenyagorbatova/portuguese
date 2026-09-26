@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { HideNativeSplash } from "./HideNativeSplash";
 
 // Корневой error boundary: раньше любая необработанная ошибка рендера или
 // query оставляла белый экран без объяснений. Классовый компонент — в React 19
@@ -19,6 +20,8 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { hasError
     if (this.state.hasError) {
       return (
         <div className="m-app">
+          {/* iOS-оболочка: упавший рендер не должен прятаться за сплэшем. */}
+          <HideNativeSplash />
           <div className="m-splash" role="alert">
             <div>Что-то пошло не так.</div>
             <div>Перезагрузите страницу — прогресс хранится на сервере и не потеряется.</div>

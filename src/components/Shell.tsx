@@ -24,6 +24,7 @@ import { TopicsTab } from "./TopicsTab";
 import { Theory } from "./Theory";
 import { Session } from "./Session";
 import { Splash } from "./Splash";
+import { HideNativeSplash } from "./HideNativeSplash";
 import type { ThemeChoice } from "../lib/useTheme";
 
 type Tab = "review" | "topics";
@@ -295,6 +296,9 @@ export function Shell({
   // (the session has its own exit control instead of the tabs).
   return (
     <>
+      {/* iOS-оболочка: данные курса загружены — первый настоящий экран, убрать
+          нативный сплэш (иначе логотип сменялся бы спиннером «Загрузка…»). */}
+      <HideNativeSplash />
       <Header
         streak={s.streak}
         doneToday={s.doneToday}

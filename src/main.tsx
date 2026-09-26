@@ -6,7 +6,6 @@ import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { primeVoices } from "./lib/speech";
 import { pickTokenStorage } from "./lib/authStorage";
-import { HideNativeSplash } from "./components/HideNativeSplash";
 import "./index.css";
 
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL);
@@ -22,7 +21,6 @@ const tokenStorage = pickTokenStorage();
 // вместо белого экрана.
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <HideNativeSplash />
     <ErrorBoundary>
       <ConvexAuthProvider client={convex} storage={tokenStorage}>
         <App />

@@ -26,18 +26,15 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 // Фон WebView до первой отрисовки страницы — цвет страницы по теме ОС, а не
 // белый systemBackground Capacitor: между сплэшем и первым кадром WebKit (ждёт
 // render-blocking CSS шрифтов и «визуально непустой» страницы) иначе мелькает
-// белый экран. Цвета — --page из src/index.css: светлая #f4f3ef, тёмная #16150f.
+// белый экран. На время первой загрузки Capacitor сам делает WebView
+// прозрачным (WebViewDelegationHandler.willLoadWebview) и потом возвращает
+// непрозрачность — сквозь него виден этот фон. PageBackground — --page из
+// src/index.css (светлый/тёмный), генерирует `npm run ios:assets`.
 class MainViewController: CAPBridgeViewController {
-    private static let pageBackground = UIColor { traits in
-        traits.userInterfaceStyle == .dark
-            ? UIColor(red: 0x16 / 255, green: 0x15 / 255, blue: 0x0F / 255, alpha: 1)
-            : UIColor(red: 0xF4 / 255, green: 0xF3 / 255, blue: 0xEF / 255, alpha: 1)
-    }
-
     override open func capacitorDidLoad() {
         super.capacitorDidLoad()
-        webView?.isOpaque = false
-        webView?.backgroundColor = Self.pageBackground
-        webView?.scrollView.backgroundColor = Self.pageBackground
+        let page = UIColor(named: "PageBackground") ?? .systemBackground
+        webView?.backgroundColor = page
+        webView?.scrollView.backgroundColor = page
     }
 }
