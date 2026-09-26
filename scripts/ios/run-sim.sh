@@ -18,9 +18,11 @@ set -eu
 
 cd "$(dirname "$0")/../.."
 
-BID=io.github.ksenyagorbatova.portuguese
 PROJECT=ios/App/App.xcodeproj
-DERIVED=ios/DerivedData
+# DerivedData — вне дерева исходников (гигабайт артефактов не лезет в
+# Vite-вотчер и grep), но свой на каждый checkout/worktree: параллельные сборки
+# из разных worktree не делят каталог.
+DERIVED="${IOS_DERIVED_DATA:-$HOME/Library/Developer/Xcode/DerivedData/portuguese-ios-$(pwd | shasum | cut -c1-8)}"
 APP="$DERIVED/Build/Products/Debug-iphonesimulator/App.app"
 
 if [ ! -f ios/App/App/public/index.html ]; then
@@ -47,7 +49,7 @@ if [ -z "$UDID" ]; then
 fi
 echo "▸ Симулятор: $UDID"
 
-xcrun simctl boot "$UDID" 2>/dev/null || true
+# bootstatus -b сам загружает выключенный симулятор и ждёт полной загрузки.
 xcrun simctl bootstatus "$UDID" -b >/dev/null
 if [ "${IOS_SIM_HEADLESS:-}" != "1" ]; then
   open -a Simulator --args -CurrentDeviceUDID "$UDID" || true
@@ -66,6 +68,8 @@ xcodebuild \
   -quiet \
   build
 
+# Bundle ID — из собранного приложения (источник — capacitor.config.ts → проект).
+BID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")
 echo "▸ install + launch $BID"
 xcrun simctl terminate "$UDID" "$BID" 2>/dev/null || true
 xcrun simctl install "$UDID" "$APP"

@@ -11,7 +11,7 @@
   "ignorePatterns": [
     "dist",
     "dist-ios",
-    "ios",
+    "/ios",
     "convex/_generated",
     "test-results",
     "playwright-report",
