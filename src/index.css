@@ -545,11 +545,12 @@ body::before{content:"";position:fixed;top:0;left:0;right:0;height:env(safe-area
 /* ── A11y: бывшие div-интерактивы стали <button> ───────────────────────────
    Гасим UA-стили кнопки с нулевой специфичностью (:where) — существующие
    классовые правила выше и побеждают; вёрстка не меняется. */
-:where(button.m-topic-head,button.m-wtile,button.m-atile,button.m-flip){
+:where(button.m-topic-head,button.m-wtile,button.m-atile,button.m-flip,button.m-switch){
   font:inherit;color:inherit;text-align:inherit;background:none;border:none;padding:0;margin:0;
 }
 button.m-topic-head{width:100%;text-align:left}
 button.m-flip{width:100%}
+button.m-switch{display:block;width:100%;border-radius:var(--r-sm)}
 
 /* ── A11y: единый язык клавиатурного фокуса ────────────────────────────────
    То же кольцо, что у инпутов (.m-input:focus) — на ВСЕХ интерактивах, но
@@ -559,7 +560,7 @@ button.m-flip{width:100%}
    у элементов с собственной тенью кольцо добавляется К ней ниже. */
 :where(.m-btn,.m-opt,.m-icon-btn,.m-logo,.m-seg-btn,.m-audio,.m-atile,
        .m-wtile,.m-flip,.m-topic-head,.m-lesson,.m-lesson-theory,
-       .m-session-exit,.m-theory-back,.m-mist-audio,.m-fb-audio):focus-visible{
+       .m-session-exit,.m-theory-back,.m-mist-audio,.m-fb-audio,.m-switch):focus-visible{
   outline:none;
   box-shadow:0 0 0 4px var(--accent-ring);
 }

@@ -20,6 +20,7 @@ beforeMount<HooksConfig>(async ({ hooksConfig }) => {
   // Страница переиспользуется между тестами — каждый mount начинает с чистых
   // стабов, чтобы конфиг одного теста не протекал в следующий.
   delete window.__mutationMock;
+  delete window.__signInError;
   __setQueryData(hooksConfig?.queries ?? {});
   if (hooksConfig?.connection) window.__connectionMock = hooksConfig.connection;
   else delete window.__connectionMock;

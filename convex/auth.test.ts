@@ -3,7 +3,13 @@ import { convexTest } from "convex-test";
 import { exportPKCS8, generateKeyPair } from "jose";
 import { api, internal } from "./_generated/api";
 import schema from "./schema";
-import { SIGNUP_ENABLED } from "./auth";
+import {
+  ACCOUNT_EXISTS,
+  INVALID_EMAIL,
+  REGISTRATION_DISABLED,
+  SIGNUP_ENABLED,
+  assertSignUpAllowed,
+} from "./auth";
 import { DEV_EMAIL, DEV_PASSWORD } from "./seed";
 
 const modules = import.meta.glob(["./**/*.*s", "!./**/*.test.ts"]);
@@ -89,13 +95,40 @@ describe("registration enabled", () => {
 
     await signUpWith(t, "newcomer@example.com", "password123");
     await expect(signUpWith(t, "NEWCOMER@example.com", "otherPass99")).rejects.toThrow(
-      /already exists/,
+      ACCOUNT_EXISTS,
     );
     expect(await countAuthRows(t)).toEqual({ users: 1, accounts: 1 });
     // Исходный пароль не перезаписан попыткой повторной регистрации.
     const ok = await signInWith(t, "newcomer@example.com", "password123");
     expect(ok.tokens?.token).toBeTruthy();
   });
+
+  // Безопасность: библиотечный signUp для существующего аккаунта СВЕРЯЕТ пароль
+  // (createAccountFromCredentials) — без лимита неудачных попыток signIn и с
+  // выдачей сессии при совпадении. Открытая регистрация превращала бы его в
+  // неограниченный подбор пароля. signUp на занятый email обязан отказывать, не
+  // проверяя пароль вовсе.
+  it("signUp on an existing email never checks the password: even the right one gets ACCOUNT_EXISTS and no session", async () => {
+    const t = convexTest(schema, modules);
+    await seedAccount(t);
+    await stubJwtEnv();
+
+    await expect(signUpWith(t, DEV_EMAIL, DEV_PASSWORD)).rejects.toThrow(ACCOUNT_EXISTS);
+    await expect(signUpWith(t, DEV_EMAIL, "wrong-password-1")).rejects.toThrow(ACCOUNT_EXISTS);
+    const sessions = await t.run((ctx) => ctx.db.query("authSessions").collect());
+    expect(sessions).toHaveLength(0);
+  });
+
+  // С открытой регистрацией сервер — единственный фильтр: клиентский type=email
+  // обходится прямым вызовом auth:signIn.
+  it.each(["", "   ", "not-an-email", "a@b", "two words@example.com"])(
+    "signUp rejects a malformed email %j before writing any row",
+    async (email) => {
+      const t = convexTest(schema, modules);
+      await expect(signUpWith(t, email, "password123")).rejects.toThrow(INVALID_EMAIL);
+      expect(await countAuthRows(t)).toEqual({ users: 0, accounts: 0 });
+    },
+  );
 
   it("the registered credentials work for a later signIn", async () => {
     const t = convexTest(schema, modules);
@@ -116,6 +149,25 @@ describe("registration enabled", () => {
       /Invalid password/,
     );
     expect(await countAuthRows(t)).toEqual({ users: 0, accounts: 0 });
+  });
+});
+
+// Рубильник регистрации (SIGNUP_ENABLED = false закрывает её одной строкой):
+// сам флаг сейчас true, поэтому гейт проверяется чистой функцией, которую
+// вызывает сервер, — откат не должен требовать восстановления тестов из истории.
+describe("registration kill switch (assertSignUpAllowed)", () => {
+  it("closed: signUp is rejected with REGISTRATION_DISABLED", () => {
+    expect(() => assertSignUpAllowed("signUp", false)).toThrow(REGISTRATION_DISABLED);
+  });
+
+  it("closed: signIn and other flows are untouched", () => {
+    expect(() => assertSignUpAllowed("signIn", false)).not.toThrow();
+    expect(() => assertSignUpAllowed(undefined, false)).not.toThrow();
+  });
+
+  it("open (current): signUp passes", () => {
+    expect(() => assertSignUpAllowed("signUp", true)).not.toThrow();
+    expect(() => assertSignUpAllowed("signUp")).not.toThrow(); // дефолт — SIGNUP_ENABLED
   });
 });
 

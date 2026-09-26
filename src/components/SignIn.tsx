@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from "react";
+import { ConvexError } from "convex/values";
 import { useAuthActions } from "@convex-dev/auth/react";
+import { HideNativeSplash } from "./HideNativeSplash";
 
 // Flip to true after enabling GitHub/Google providers in convex/auth.ts and
 // setting their OAuth env vars (see README). Until then, Password-only.
@@ -11,9 +13,24 @@ const OAUTH_ENABLED = false;
 // sign-up switch is hidden and only existing users can sign in.
 const SIGNUP_ENABLED = true;
 
-export function SignIn() {
+type Flow = "signIn" | "signUp";
+
+// ConvexError codes thrown by convex/auth.ts (ConvexError data reaches production
+// clients; plain server Errors arrive as a bare «Server Error»). Literals, not
+// imports — convex/auth.ts is server code.
+function authErrorMessage(e: unknown, flow: Flow): string {
+  const code = e instanceof ConvexError ? e.data : null;
+  if (code === "ACCOUNT_EXISTS") return "Аккаунт с таким email уже есть — войдите.";
+  if (code === "REGISTRATION_DISABLED") return "Регистрация сейчас закрыта.";
+  if (code === "INVALID_EMAIL") return "Проверьте email — похоже, в нём опечатка.";
+  return flow === "signIn"
+    ? "Не удалось войти. Проверьте email и пароль."
+    : "Не удалось зарегистрироваться. Проверьте соединение и попробуйте ещё раз.";
+}
+
+export function SignIn({ signupEnabled = SIGNUP_ENABLED }: { signupEnabled?: boolean }) {
   const { signIn } = useAuthActions();
-  const [flow, setFlow] = useState<"signIn" | "signUp">("signIn");
+  const [flow, setFlow] = useState<Flow>("signIn");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -25,12 +42,8 @@ export function SignIn() {
     fd.set("flow", flow);
     try {
       await signIn("password", fd);
-    } catch {
-      setError(
-        flow === "signIn"
-          ? "Не удалось войти. Проверьте email и пароль."
-          : "Не удалось зарегистрироваться. Возможно, аккаунт с таким email уже есть.",
-      );
+    } catch (err) {
+      setError(authErrorMessage(err, flow));
       setPending(false);
     }
   }
@@ -108,8 +121,11 @@ export function SignIn() {
           </div>
         )}
 
-        {SIGNUP_ENABLED && (
-          <div
+        {signupEnabled && (
+          // <button type="button">: доступен с клавиатуры/скринридера и не
+          // сабмитит форму; UA-стили кнопки гасит :where-reset в index.css.
+          <button
+            type="button"
             className="m-switch"
             onClick={() => {
               setError(null);
@@ -125,9 +141,11 @@ export function SignIn() {
                 Уже есть аккаунт? <b>Войти</b>
               </span>
             )}
-          </div>
+          </button>
         )}
       </div>
+      {/* iOS-оболочка: первый настоящий экран для гостя — убрать нативный сплэш. */}
+      <HideNativeSplash />
     </div>
   );
 }

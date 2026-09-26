@@ -1,5 +1,11 @@
 import { Password } from "@convex-dev/auth/providers/Password";
-import { convexAuth, modifyAccountCredentials } from "@convex-dev/auth/server";
+import {
+  convexAuth,
+  modifyAccountCredentials,
+  retrieveAccount,
+  type ConvexCredentialsConfig,
+  type GenericActionCtxWithAuthConfig,
+} from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
 import { internalAction } from "./_generated/server";
 import type { DataModel } from "./_generated/dataModel";
@@ -29,34 +35,99 @@ import type { DataModel } from "./_generated/dataModel";
 // false → server rejects every signUp with REGISTRATION_DISABLED.
 export const SIGNUP_ENABLED = true;
 
-// Error code thrown when sign-up is attempted while disabled (the client can
-// match on this to show a friendly message). Unused while SIGNUP_ENABLED is
-// true — kept so closing registration again is a one-line change.
-export const REGISTRATION_DISABLED = "REGISTRATION_DISABLED";
+// Error codes (ConvexError data — unlike plain Errors they survive to production
+// clients, so SignIn.tsx can show a specific message).
+export const REGISTRATION_DISABLED = "REGISTRATION_DISABLED"; // kill switch closed
+export const ACCOUNT_EXISTS = "ACCOUNT_EXISTS"; // signUp on a taken email
+export const INVALID_EMAIL = "INVALID_EMAIL"; // malformed email (any flow)
+
+// The kill switch as a pure function (tested with enabled=false while the flag
+// is on): only the signUp flow is gated; signIn/reset are never affected.
+export function assertSignUpAllowed(flow: unknown, enabled: boolean = SIGNUP_ENABLED): void {
+  if (!enabled && flow === "signUp") throw new ConvexError(REGISTRATION_DISABLED);
+}
+
+const password = Password<DataModel>({
+  profile(params) {
+    assertSignUpAllowed(params.flow);
+    // Нормализация email (trim + lower). Password.authorize берёт email
+    // ИЗ РЕЗУЛЬТАТА profile() для всех флоу — и как account id при signUp,
+    // и для поиска аккаунта при signIn (см. dist/providers/Password.js:
+    // `const { email } = profile; … retrieveAccount({ account: { id: email } })`).
+    // Поэтому нормализации здесь достаточно: «Email@X.com» и «email@x.com»
+    // попадают в один аккаунт. Прод-аккаунты уже в нижнем регистре.
+    return { email: validEmail(params.email) };
+  },
+});
 
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
-  providers: [
-    Password({
-      profile(params) {
-        if (!SIGNUP_ENABLED && params.flow === "signUp") {
-          throw new ConvexError(REGISTRATION_DISABLED);
-        }
-        // Нормализация email (trim + lower). Password.authorize берёт email
-        // ИЗ РЕЗУЛЬТАТА profile() для всех флоу — и как account id при signUp,
-        // и для поиска аккаунта при signIn (см. dist/providers/Password.js:
-        // `const { email } = profile; … retrieveAccount({ account: { id: email } })`).
-        // Поэтому нормализации здесь достаточно: «Email@X.com» и «email@x.com»
-        // попадают в один аккаунт. Прод-аккаунты уже в нижнем регистре.
-        return { email: normalizeEmail(params.email as string) };
-      },
-    }) /*, GitHub, Google */,
-  ],
+  providers: [rejectSignUpForExistingAccounts(password) /*, GitHub, Google */],
 });
 
 // trim + lowercase — каноническая форма email, под которой хранятся аккаунты
 // (authAccounts.providerAccountId и users.email).
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
+}
+
+// С открытой регистрацией сервер — единственный фильтр (клиентский type=email
+// обходится прямым вызовом auth:signIn): без неё создавались аккаунты с id "" и
+// «not-an-email». Проверка — «что-то@домен.зона» без пробелов, как у type=email.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function validEmail(raw: unknown): string {
+  const email = typeof raw === "string" ? normalizeEmail(raw) : "";
+  if (!EMAIL_RE.test(email)) throw new ConvexError(INVALID_EMAIL);
+  return email;
+}
+
+type Authorize = (
+  params: Record<string, unknown>,
+  ctx: GenericActionCtxWithAuthConfig<DataModel>,
+) => Promise<unknown>;
+
+// Безопасность открытой регистрации. Библиотечный signUp для УЖЕ существующего
+// аккаунта сверяет присланный пароль (createAccountFromCredentials) и при
+// совпадении выдаёт сессию — в обход лимита неудачных попыток, который есть
+// только у signIn (retrieveAccountWithCredentials). Пока регистрация была
+// закрыта, флоу был недостижим; открытым он стал бы неограниченным подбором
+// пароля. Поэтому signUp на занятый email отказывает (ACCOUNT_EXISTS) ДО любой
+// проверки пароля; вход — только через signIn с его лимитом.
+//
+// Password() держит настоящий authorize во внутреннем поле `options`, которое
+// convexAuth накладывает поверх провайдера (dist/server/provider_utils.js,
+// providerDefaults: merge(provider, provider.options)) — оборачиваем там. Если
+// форма провайдера сменится при обновлении библиотеки, модуль упадёт при
+// деплое (и auth.test.ts), а не молча откроет дыру.
+function rejectSignUpForExistingAccounts(provider: ConvexCredentialsConfig): ConvexCredentialsConfig {
+  const options = (provider as unknown as { options?: { authorize?: Authorize } }).options;
+  const authorize = options?.authorize;
+  if (!options || !authorize) {
+    throw new Error("Password provider shape changed: options.authorize is missing");
+  }
+  const guarded: Authorize = async (params, ctx) => {
+    if (params.flow === "signUp") {
+      assertSignUpAllowed(params.flow); // закрытая регистрация не раскрывает, занят ли email
+      const email = validEmail(params.email);
+      if (await accountExists(ctx, email)) throw new ConvexError(ACCOUNT_EXISTS);
+    }
+    return authorize(params, ctx);
+  };
+  return { ...provider, options: { ...options, authorize: guarded } } as ConvexCredentialsConfig;
+}
+
+// Поиск без секрета: retrieveAccount не сверяет пароль и не трогает лимитер;
+// отсутствие аккаунта — Error("InvalidAccountId").
+async function accountExists(
+  ctx: GenericActionCtxWithAuthConfig<DataModel>,
+  email: string,
+): Promise<boolean> {
+  try {
+    await retrieveAccount(ctx, { provider: "password", account: { id: email } });
+    return true;
+  } catch (e) {
+    if (e instanceof Error && e.message === "InvalidAccountId") return false;
+    throw e;
+  }
 }
 
 // ─── adminResetPassword — ручной сброс пароля через CLI ─────────────────────
