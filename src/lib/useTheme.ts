@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { SystemBars, SystemBarsStyle } from "@capacitor/core";
+import { isNative } from "./native";
 
 // Theme with three user choices: light, dark, or "system" (follow the OS).
 // `data-theme="dark"` on <html> activates the warm dark palette. An inline
@@ -77,6 +79,9 @@ export function useTheme() {
   // Apply the resolved theme to <html> and to the theme-color metas (browser
   // chrome): both media-split metas get the resolved color, so whichever one
   // the browser picks shows the app's actual theme, not the OS one.
+  // In the iOS shell (Capacitor) the status bar text follows it too: an explicit
+  // light theme on a dark OS would otherwise keep white text on a light page.
+  // SystemBars (Capacitor 8 core): DARK = light content for a dark background.
   useEffect(() => {
     const el = document.documentElement;
     if (resolved === "dark") el.setAttribute("data-theme", "dark");
@@ -85,6 +90,10 @@ export function useTheme() {
     document
       .querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')
       .forEach((m) => m.setAttribute("content", color));
+    if (isNative()) {
+      const style = resolved === "dark" ? SystemBarsStyle.Dark : SystemBarsStyle.Light;
+      void SystemBars.setStyle({ style }).catch(() => {});
+    }
   }, [resolved]);
 
   const cycle = () => setChoice(nextThemeChoice);

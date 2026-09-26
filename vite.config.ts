@@ -10,11 +10,18 @@ import { isLinkedWorktree, portOffset } from "./scripts/worktree.mjs";
 // In a linked git worktree we offset the dev port and disable strictPort so
 // several worktrees can run `npm run dev` in parallel without colliding. The
 // main checkout keeps the fixed 5173 (strict) — i.e. behaves exactly as before.
+//
+// iOS (Capacitor) builds use their own modes: `ios` (Debug, VITE_CONVEX_URL from
+// .env.local → dev deployment) and `ios-release` (TestFlight, prod URL from the
+// committed .env.ios-release, also exported by scripts/ios/release.sh). Both
+// serve the bundle from the app root (base "/", capacitor://localhost) and write
+// to dist-ios/ so the Pages `dist/` is untouched.
 const worktree = isLinkedWorktree();
 const port = worktree ? 5173 + portOffset() : 5173;
 
 export default defineConfig(({ mode }) => ({
   plugins: [react()],
   base: mode === "production" ? "/portuguese/" : "/",
+  build: { outDir: mode.startsWith("ios") ? "dist-ios" : "dist" },
   server: { port, strictPort: !worktree },
 }));

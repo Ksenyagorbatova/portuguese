@@ -12,6 +12,7 @@ import type {
 import { wKey } from "../lib/srs";
 import { pickExerciseType, LEECH_THRESHOLD } from "../lib/learning";
 import { isMuted, canSpeakPortuguese } from "../lib/speech";
+import { COURSE_SEEN_KEY } from "../lib/courseSeen";
 import { McExercise } from "./exercises/McExercise";
 import { TypeExercise } from "./exercises/TypeExercise";
 import { SentenceBuilder } from "./exercises/SentenceBuilder";
@@ -27,8 +28,6 @@ type CourseStats = {
   days: number | null;
   bestStreak: number;
 };
-// localStorage-флаг «финал курса уже видели» — экран показывается один раз.
-const COURSE_SEEN_KEY = "pt-course-complete-seen";
 
 // Local per-session stage progress for one word (seeded from the server card,
 // then advanced client-side as the user answers — drives the per-card exercise

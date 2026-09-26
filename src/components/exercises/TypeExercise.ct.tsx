@@ -365,3 +365,31 @@ test("keyup-хвост Enter'а с предыдущей карточки не д
   await page.keyboard.press("Enter");
   await expect(page.getByText("Не совсем!")).toBeVisible();
 });
+
+// iOS (и любые мобильные клавиатуры): без этих атрибутов iOS капитализирует
+// первую букву и «исправляет» португальское слово автокоррекцией под язык
+// системы; клавиша ввода подписана «Done» и шлёт Enter (существующая
+// keyup-логика). БЕЗ lang="pt-PT": раскладку iOS он не переключает, а
+// единственное доступное имя поля — русский плейсхолдер, который VoiceOver
+// прочёл бы португальским голосом; поле наследует lang="ru" документа.
+test("the answer input opts out of autocorrect/autocapitalize and labels the return key", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <TypeExercise
+      word={word}
+      tag="new"
+      card={undefined}
+      isLast={false}
+      onAnswered={() => {}}
+      onNext={() => {}}
+    />,
+  );
+  const input = component.getByPlaceholder("Ваш ответ…");
+  await expect(input).toHaveAttribute("autocapitalize", "none");
+  await expect(input).toHaveAttribute("autocorrect", "off");
+  await expect(input).toHaveAttribute("spellcheck", "false");
+  await expect(input).toHaveAttribute("enterkeyhint", "done");
+  await expect(input).not.toHaveAttribute("lang");
+  await expect(input).toHaveAttribute("autocomplete", "off");
+});

@@ -131,3 +131,39 @@ jobs:
             playwright-report/
           if-no-files-found: ignore
           retention-days: 7
+
+  # iOS-оболочка (Capacitor 8, SPM): веб-бандл режима ios + компиляция
+  # Xcode-проекта под симулятор, без подписи. Репо публичный — macOS-минуты
+  # бесплатны. Convex не нужен: бандл только собирается, не запускается, поэтому
+  # VITE_CONVEX_URL — заглушка. netrc — SwiftPM не ищет учётку github.com в
+  # Keychain перед скачиванием бинарных артефактов capacitor-swift-pm.
+  ios-build:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 24
+          cache: npm
+      # Бинарный Capacitor.xcframework собран Xcode 26 — берём самый свежий
+      # СТАБИЛЬНЫЙ Xcode 26.x образа раннера (beta/RC пропускаем), если его
+      # нет — остаётся дефолтный.
+      - name: Select Xcode
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | grep -Eiv '_(beta|rc|release_candidate)' | sort -V | tail -1 || true)
+          if [ -n "$XCODE" ]; then sudo xcode-select -s "$XCODE"; fi
+          xcodebuild -version
+      - run: npm ci
+      - name: Web bundle (vite --mode ios) + cap sync
+        run: npm run ios:build
+        env:
+          VITE_CONVEX_URL: https://ci-placeholder.convex.cloud
+      # Пакеты SwiftPM xcodebuild резолвит сам; netrc — чтобы не лезть в
+      # Keychain за учёткой github.com. ARCHS=arm64 — один срез симулятора
+      # (раннеры Apple Silicon), вдвое быстрее generic-сборки обоих.
+      - name: Build for iOS Simulator (no signing)
+        run: >-
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug
+          -sdk iphonesimulator -destination 'generic/platform=iOS Simulator'
+          -packageAuthorizationProvider netrc ARCHS=arm64 CODE_SIGNING_ALLOWED=NO build

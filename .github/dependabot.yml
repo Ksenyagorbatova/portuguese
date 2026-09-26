@@ -13,6 +13,12 @@ updates:
     cooldown:
       default-days: 7
       semver-major-days: 14
+    # The logo glyphs (public/favicon.svg, iOS icon/splash) are generated from
+    # this font by this parser, pinned exactly: bump them deliberately, then
+    # `npm run favicon:outline && npm run ios:assets` (tests catch a mismatch).
+    ignore:
+      - dependency-name: "@fontsource/bricolage-grotesque"
+      - dependency-name: "opentype.js"
 
   - package-ecosystem: github-actions
     directory: "/"

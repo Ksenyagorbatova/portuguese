@@ -12,6 +12,9 @@ export function ConfirmDialog({
   cancelLabel,
   onConfirm,
   onCancel,
+  danger = false,
+  pending = false,
+  pendingLabel,
 }: {
   title: string;
   message: string;
@@ -19,6 +22,12 @@ export function ConfirmDialog({
   cancelLabel: string;
   onConfirm: () => void;
   onCancel: () => void;
+  // Необратимое действие (удаление аккаунта): подтверждение красного тона.
+  danger?: boolean;
+  // Действие в пути: диалог остаётся модальным, кнопки aria-disabled (фокус не
+  // теряется, в отличие от disabled), Esc/подложка/кнопки ничего не делают.
+  pending?: boolean;
+  pendingLabel?: string;
 }) {
   const titleId = useId();
   const messageId = useId();
@@ -53,7 +62,7 @@ export function ConfirmDialog({
   function onKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Escape") {
       e.stopPropagation();
-      onCancel();
+      if (!pending) onCancel();
       return;
     }
     // Tab-trap: цикл по двум кнопкам диалога.
@@ -67,11 +76,12 @@ export function ConfirmDialog({
   return (
     // Клик по подложке = «остаться» (как Esc): случайный промах не должен
     // выбрасывать из тренировки.
-    <div className="m-dialog-overlay" onClick={onCancel} onKeyDown={onKeyDown}>
+    <div className="m-dialog-overlay" onClick={pending ? undefined : onCancel} onKeyDown={onKeyDown}>
       <div
         className="m-card m-dialog"
         role="dialog"
         aria-modal="true"
+        aria-busy={pending || undefined}
         aria-labelledby={titleId}
         aria-describedby={messageId}
         onClick={(e) => e.stopPropagation()}
@@ -83,10 +93,20 @@ export function ConfirmDialog({
           {message}
         </div>
         <div className="m-dialog-actions">
-          <button ref={confirmRef} className="m-btn m-btn--primary m-btn--block" onClick={onConfirm}>
-            {confirmLabel}
+          <button
+            ref={confirmRef}
+            className={`m-btn ${danger ? "m-btn--danger" : "m-btn--primary"} m-btn--block`}
+            aria-disabled={pending || undefined}
+            onClick={pending ? undefined : onConfirm}
+          >
+            {pending && pendingLabel ? pendingLabel : confirmLabel}
           </button>
-          <button ref={cancelRef} className="m-btn m-btn--ghost m-btn--block" onClick={onCancel}>
+          <button
+            ref={cancelRef}
+            className="m-btn m-btn--ghost m-btn--block"
+            aria-disabled={pending || undefined}
+            onClick={pending ? undefined : onCancel}
+          >
             {cancelLabel}
           </button>
         </div>

@@ -186,7 +186,8 @@ Mode-параметр зеркала включает `"audio"` (`mc`/`type`-и�
   (фиксируется один раз); `mode "audio"` (не двигает `mc`/`type`/`lapses`, но
   due-повтор ушами двигает SM-2); пин-матрица зеркала `predictCardAfterAnswer`
   дополнена audio-шагами (изучение + due-повтор ушами).
-  Авторизация: `t.withIdentity({ subject: ` + "`${userId}|session`" + ` })`.
+  Авторизация: `asNewUser(t)` из `src/test/convexAuth.ts` (пользователь + настоящая
+  сессия — `liveUserId` проверяет обе).
 - Frontend [`src/lib/srs.test.ts`](../../src/lib/srs.test.ts): `adaptSrs` (массивы→Record,
   прокидка `lapses`/`bestStreak`/`startedAt`), подписи `nextDueLabel`/`intervalLabel`
   (время — `vi.spyOn(Date, "now")`);

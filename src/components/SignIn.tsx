@@ -1,18 +1,37 @@
 import { useState, type FormEvent } from "react";
+import { ConvexError } from "convex/values";
 import { useAuthActions } from "@convex-dev/auth/react";
+import { HideNativeSplash } from "./HideNativeSplash";
 
 // Flip to true after enabling GitHub/Google providers in convex/auth.ts and
 // setting their OAuth env vars (see README). Until then, Password-only.
 const OAUTH_ENABLED = false;
 
-// Public registration toggle. Keep in sync with SIGNUP_ENABLED in
-// convex/auth.ts (the server enforces it; this only hides the UI). When false,
-// the sign-up switch is hidden and only existing users can sign in.
+// Public registration toggle — CLOSED again since 2026-09-26: the sign-up flow is
+// complete, but the repository and the site are public, so the owner re-opens it
+// only before the App Store submission. Keep in sync with SIGNUP_ENABLED in
+// convex/auth.ts (the server enforces it; this only shows/hides the UI). When
+// false, the sign-up switch is hidden and only existing users can sign in.
 const SIGNUP_ENABLED = false;
 
-export function SignIn() {
+type Flow = "signIn" | "signUp";
+
+// ConvexError codes thrown by convex/auth.ts (ConvexError data reaches production
+// clients; plain server Errors arrive as a bare «Server Error»). Literals, not
+// imports — convex/auth.ts is server code.
+function authErrorMessage(e: unknown, flow: Flow): string {
+  const code = e instanceof ConvexError ? e.data : null;
+  if (code === "ACCOUNT_EXISTS") return "Аккаунт с таким email уже есть — войдите.";
+  if (code === "REGISTRATION_DISABLED") return "Регистрация сейчас закрыта.";
+  if (code === "INVALID_EMAIL") return "Проверьте email — похоже, в нём опечатка.";
+  return flow === "signIn"
+    ? "Не удалось войти. Проверьте email и пароль."
+    : "Не удалось зарегистрироваться. Проверьте соединение и попробуйте ещё раз.";
+}
+
+export function SignIn({ signupEnabled = SIGNUP_ENABLED }: { signupEnabled?: boolean }) {
   const { signIn } = useAuthActions();
-  const [flow, setFlow] = useState<"signIn" | "signUp">("signIn");
+  const [flow, setFlow] = useState<Flow>("signIn");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -24,12 +43,8 @@ export function SignIn() {
     fd.set("flow", flow);
     try {
       await signIn("password", fd);
-    } catch {
-      setError(
-        flow === "signIn"
-          ? "Не удалось войти. Проверьте email и пароль."
-          : "Не удалось зарегистрироваться. Возможно, аккаунт с таким email уже есть.",
-      );
+    } catch (err) {
+      setError(authErrorMessage(err, flow));
       setPending(false);
     }
   }
@@ -49,10 +64,17 @@ export function SignIn() {
 
         <form className="m-form" onSubmit={onSubmit}>
           <div className="m-field">
+            {/* iOS-клавиатура иначе делает первую букву заглавной и
+                «исправляет» адрес автокоррекцией (сервер нормализует регистр,
+                но не опечатки автозамены). */}
             <input
               className="m-input"
               name="email"
               type="email"
+              inputMode="email"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               placeholder="Email"
               aria-label="Email"
               autoComplete="email"
@@ -100,8 +122,11 @@ export function SignIn() {
           </div>
         )}
 
-        {SIGNUP_ENABLED && (
-          <div
+        {signupEnabled && (
+          // <button type="button">: доступен с клавиатуры/скринридера и не
+          // сабмитит форму; UA-стили кнопки гасит :where-reset в index.css.
+          <button
+            type="button"
             className="m-switch"
             onClick={() => {
               setError(null);
@@ -117,9 +142,11 @@ export function SignIn() {
                 Уже есть аккаунт? <b>Войти</b>
               </span>
             )}
-          </div>
+          </button>
         )}
       </div>
+      {/* iOS-оболочка: первый настоящий экран для гостя — убрать нативный сплэш. */}
+      <HideNativeSplash />
     </div>
   );
 }

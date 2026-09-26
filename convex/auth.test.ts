@@ -1,9 +1,16 @@
 import { afterEach, describe, it, expect, vi } from "vitest";
 import { convexTest } from "convex-test";
-import { exportPKCS8, generateKeyPair } from "jose";
-import { api, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 import schema from "./schema";
-import { SIGNUP_ENABLED } from "./auth";
+import { signInWith, signUpWith, stubJwtEnv } from "../src/test/convexAuth";
+import {
+  ACCOUNT_EXISTS,
+  INVALID_EMAIL,
+  REGISTRATION_DISABLED,
+  SIGNUP_ENABLED,
+  assertSignUpAllowed,
+  signUpEnabled,
+} from "./auth";
 import { DEV_EMAIL, DEV_PASSWORD } from "./seed";
 
 const modules = import.meta.glob(["./**/*.*s", "!./**/*.test.ts"]);
@@ -19,50 +26,159 @@ async function seedAccount(t: ReturnType<typeof convexTest>) {
   await t.action(internal.seed.seedLocal, {});
 }
 
-// Полный успешный signIn доходит до выпуска JWT — ему нужны env прод-деплоя.
-// Генерим одноразовый RS256-ключ (WebCrypto доступен в edge-runtime).
-async function stubJwtEnv() {
-  const { privateKey } = await generateKeyPair("RS256", { extractable: true });
-  vi.stubEnv("JWT_PRIVATE_KEY", await exportPKCS8(privateKey));
-  vi.stubEnv("CONVEX_SITE_URL", "https://test.convex.site");
-  vi.stubEnv("SITE_URL", "http://localhost:5173");
-}
+const countAuthRows = (t: ReturnType<typeof convexTest>) =>
+  t.run(async (ctx) => ({
+    users: (await ctx.db.query("users").collect()).length,
+    accounts: (await ctx.db.query("authAccounts").collect()).length,
+  }));
 
-function signInWith(t: ReturnType<typeof convexTest>, email: string, password: string) {
-  return t.action(api.auth.signIn, {
-    provider: "password",
-    params: { email, password, flow: "signIn" },
-  });
-}
-
-describe("registration disabled", () => {
-  it("ships with the SIGNUP_ENABLED flag off", () => {
+// Публичная регистрация: флоу готов (ACCOUNT_EXISTS, INVALID_EMAIL, UI), но флаг
+// по умолчанию ВЫКЛЮЧЕН (решение владельца 2026-09-26: репозиторий и сайт
+// публичные; откроется перед App Store). Полные флоу ниже гоняются с гейтом,
+// открытым через env (stubJwtEnv → SIGNUP_ENABLED=true) — см. signUpEnabled().
+describe("registration flows (gate opened via env for the test)", () => {
+  it("ships with the SIGNUP_ENABLED flag OFF by default", () => {
     expect(SIGNUP_ENABLED).toBe(false);
   });
 
-  it("rejects the password signUp flow on the server", async () => {
+  it("signUp creates exactly one user + password account and signs the user in", async () => {
     const t = convexTest(schema, modules);
-    await expect(
-      t.action(api.auth.signIn, {
-        provider: "password",
-        params: { email: "newcomer@example.com", password: "password123", flow: "signUp" },
-      }),
-    ).rejects.toThrow(/REGISTRATION_DISABLED/);
+    await stubJwtEnv();
 
-    // And no user/account row leaked through.
-    const users = await t.run((ctx) => ctx.db.query("users").collect());
-    expect(users).toHaveLength(0);
+    const res = await signUpWith(t, "newcomer@example.com", "password123");
+    // Сразу впускает — выпущены токены сессии.
+    expect(res.tokens?.token).toBeTruthy();
+
+    expect(await countAuthRows(t)).toEqual({ users: 1, accounts: 1 });
+    const account = await t.run(async (ctx) => (await ctx.db.query("authAccounts").collect())[0]);
+    expect(account.provider).toBe("password");
+    expect(account.providerAccountId).toBe("newcomer@example.com");
+    // Секрет хранится хешем, не plaintext.
+    expect(account.secret).toBeTruthy();
+    expect(account.secret).not.toBe("password123");
   });
 
-  it("does not block the signIn flow with the registration error", async () => {
+  it("signUp normalizes the email (trim + lower) into the account id", async () => {
     const t = convexTest(schema, modules);
-    // No such account → must fail, but NOT because registration is disabled.
-    await expect(
-      t.action(api.auth.signIn, {
-        provider: "password",
-        params: { email: "nobody@example.com", password: "password123", flow: "signIn" },
-      }),
-    ).rejects.not.toThrow(/REGISTRATION_DISABLED/);
+    await stubJwtEnv();
+
+    await signUpWith(t, "  NewComer@Example.COM ", "password123");
+    const account = await t.run(async (ctx) => (await ctx.db.query("authAccounts").collect())[0]);
+    expect(account.providerAccountId).toBe("newcomer@example.com");
+    const user = await t.run(async (ctx) => (await ctx.db.query("users").collect())[0]);
+    expect(user.email).toBe("newcomer@example.com");
+  });
+
+  it("a second signUp with the same email (any case) is rejected without a duplicate", async () => {
+    const t = convexTest(schema, modules);
+    await stubJwtEnv();
+
+    await signUpWith(t, "newcomer@example.com", "password123");
+    await expect(signUpWith(t, "NEWCOMER@example.com", "otherPass99")).rejects.toThrow(
+      ACCOUNT_EXISTS,
+    );
+    expect(await countAuthRows(t)).toEqual({ users: 1, accounts: 1 });
+    // Исходный пароль не перезаписан попыткой повторной регистрации.
+    const ok = await signInWith(t, "newcomer@example.com", "password123");
+    expect(ok.tokens?.token).toBeTruthy();
+  });
+
+  // Безопасность: библиотечный signUp для существующего аккаунта СВЕРЯЕТ пароль
+  // (createAccountFromCredentials) — без лимита неудачных попыток signIn и с
+  // выдачей сессии при совпадении. Открытая регистрация превращала бы его в
+  // неограниченный подбор пароля. signUp на занятый email обязан отказывать, не
+  // проверяя пароль вовсе.
+  it("signUp on an existing email never checks the password: even the right one gets ACCOUNT_EXISTS and no session", async () => {
+    const t = convexTest(schema, modules);
+    await seedAccount(t);
+    await stubJwtEnv();
+
+    await expect(signUpWith(t, DEV_EMAIL, DEV_PASSWORD)).rejects.toThrow(ACCOUNT_EXISTS);
+    await expect(signUpWith(t, DEV_EMAIL, "wrong-password-1")).rejects.toThrow(ACCOUNT_EXISTS);
+    const sessions = await t.run((ctx) => ctx.db.query("authSessions").collect());
+    expect(sessions).toHaveLength(0);
+  });
+
+  // С открытой регистрацией сервер — единственный фильтр: клиентский type=email
+  // обходится прямым вызовом auth:signIn.
+  it.each(["", "   ", "not-an-email", "a@b", "two words@example.com"])(
+    "signUp rejects a malformed email %j before writing any row",
+    async (email) => {
+      const t = convexTest(schema, modules);
+      vi.stubEnv("SIGNUP_ENABLED", "true"); // гейт открыт — проверяем валидацию email
+      await expect(signUpWith(t, email, "password123")).rejects.toThrow(INVALID_EMAIL);
+      expect(await countAuthRows(t)).toEqual({ users: 0, accounts: 0 });
+    },
+  );
+
+  it("the registered credentials work for a later signIn", async () => {
+    const t = convexTest(schema, modules);
+    await stubJwtEnv();
+
+    await signUpWith(t, "newcomer@example.com", "password123");
+    const res = await signInWith(t, "newcomer@example.com", "password123");
+    expect(res.tokens?.token).toBeTruthy();
+    // Неверный пароль к зарегистрированному аккаунту — отказ.
+    await expect(signInWith(t, "newcomer@example.com", "wrong-password-1")).rejects.toThrow(
+      /InvalidSecret/,
+    );
+  });
+
+  it("rejects a password shorter than 8 characters before writing any row", async () => {
+    const t = convexTest(schema, modules);
+    vi.stubEnv("SIGNUP_ENABLED", "true"); // гейт открыт — проверяем валидацию пароля
+    await expect(signUpWith(t, "newcomer@example.com", "short7!")).rejects.toThrow(
+      /Invalid password/,
+    );
+    expect(await countAuthRows(t)).toEqual({ users: 0, accounts: 0 });
+  });
+});
+
+// Рубильник регистрации: дефолт SIGNUP_ENABLED = false; серверный env
+// SIGNUP_ENABLED=true/false перекрывает дефолт без деплоя (signUpEnabled()).
+// Проверяем и чистую функцию, и весь путь через провайдер при закрытом гейте.
+describe("registration kill switch", () => {
+  it("closed: signUp is rejected with REGISTRATION_DISABLED", () => {
+    expect(() => assertSignUpAllowed("signUp", false)).toThrow(REGISTRATION_DISABLED);
+  });
+
+  it("closed: signIn and other flows are untouched", () => {
+    expect(() => assertSignUpAllowed("signIn", false)).not.toThrow();
+    expect(() => assertSignUpAllowed(undefined, false)).not.toThrow();
+  });
+
+  it("open by argument: signUp passes", () => {
+    expect(() => assertSignUpAllowed("signUp", true)).not.toThrow();
+  });
+
+  it("default (no env) is closed; env SIGNUP_ENABLED opens or closes the gate, garbage falls back", () => {
+    expect(signUpEnabled()).toBe(false);
+    expect(() => assertSignUpAllowed("signUp")).toThrow(REGISTRATION_DISABLED);
+    vi.stubEnv("SIGNUP_ENABLED", "true");
+    expect(signUpEnabled()).toBe(true);
+    expect(() => assertSignUpAllowed("signUp")).not.toThrow();
+    vi.stubEnv("SIGNUP_ENABLED", "false");
+    expect(signUpEnabled()).toBe(false);
+    vi.stubEnv("SIGNUP_ENABLED", "yes");
+    expect(signUpEnabled()).toBe(SIGNUP_ENABLED);
+  });
+
+  it("closed gate through the provider: signUp writes nothing and does not reveal whether the email is taken", async () => {
+    const t = convexTest(schema, modules);
+    await seedAccount(t);
+    await stubJwtEnv();
+    vi.stubEnv("SIGNUP_ENABLED", "false"); // как на проде сейчас
+    // Новый email — отказ до записи строк.
+    await expect(signUpWith(t, "newcomer@example.com", "password123")).rejects.toThrow(
+      REGISTRATION_DISABLED,
+    );
+    // Занятый email — тот же код, а не ACCOUNT_EXISTS: закрытая регистрация не
+    // раскрывает, есть ли аккаунт.
+    await expect(signUpWith(t, DEV_EMAIL, "password123")).rejects.toThrow(REGISTRATION_DISABLED);
+    expect(await countAuthRows(t)).toEqual({ users: 1, accounts: 1 });
+    // Вход существующим аккаунтом при закрытой регистрации работает.
+    const ok = await signInWith(t, DEV_EMAIL, DEV_PASSWORD);
+    expect(ok.tokens?.token).toBeTruthy();
   });
 });
 

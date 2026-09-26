@@ -1,5 +1,5 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { query } from "./_generated/server";
+import { liveUserId } from "./account";
 
 // getCourse — returns the entire course content tree (was the TOPICS +
 // CROSS_SENTENCES constants in the original HTML). Identical for every user,
@@ -11,7 +11,7 @@ import { query } from "./_generated/server";
 export const getCourse = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await liveUserId(ctx);
     if (!userId) return null;
 
     const [topics, lessons, words, crossSentences, topicSentences] = await Promise.all([

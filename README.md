@@ -11,7 +11,9 @@ Convex (БД + функции + авторизация). Деплой автом
 - Контент (темы, слова, теория, предложения) лежит в БД, источник правды —
   [`convex/content.ts`](convex/content.ts), заливается идемпотентным сидом.
 - Прогресс per-user, синхронизируется между устройствами (вход по email/паролю;
-  опционально GitHub/Google).
+  опционально GitHub/Google). Аккаунт удаляется из самого приложения — строка
+  аккаунта внизу главного экрана («Удалить аккаунт»); вместе с ним стирается весь
+  прогресс.
 
 ---
 
@@ -54,6 +56,70 @@ npm run dev             # http://localhost:5173/ (dev сервится с кор
 | `npm run verify` | check + test + test:ct — то же, что форсит pre-push hook |
 | `npm run wt:setup` | настройка git-worktree: локальный Convex + сид (см. CLAUDE.md) |
 | `npm run wt:seed` | пере-сид локального деплоя worktree (контент + dev-аккаунт) |
+| `npm run ios:build` | iOS: веб-бандл `dist-ios` (Convex из `.env.local`) + `cap sync ios` |
+| `npm run ios:sim` | iOS: `ios:build` + сборка под симулятор + установка и запуск |
+| `npm run ios:open` | открыть iOS-проект в Xcode |
+| `npm run ios:assets` | перерисовать иконку и сплэш из `public/favicon.svg` |
+| `npm run favicon:outline` | «pt» фавикона → контуры шрифта Bricolage Grotesque 800 (затем `ios:assets`) |
+| `npm run ios:release` | сборка и загрузка в TestFlight (нужен `.env.ios-release.local`) |
+
+---
+
+## iOS-приложение: сборка, симулятор, TestFlight
+
+Та же SPA в нативной оболочке [Capacitor 8](https://capacitorjs.com/) (Swift
+Package Manager, проект — `ios/`). Бандл лежит внутри приложения, контент — в
+Convex: правки тем/слов доезжают без новой сборки. Подробности и решения —
+[`specs/feat/ios-capacitor-app.md`](specs/feat/ios-capacitor-app.md).
+
+**Нужно:** macOS + Xcode 26 (с iOS-симулятором), Node 24, `.env.local` с
+`VITE_CONVEX_URL` (dev-деплой, как для `npm run dev`).
+
+```bash
+npm ci
+npm run ios:sim            # собрать и запустить в симуляторе (iPhone 17 Pro по умолчанию)
+IOS_SIM_UDID=<udid> npm run ios:sim   # конкретный симулятор (xcrun simctl list devices)
+npm run ios:open           # открыть в Xcode (подпись/запуск на своём iPhone)
+```
+
+Бэкенду нужен `npx convex dev` (регистрация закрыта флагом `SIGNUP_ENABLED`;
+открыть на dev без деплоя — `npx convex env set SIGNUP_ENABLED true`). Если
+сборка висит на «Resolve Package Graph» — SwiftPM ждёт доступ к Keychain; скрипты
+передают `-packageAuthorizationProvider netrc`, в Xcode достаточно подтвердить диалог.
+
+**TestFlight** (раздача тестерам, 90 дней на сборку):
+
+1. developer.apple.com → Certificates, Identifiers & Profiles → Identifiers → «+» →
+   App ID с Bundle ID `io.github.ksenyagorbatova.portuguese` (менять — в
+   `capacitor.config.ts` и до первой загрузки). Там же в Devices — хотя бы один
+   iPhone: автоподпись архива берёт development-профиль, а без устройств Apple
+   его не выдаёт.
+2. App Store Connect → Apps → «+» → New App: iOS, «Português», Russian, Bundle ID
+   из шага 1.
+3. App Store Connect → Users and Access → Integrations → App Store Connect API →
+   Team Keys → ключ с ролью **App Manager**; `.p8` — в
+   `~/.appstoreconnect/private_keys/`.
+4. `cp .env.ios-release.example .env.ios-release.local` и заполнить
+   (`IOS_TEAM_ID`, `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_PATH`; файл читается
+   построчно `KEY=VALUE`, `~/` раскрывается). Прод-URL Convex уже в коммитнутом
+   `.env.ios-release`. Проверка без сборки: `sh scripts/ios/release.sh --check`.
+5. `npm run ios:release` — прод-бандл, `xcodebuild archive` (automatic signing по
+   ключу API) и загрузка; через 5–15 минут сборка в TestFlight → добавить тестеров.
+   Запускать с кода, уже смёрженного в `main` (deploy.yml выкатил его функции на
+   прод-Convex): иначе сборка позовёт функции, которых на проде ещё нет.
+
+Без `.env.ios-release.local` (или с неполным/некорректным) скрипт ничего не
+собирает: печатает эти шаги и выходит с кодом 2.
+
+Сборка в TestFlight — замороженный клиент, а прод-Convex обновляется на каждый
+мёрж в `main`: меняя API Convex, сохраняйте совместимость (только аддитивные
+правки), пока установленные сборки живы.
+
+Иконка и сплэш рисуются из `public/favicon.svg`. Надпись «pt» в нём — контуры
+шрифта, а не текст, поэтому картинка одинакова на любой машине. Поменять
+надпись или шрифт: параметры в `scripts/favicon-outline.mjs`, затем
+`npm run favicon:outline` и `npm run ios:assets`. Тест упадёт, если PNG
+отрисованы не из текущего фавикона.
 
 ---
 
@@ -63,7 +129,8 @@ npm run dev             # http://localhost:5173/ (dev сервится с кор
 зелёный (`npm run verify`, форсится pre-push hook'ом). Три уровня:
 
 - **Бэкенд** — Vitest + `convex-test`, файлы `convex/*.test.ts`
-  (SM-2, счётчики освоения, классификация слов, сид, блокировка регистрации).
+  (SM-2, счётчики освоения, классификация слов, сид, регистрация и её гейт,
+  удаление аккаунта).
 - **Фронт-юнит** — Vitest + jsdom + Testing Library, файлы `src/**/*.test.ts(x)`
   (чистая логика `src/lib`).
 - **Компонентное** — Playwright CT, файлы `src/**/*.ct.tsx`
@@ -123,8 +190,8 @@ npx convex env set SITE_URL https://ksenyagorbatova.github.io/portuguese --prod
 
 Проверки на PR — [`.github/workflows/ci.yml`](.github/workflows/ci.yml): отдельные
 параллельные jobs (secret-scan через gitleaks, lint, typecheck, build,
-backend-/frontend-/компонентные тесты), без подключения к Convex
-(`convex/_generated` закоммичен).
+backend-/frontend-/компонентные тесты, `ios-build` — компиляция iOS-проекта под
+симулятор на macOS), без подключения к Convex (`convex/_generated` закоммичен).
 
 Деплой — [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) на каждый
 пуш в `main` (т.е. при мёрже PR):

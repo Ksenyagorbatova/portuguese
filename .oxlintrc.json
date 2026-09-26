@@ -10,6 +10,8 @@
   },
   "ignorePatterns": [
     "dist",
+    "dist-ios",
+    "/ios",
     "convex/_generated",
     "test-results",
     "playwright-report",
@@ -191,6 +193,26 @@
         "react-hooks-js/unsupported-syntax": "error",
         "react-hooks-js/config": "error",
         "react-hooks-js/gating": "error"
+      }
+    },
+    {
+      // Convex: пользователя вызова — только через liveUserId/requireLiveUserId
+      // (convex/account.ts, где проверка живости пользователя И сессии). Голый
+      // id из JWT валиден и после выхода/удаления аккаунта — строки-сироты.
+      "files": ["convex/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "@convex-dev/auth/server",
+                "importNames": ["getAuthUserId", "getAuthSessionId"],
+                "message": "Бери пользователя через liveUserId/requireLiveUserId из ./account — JWT валиден и после выхода/удаления аккаунта."
+              }
+            ]
+          }
+        ]
       }
     }
   ]

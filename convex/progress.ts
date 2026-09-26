@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { query, mutation, internalMutation } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
+import { liveUserId, requireLiveUserId } from "./account";
 
 // ─── SM-2 helpers (ported from the original updateCard/isDue) ────────────────
 type CardFields = {
@@ -67,7 +67,7 @@ const wKey = (lessonKey: string, pt: string) => lessonKey + "||" + pt;
 export const getSrsState = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await liveUserId(ctx);
     if (!userId) return null;
     const now = Date.now();
 
@@ -184,8 +184,7 @@ export const recordAnswer = mutation({
     clientDay: v.optional(v.string()),
   },
   handler: async (ctx, { lessonKey, pt, quality, mode, clientDay }) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
+    const userId = await requireLiveUserId(ctx);
 
     // Валидация натурального ключа: слово обязано существовать в контенте.
     // Иначе опечатка/рассинхрон клиента молча создал бы осиротевшую
@@ -335,8 +334,7 @@ export const recordAnswer = mutation({
 export const markTheorySeen = mutation({
   args: { lessonKey: v.string() },
   handler: async (ctx, { lessonKey }) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
+    const userId = await requireLiveUserId(ctx);
 
     // Валидация ключа: урок обязан существовать (см. recordAnswer — та же
     // защита от осиротевших строк по опечатке клиента).

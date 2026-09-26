@@ -1,6 +1,6 @@
 # UI тренировки: Shell, хедер, сессия, теория, упражнения
 
-Статус: baseline (отгружено) · 2026-06-11
+Статус: baseline (отгружено) · 2026-06-11 · обновлено 2026-09-26 (iOS-оболочка: safe-area, ввод, сплэш)
 
 ## Цель
 
@@ -44,6 +44,16 @@
 - **Во время сессии** (`view.kind==="session"`) Shell скрывает `ScoreRow` и
   `TabBar` — остаётся «само поле тренировки». `ScoreRow` показывается только ПОСЛЕ
   сессии (`score.total > 0`).
+- **Строка аккаунта** ([`AccountFooter`](../../src/components/AccountFooter.tsx)) —
+  внизу главного экрана, на обеих вкладках, но не в сессии и не в теории.
+  В ней email вошедшего и «Удалить аккаунт»: удаление изнутри приложения
+  требует App Store 5.1.1(v), поток описан в
+  [`auth-and-signup-gate.md`](auth-and-signup-gate.md). Email и сигнал «gone»
+  Shell берёт из `account:viewer` через `useQueries`: ошибка этого запроса
+  приходит значением и не роняет приложение. При `gone` (аккаунт удалён при ещё
+  живом токене) Shell сам вызывает `signOut()`. Текст строки — `--ink-500`
+  (AA 4.5:1 для 13px в обеих темах), у кнопки удаления (28px) зона нажатия
+  растянута `::after` до 44pt.
 - **Выход по логотипу из активной сессии — через подтверждение**: `goHome`
   открывает внутренний
   [`ConfirmDialog`](../../src/components/ConfirmDialog.tsx) («Выйти из
@@ -129,7 +139,8 @@
 **Финал курса** ([`src/components/CourseComplete.tsx`](../../src/components/CourseComplete.tsx),
 П.5) — самый эмоциональный экран продукта, показывается **вместо** `Complete`,
 когда выучены ВСЕ темы (`learned===total` по всем), и **только один раз** (флаг
-`localStorage` `pt-course-complete-seen`; `Session` держит гейт). Чистый
+`localStorage` `pt-course-complete-seen` из [`src/lib/courseSeen.ts`](../../src/lib/courseSeen.ts);
+`Session` держит гейт; удаление аккаунта флаг стирает — `forgetCourseSeen`). Чистый
 презентационный компонент — цифры приходят пропами от `Shell`
 (`courseCompleteOf`). Содержит: 🇵🇹 40px, display-заголовок «Курс пройден!»,
 подзаголовок «Все N тем закрыты. Boa viagem!», три стат-плитки (`--surface-2`:
@@ -279,7 +290,32 @@ Chrome/macOS (`cancel` оставлял его в очереди без звук
 - **Фавикон (П.7):** [`public/favicon.svg`](../../public/favicon.svg) = логотип
   шапки (флаг Португалии + «pt»), подключён в [`index.html`](../../index.html)
   через `%BASE_URL%favicon.svg` (учитывает base-path: `/favicon.svg` в dev,
-  `/portuguese/favicon.svg` в проде).
+  `/portuguese/favicon.svg` в проде). Он же — исходник иконки и сплэша
+  iOS-приложения (`scripts/ios/render-assets.mjs`). «pt» в нём — не SVG-текст, а
+  контуры Bricolage Grotesque 800 (`<path id="pt">`): текст рисовался бы
+  шрифтом, установленным у зрителя или на машине сборки. Руками path не правят.
+  Параметры надписи живут в
+  [`scripts/favicon-outline.mjs`](../../scripts/favicon-outline.mjs); порядок
+  перегенерации: `npm run favicon:outline`, затем `npm run ios:assets`. Стражи:
+  `favicon-outline.test.ts` (path воспроизводится из закреплённого шрифта),
+  `scripts/ios/assets-lock.test.ts` (PNG iOS отрисованы из текущего фавикона).
+- **iOS-оболочка (Capacitor, с 2026-09-26)** — WebView под статус-баром и
+  home indicator: `.m-app` отступает на `env(safe-area-inset-top)` сверху (оба
+  правила: базовое и ≤480px) и на `env(safe-area-inset-bottom)` снизу (включая
+  «чистое поле» сессии); `body::before` — непрозрачная подложка высотой
+  верхнего инсета цвета `--page` (z 40, ниже модалки, клики не ловит) — при
+  прокрутке контент не уезжает под часы. В браузере инсеты 0 — веб не меняется.
+  Поле ответа `TypeExercise`: `autoCapitalize="none" autoCorrect="off"
+  spellCheck={false} enterKeyHint="done"` (iOS не капитализирует и не
+  «исправляет» португальское слово; «Done» шлёт Enter в keyup-логику). Без
+  `lang="pt-PT"`: раскладку iOS он не переключает, а доступное имя поля —
+  русский плейсхолдер. Клавиатура ужимает сам WebView (`Keyboard.resize =
+  native`): поле, «Проверить», RetryBox и низ формы входа докручиваются над ней.
+  Нативный сплэш прячет `HideNativeSplash` (после `window load` + 2 кадров) —
+  его рендерит первый НАСТОЯЩИЙ экран: `SignIn`, `Shell` с загруженными
+  курсом и SRS, fallback `ErrorBoundary`; спиннер `Splash` сплэш не снимает
+  (иначе старт «логотип → «Загрузка…» → главный»). Страховка — авто-скрытие
+  через 3 с (`launchShowDuration`).
 
 ## Тестирование
 
@@ -295,7 +331,9 @@ Convex-хуками изолируются стабами (`src/test/mocks`, а�
 из сессии («Выйти»/«Остаться»+Esc/на экране Complete без диалога/вне сессии)
 и перекат финального CTA на следующую тему при 100% темы;
 `ConfirmDialog.ct.tsx` — модальную семантику (фокус на «Остаться», Esc,
-Tab-trap, подложка).
+Tab-trap, подложка), вариант `danger` и состояние `pending` (кнопки
+`aria-disabled`, Esc и подложка не закрывают); `AccountFooter.ct.tsx` и
+`Shell.ct.tsx` — строку аккаунта и поток удаления (см. auth-and-signup-gate).
 
 Рекомендации v4 (по фичам): `Header.ct.tsx` — mute-тоггл и позиция кнопки между
 стриком и темой; `ReviewTab.ct.tsx` — прогноз повторений (П.2); `Complete.ct.tsx`
@@ -306,15 +344,21 @@ DOM до ответа, русские варианты, серверный ре�
 once-гейт финала курса и деривация липучек из `cards.lapses`.
 Юнит-тесты Vitest: [`src/lib/speech.test.ts`](../../src/lib/speech.test.ts) —
 `resume()` будит движок, `canSpeakPortuguese` (true с pt-голосом, false без речи/
-голоса), mute (`speakAuto` no-op при mute, ручной `speak` в обход).
+голоса), mute (`speakAuto` no-op при mute, ручной `speak` в обход), диагностика
+`[speech] voices/start/end/error` в `console.debug` (Capacitor пробрасывает её в
+нативный лог). iOS-оболочка: `SafeArea.ct.tsx` (safe-area-правила `.m-app` и
+подложка статус-бара в CSSOM), `TypeExercise.ct.tsx` (атрибуты поля ответа),
+`HideNativeSplash.test.tsx` + `HideNativeSplash.screens.test.tsx` (кто снимает
+сплэш: Shell только с данными, SignIn, fallback ошибки; здоровый ErrorBoundary —
+нет), `native.test.ts`, `haptics.test.ts` (нативная ветка).
 
 ## Карта файлов
 
-- Оркестрация: [`Shell.tsx`](../../src/components/Shell.tsx), [`App.tsx`](../../src/App.tsx), [`main.tsx`](../../src/main.tsx), [`Splash.tsx`](../../src/components/Splash.tsx), [`ErrorBoundary.tsx`](../../src/components/ErrorBoundary.tsx), [`OfflineBanner.tsx`](../../src/components/OfflineBanner.tsx).
+- Оркестрация: [`Shell.tsx`](../../src/components/Shell.tsx), [`App.tsx`](../../src/App.tsx), [`main.tsx`](../../src/main.tsx), [`Splash.tsx`](../../src/components/Splash.tsx), [`ErrorBoundary.tsx`](../../src/components/ErrorBoundary.tsx), [`OfflineBanner.tsx`](../../src/components/OfflineBanner.tsx), [`HideNativeSplash.tsx`](../../src/components/HideNativeSplash.tsx) + [`native.ts`](../../src/lib/native.ts) (iOS-оболочка).
 - Хром/дашборд: [`Header.tsx`](../../src/components/Header.tsx), [`TabBar.tsx`](../../src/components/TabBar.tsx), [`ReviewTab.tsx`](../../src/components/ReviewTab.tsx), [`ScoreRow.tsx`](../../src/components/ScoreRow.tsx), [`TopicsTab.tsx`](../../src/components/TopicsTab.tsx).
-- Тренировка: [`Session.tsx`](../../src/components/Session.tsx), [`Theory.tsx`](../../src/components/Theory.tsx), [`exercises/`](../../src/components/exercises/), [`Feedback.tsx`](../../src/components/Feedback.tsx), [`Complete.tsx`](../../src/components/Complete.tsx), [`CourseComplete.tsx`](../../src/components/CourseComplete.tsx), [`ConfirmDialog.tsx`](../../src/components/ConfirmDialog.tsx).
+- Тренировка: [`Session.tsx`](../../src/components/Session.tsx), [`Theory.tsx`](../../src/components/Theory.tsx), [`exercises/`](../../src/components/exercises/), [`Feedback.tsx`](../../src/components/Feedback.tsx), [`Complete.tsx`](../../src/components/Complete.tsx), [`CourseComplete.tsx`](../../src/components/CourseComplete.tsx), [`ConfirmDialog.tsx`](../../src/components/ConfirmDialog.tsx), [`AccountFooter.tsx`](../../src/components/AccountFooter.tsx).
 - Утилиты: [`text.ts`](../../src/lib/text.ts), [`wrongOptions.ts`](../../src/lib/wrongOptions.ts), [`speech.ts`](../../src/lib/speech.ts), [`srs.ts`](../../src/lib/srs.ts) (`nextReviewForecast`/`daysSinceStart`), [`Icon.tsx`](../../src/components/Icon.tsx) (`volume`/`volume-off`).
-- Ассеты: [`public/favicon.svg`](../../public/favicon.svg) (логотип-фавикон, П.7), [`index.html`](../../index.html).
+- Ассеты: [`public/favicon.svg`](../../public/favicon.svg) (логотип-фавикон, П.7; «pt» — контуры из [`scripts/favicon-outline.mjs`](../../scripts/favicon-outline.mjs)), [`index.html`](../../index.html).
 
 ## Известные ограничения
 
@@ -326,3 +370,5 @@ once-гейт финала курса и деривация липучек из 
   (`audioOk`); без них тип просто не выпадает — не ошибка, а тихая деградация.
 - Финал курса (П.5) показывается ровно один раз (флаг `localStorage`): при
   недоступном/очищенном хранилище гейт «один раз» не переживёт перезагрузку.
+  Флаг — на устройство, не на аккаунт: выход и вход другим аккаунтом его не
+  сбрасывают (сбрасывает только удаление аккаунта).
