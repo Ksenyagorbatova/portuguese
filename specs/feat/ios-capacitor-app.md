@@ -3,7 +3,9 @@
 Ветка: `feat/ios-capacitor-app` · PR: не открыт (открывает владелец, тело —
 [`ios-capacitor-app.pr.md`](ios-capacitor-app.pr.md)) · дата: 2026-09-26 ·
 статус: **реализовано локально** — коммиты в ветке, смоук в симуляторе пройден,
-push / PR / TestFlight не выполнялись (решение 12).
+push / PR / TestFlight не выполнялись (решение 12). Доработка после первого
+отчёта: удаление аккаунта изнутри приложения (решение 26) и «pt» иконки
+контурами шрифта (решение 27).
 
 > **Режим «всё локально».** Владелец проверяет результат ДО того, как что-либо уйдёт
 > с машины: сессия НЕ делала `git push`, НЕ открывала PR, НЕ загружала сборку в
@@ -35,16 +37,28 @@ push / PR / TestFlight не выполнялись (решение 12).
 сплэш без белого кадра, иконки, клавиатура/поле ввода, safe-area, ATS для
 локального Convex, портрет, iPhone-only, локаль `ru`), диагностика озвучки,
 регистрация с тестами, CI-job `ios-build`, release-скрипты (archive → upload через
-`xcodebuild`, без fastlane), документация (CLAUDE.md, README, скилл `browser-smoke`,
-baseline-спеки auth/theme/training-ui), смоук в симуляторе по матрице ниже, тело PR
-файлом.
+`xcodebuild`, без fastlane), удаление аккаунта из приложения (App Store 5.1.1(v)),
+«pt» фавикона и иконки — контурами шрифта, документация (CLAUDE.md, README, скиллы
+`browser-smoke`/`convex-conventions`/`test-policy`, baseline-спеки
+auth/theme/training-ui/srs), смоук в симуляторе по матрице ниже, тело PR файлом.
 
 **Вне объёма:** Android, офлайн-режим, пуш-уведомления, публикация в App Store
 (метаданные, скриншоты, ревью), распознавание речи, PWA, self-hosted шрифты.
 
 ## Изменения данных / API
 
-- **Схема Convex не меняется.** Серверные функции — без изменений сигнатур.
+- **Схема Convex не меняется.** Существующие функции — без изменений сигнатур;
+  API только дополняется (решение 2).
+- **Аккаунт** ([`convex/account.ts`](../../convex/account.ts), решение 26):
+  query `account:viewer` (`null` | `{ state: "live", email }` | `{ state: "gone" }`),
+  mutation `account:deleteAccount`, internal `purgeRefreshTokens`. Пользователь
+  вызова во ВСЕХ функциях — через `liveUserId`/`requireLiveUserId`: JWT плюс
+  проверка, что пользователь и его сессия ещё в базе. Отсюда смена поведения для
+  протухших токенов: `getSrsState`/`getCourse` → `null`, записи → `Not
+  authenticated`. Голый `getAuthUserId`/`getAuthSessionId` в `convex/` запрещён
+  правилом `no-restricted-imports` (override в `.oxlintrc.json`). В `convexAuth` —
+  `callbacks.beforeSessionCreation`: сессия для удалённого пользователя отвергается
+  кодом `ConvexError("ACCOUNT_DELETED")`.
 - **Регистрация:** `SIGNUP_ENABLED = true` в [`convex/auth.ts`](../../convex/auth.ts)
   и [`src/components/SignIn.tsx`](../../src/components/SignIn.tsx); рубильник
   `assertSignUpAllowed` (код `REGISTRATION_DISABLED`) остаётся — откат одним флагом.
@@ -59,7 +73,8 @@ baseline-спеки auth/theme/training-ui), смоук в симуляторе 
 - **Зависимости:** `@capacitor/core`, `@capacitor/ios` 8.5.2, `@capacitor/preferences`
   8.0.1, `@capacitor/haptics` 8.0.2, `@capacitor/splash-screen` 8.0.2,
   `@capacitor/keyboard` 8.0.5; dev — `@capacitor/cli` 8.5.2 и `playwright-core`
-  (версия раннера CT — тот же Chromium; для `render-assets.mjs`). Без
+  (версия раннера CT — тот же Chromium; для `render-assets.mjs`), `opentype.js`
+  2.0.0 и `@fontsource/bricolage-grotesque` 5.3.0 (контуры «pt», решение 27). Без
   `@capacitor/status-bar` (решение 19) и без `@capacitor/assets` (решение 18).
 - **Сборка:** [`vite.config.ts`](../../vite.config.ts): режимы `ios*` →
   `build.outDir = "dist-ios"`; `base` для них `/` (Pages-сборка — `/portuguese/`,
@@ -72,6 +87,8 @@ baseline-спеки auth/theme/training-ui), смоук в симуляторе 
   (`ios:build` + [`scripts/ios/run-sim.sh`](../../scripts/ios/run-sim.sh): xcodebuild
   под симулятор без подписи → install → launch; решение 24), `ios:open` (`cap open ios`),
   `ios:assets` ([`render-assets.mjs`](../../scripts/ios/render-assets.mjs)),
+  `favicon:outline` ([`favicon-outline.mjs`](../../scripts/favicon-outline.mjs),
+  решение 27),
   `ios:release` ([`release.sh`](../../scripts/ios/release.sh): прод-бандл + archive +
   upload; `--check` — только проверка настройки).
 - **Прод-URL Convex** (публичен — в бандле сайта): `https://harmless-seahorse-836.convex.cloud`.
@@ -128,6 +145,15 @@ baseline-спеки auth/theme/training-ui), смоук в симуляторе 
 - **Сеть:** как у сайта — без сети холодный старт висит на загрузке; разрыв
   посреди сессии переживается баннером и очередью мутаций Convex.
 - **Контент** (темы/слова/предложения) обновляется без новой сборки — он в БД.
+- **Удаление аккаунта** (и на сайте): внизу главного экрана — email и «Удалить
+  аккаунт» → диалог «Удалить аккаунт?» с кнопкой «Удалить навсегда» → аккаунт и
+  весь прогресс стираются сразу, приложение возвращается на экран входа; email
+  можно зарегистрировать заново. Без сети кнопка отключена («Удалить аккаунт можно
+  при подключении к сети»). На другом устройстве с тем же аккаунтом вход
+  заканчивается сам (экран входа, а не вечная «Загрузка…»).
+- **Иконка и фавикон** — одна и та же надпись «pt» шрифтом Bricolage Grotesque
+  800 на любой машине и в любом браузере (раньше SVG-текст рисовался системным
+  шрифтом зрителя).
 
 ## Ключевые решения и алгоритмы
 
@@ -246,6 +272,10 @@ baseline-спеки auth/theme/training-ui), смоук в симуляторе 
     [`png.mjs`](../../scripts/ios/png.mjs) (все 5 фильтров строк → RGB, colour
     type 2); `sips -g hasAlpha` → `no`. Правки фавикона, ломающие замены
     (`width/height`, `rx`), роняют скрипт, а не дают тихо старый дизайн.
+    Фавикон рендерится как есть: «pt» в нём уже контуры (решение 27), шрифты
+    машины на картинку не влияют. Скрипт пишет sha256 фавикона, из которого
+    отрисованы PNG, в `scripts/ios/assets.lock.json`; `assets-lock.test.ts`
+    падает, если фавикон поменяли без `npm run ios:assets`.
 19. **Статус-бар — `SystemBars` из `@capacitor/core` (Capacitor 8), без
     `@capacitor/status-bar`.** Плагин status-bar на `viewDidAppear` сам ставит стиль
     из своего конфига (гонка с JS) и дублирует управление `bridge.statusBarStyle`.
@@ -296,12 +326,58 @@ baseline-спеки auth/theme/training-ui), смоук в симуляторе 
 25. **CI `ios-build`:** `macos-latest`, самый свежий СТАБИЛЬНЫЙ Xcode 26.x образа
     (beta/RC отброшены), пакеты резолвит сам `xcodebuild build`, `ARCHS=arm64` —
     один срез симулятора.
+26. **Удаление аккаунта — полное и сразу, изнутри приложения** (App Store Review
+    Guideline 5.1.1(v): приложение с регистрацией обязано его давать, не
+    «деактивацию» и не письмо в поддержку). Подробности — baseline
+    [`auth-and-signup-gate.md`](../feature/auth-and-signup-gate.md); здесь —
+    несущие решения:
+    - **Одна транзакция** `deleteAccount` стирает данные приложения
+      (`USER_OWNED_TABLES`, полноту сверяет тест по схеме), аккаунты провайдеров
+      с кодами, счётчики неудачных входов (по `_id` аккаунта и по email), сессии и
+      сам users-документ. refresh-токены — фоновой internal-мутацией пачками по
+      1000: у брошенных сессий их бывают тысячи. Своя очистка вместо библиотечной
+      `invalidateSessions`: та требует action и отдельную транзакцию.
+    - **Живой пользователь = JWT + строки в базе.** JWT Convex Auth действует до
+      часа и после выхода или удаления. Поэтому `liveUserId` сверяет пользователя
+      и сессию (паттерн `getAuthSessionId` из документации Convex Auth), а lint
+      запрещает голый `getAuthUserId` в `convex/`. Иначе второе устройство писало
+      бы строки-сироты удалённому пользователю.
+    - **Второе устройство выходит само:** `account:viewer` отдаёт `gone`, `Shell`
+      зовёт `signOut()`. Читается через `useQueries`: ошибка запроса (например,
+      старый прод-деплой без `account:*`) — значение, а не падение приложения в
+      `ErrorBoundary`.
+    - **Гонка входа и удаления** (вход по паролю — две транзакции) закрыта
+      `beforeSessionCreation`: сессия для удалённого пользователя не создаётся.
+    - **UI:** подтверждение — `ConfirmDialog` в «опасном» варианте с фокусом на
+      «Отмена»; пока запрос в пути, диалог модальный (`pending`, кнопки
+      `aria-disabled`, Esc не закрывает): иначе уход с экрана размонтировал бы
+      футер и терял результат. Офлайн кнопка отключена: мутация Convex без сети
+      встаёт в очередь без ответа и теряется при закрытии приложения. Повторный
+      ввод пароля не требуем: сессия и так живая, а 5.1.1(v) его не просит.
+      После успеха стираем флаг финала курса на устройстве (он выведен из
+      прогресса), настройки устройства (тема, mute, счётчики подсказок) остаются.
+      Текст строки — AA-контраст, у кнопки зона нажатия 44pt.
+27. **«pt» фавикона — контуры шрифта, а не SVG-текст.** `<text>` рисуется
+    шрифтом, который есть у зрителя (Bricolage Grotesque обычно не установлен),
+    и у Chromium, рендерящего иконку iOS: глиф «pt» зависел от машины.
+    [`favicon-outline.mjs`](../../scripts/favicon-outline.mjs)
+    (`npm run favicon:outline`) строит `<path id="pt">` из WOFF Bricolage 800
+    пакета `@fontsource` (версия закреплена lock-файлом, перегенерация
+    детерминирована) через `opentype.js`. Геометрия — как у прежнего текста:
+    кегль 21, трекинг −0.6 только между буквами (как центрирует WebKit),
+    центр плитки по hhea. Кернинг не нужен: у пары p→t он нулевой. Стражи:
+    `favicon-outline.test.ts` (path воспроизводится из шрифта, глифы по центру
+    плитки) и `assets-lock.test.ts` (PNG iOS отрисованы из текущего фавикона).
+    Шрифт и `opentype.js` закреплены точными версиями (тест это сверяет), а
+    dependabot их не бампает (`ignore` в `.github/dependabot.yml`): смена
+    логотипа — только осознанно. Self-host шрифта ради одной иконки не нужен:
+    контуры не зависят ни от сети, ни от шрифтов системы.
 
 ## Тестирование
 
 **Автотесты** (по [`test-policy`](../../.claude/skills/test-policy/SKILL.md)), все в
-тех же коммитах, что и код; итог — Vitest 27 файлов / 290 тестов (backend +
-frontend), Playwright CT 155:
+тех же коммитах, что и код; итог — Vitest 32 файла / 310 тестов (backend +
+frontend), Playwright CT 175 (до доработки удаления и иконки — 27 / 290 и 155):
 
 - backend [`convex/auth.test.ts`](../../convex/auth.test.ts) — «registration
   enabled»: флаг `true`; `signUp` создаёт ровно `users` + `authAccounts` (секрет —
@@ -311,6 +387,14 @@ frontend), Playwright CT 155:
   `INVALID_EMAIL` без строк; рубильник `assertSignUpAllowed`; `signIn`
   зарегистрированными кредами, неверный пароль → `InvalidSecret`; пароль < 8 —
   отказ до записи строк.
+- backend [`convex/account.test.ts`](../../convex/account.test.ts) (решение 26):
+  удаление стирает всё, что связано с пользователем, и ничего чужого; сессии —
+  сразу, 2300 refresh-токенов — пачками в фоне; гость и токен вышедшей сессии
+  удалить не могут; протухший токен удалённого аккаунта не читает и не пишет,
+  `viewer` → `gone`; гонка входа → `ACCOUNT_DELETED`; email свободен для
+  регистрации; полнота `USER_OWNED_TABLES` по схеме. `progress.test.ts` и
+  `courseQueries.test.ts` — на `asNewUser` (пользователь с настоящей сессией,
+  [`src/test/convexAuth.ts`](../../src/test/convexAuth.ts)).
 - unit: [`authStorage.test.ts`](../../src/lib/authStorage.test.ts) (get/set/remove,
   `value ?? null`, `pickTokenStorage`: веб, натив с плагином, натив без плагина →
   localStorage); [`native.test.ts`](../../src/lib/native.test.ts) (`isNative`,
@@ -326,6 +410,13 @@ frontend), Playwright CT 155:
   [`HideNativeSplash.test.tsx`](../../src/components/HideNativeSplash.test.tsx);
   [`scripts/ios/png.test.ts`](../../scripts/ios/png.test.ts) (все 5 фильтров,
   RGB без альфы, отказ на полупрозрачном пикселе);
+  [`favicon-outline.test.ts`](../../scripts/favicon-outline.test.ts) (в фавиконе
+  нет `<text>`, перегенерация из шрифта воспроизводит закоммиченный path, глифы по
+  центру плитки, громкий отказ без `<path id="pt">`);
+  [`assets-lock.test.ts`](../../scripts/ios/assets-lock.test.ts) (PNG iOS
+  отрисованы из текущего фавикона); [`is-direct-run.test.ts`](../../scripts/is-direct-run.test.ts)
+  (запуск скрипта напрямую, через симлинк, импорт); [`courseSeen.test.ts`](../../src/lib/courseSeen.test.ts)
+  (флаг финала курса стирается, недоступное хранилище не роняет);
   [`page-colors.test.ts`](../../scripts/ios/page-colors.test.ts) (`--page` обеих тем
   из `index.css`, громкий отказ без него, colorset с тёмным вариантом, страж
   рассинхрона закоммиченного colorset);
@@ -340,7 +431,13 @@ frontend), Playwright CT 155:
   текст); [`SafeArea.ct.tsx`](../../src/components/SafeArea.ct.tsx)
   (safe-area в правилах `.m-app` и подложка статус-бара — по CSSOM, т.к. в
   десктопном Chromium инсеты 0); [`TypeExercise.ct.tsx`](../../src/components/exercises/TypeExercise.ct.tsx)
-  (атрибуты поля ответа, без `lang`).
+  (атрибуты поля ответа, без `lang`); [`AccountFooter.ct.tsx`](../../src/components/AccountFooter.ct.tsx)
+  (подтверждение, отмена, удаление → `signOut`, модальность в пути, ошибка с
+  возвратом фокуса, офлайн, флаг финала курса, перенос длинного email на 320px,
+  зона нажатия 44px, контраст AA в обеих темах); [`ConfirmDialog.ct.tsx`](../../src/components/ConfirmDialog.ct.tsx)
+  (+`danger`, `pending`); [`Shell.ct.tsx`](../../src/components/Shell.ct.tsx)
+  (строка аккаунта только на главном — нет в сессии и теории, сбой `viewer` не
+  роняет приложение, `gone` → `signOut`).
 - `npm run build` (Pages): `dist/` с base `/portuguese/`, `404.html == index.html`.
 
 **Смоук в симуляторе** — протокол в раннбуке; доказательства (скриншоты, видео
@@ -395,6 +492,27 @@ dev-деплое, форма входа докручивается при WebVie
 домашнем экране, видео холодного старта light/dark (дефект «белый кадр» → починен),
 сборка с чистого клона (`npm ci` + `npm run ios:sim`).
 
+**Смоук доработки (удаление аккаунта, иконка)** — на коде после всех фиксов
+код-ревью, dev-Convex `fast-hound-404` (функции выкачены `npx convex dev --once`):
+
+- **Веб** (встроенный браузер, `npm run dev`): аккаунт с прогрессом (10 слов,
+  стрик 1) → «Удалить аккаунт» → «Удалить аккаунт?» (кнопка «опасная», фокус на
+  «Отмена», email переносится) → Esc: диалог закрыт, фокус на кнопке, прогресс
+  на месте → «Удалить навсегда» → экран входа. В localStorage нет токенов Convex
+  Auth и флага финала курса; тема и счётчик подсказок остались. Регистрация того
+  же email → чистый аккаунт (0 слов, стрик 0). В консоли за прогон — без ошибок.
+- **iOS** (iPhone 17 Pro, iOS 26.5, сборка с текущего кода) —
+  `~/Library/Logs/portuguese-ios/smoke-2026-09-26/acct/`:
+  - `01-home-icon` — иконка «pt» контурами Bricolage на домашнем экране (сплэш — тот же логотип);
+  - `02-dialog` — строка аккаунта и диалог в тёмной теме;
+  - `03-after-delete` — удаление изнутри приложения → экран входа, UserDefaults
+    приложения пусты (токенов нет);
+  - `04`, `05` — вход в iOS тем же аккаунтом, что и в вебе; удаление в вебе →
+    iOS сам уходит на экран входа примерно через 2 с (`viewer` = `gone` → `signOut`);
+  - `console.log` — без ошибок приложения (строки `TO JS` не копировать).
+- Вживую не проверялись, покрыты CT: офлайн-состояние кнопки и «Удаляем
+  аккаунт…» в пути.
+
 ## Критерии приёмки (Definition of Done)
 
 - [x] `ios/` в репозитории, `npm run ios:build` и `npm run ios:sim` работают с чистого
@@ -423,8 +541,10 @@ dev-деплое, форма входа докручивается при WebVie
 `npm run ios:sim` — пройтись по приложению в симуляторе (можно зарегистрировать свой
 тестовый email). Затем `git push -u origin feat/ios-capacitor-app` (pre-push прогонит
 spec-гейт и `verify`) и
-`gh pr create --base main --title "feat: iOS-приложение на Capacitor + включение регистрации" --body-file specs/feat/ios-capacitor-app.pr.md`;
-CI прогонит и `ios-build`. После мёржа регистрация откроется и на проде (сайт).
+`gh pr create --base main --title "feat: iOS-приложение на Capacitor, регистрация и удаление аккаунта" --body-file specs/feat/ios-capacitor-app.pr.md`;
+CI прогонит и `ios-build`. После мёржа регистрация и удаление аккаунта
+откроются и на проде (сайт): deploy.yml выкатит `account:*` на прод-Convex.
+**TestFlight — только после этого мёржа** (решение 26, «Порядок релиза»).
 
 **TestFlight** (≈15 минут веб-интерфейсов Apple с 2FA, потом одна команда):
 
@@ -443,7 +563,8 @@ CI прогонит и `ios-build`. После мёржа регистрация
 4. `cp .env.ios-release.example .env.ios-release.local` и заполнить (`IOS_TEAM_ID`,
    `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_PATH`; прод-URL уже в `.env.ios-release`);
    `sh scripts/ios/release.sh --check` — проверка без сборки.
-5. `npm run ios:release` → сборка в TestFlight через 5–15 минут обработки.
+5. После мёржа PR и зелёного deploy.yml: `npm run ios:release` → сборка в
+   TestFlight через 5–15 минут обработки.
 6. TestFlight → Internal Testing (участники команды, без ревью) или External
    (публичная ссылка; первая сборка версии проходит Beta App Review) → тестеры.
 7. Сборка живёт 90 дней — повторять шаг 5 раз в квартал или на релиз кода
@@ -465,22 +586,37 @@ CI прогонит и `ios-build`. После мёржа регистрация
 - `src/lib/native.ts`, `src/lib/authStorage.ts`, `src/components/HideNativeSplash.tsx`
   (+ `HideNativeSplash.test.tsx`, `HideNativeSplash.screens.test.tsx`, тесты модулей),
   `src/components/SafeArea.ct.tsx`;
+- удаление аккаунта: `convex/account.ts` + `account.test.ts`,
+  `src/components/AccountFooter.tsx` + `.ct.tsx`, `src/lib/courseSeen.ts` + test,
+  `src/test/convexAuth.ts` (общие хелперы backend-тестов);
+- иконка: `scripts/favicon-outline.mjs` + `favicon-outline.test.ts`,
+  `scripts/is-direct-run.mjs` + `.d.mts` + `.test.ts`, `scripts/ios/assets.lock.json`
+  + `assets-lock.test.ts`;
 - `specs/feat/ios-capacitor-app.md` (эта спека), `.runbook.md`, `.pr.md`.
 
 **Изменено:**
-- `convex/auth.ts`, `convex/auth.test.ts`, `convex/seed.ts` (комментарий),
-  `src/components/SignIn.tsx` + `.ct.tsx`, `src/test/mocks/convexAuthReact.ts`,
-  `playwright/index.tsx` (сброс `__signInError`);
+- `convex/auth.ts` (+`beforeSessionCreation`), `convex/auth.test.ts`, `convex/seed.ts`
+  (комментарий), `convex/progress.ts`/`courseQueries.ts` (`liveUserId`) + тесты,
+  `src/components/SignIn.tsx` + `.ct.tsx`, `src/test/mocks/convexAuthReact.ts`
+  (+счётчик `signOut`), `src/test/mocks/convexReact.ts` (`useQueries`, фикстура
+  ошибки запроса), `playwright/index.tsx` (сброс `__signInError`, `__signOutCalls`);
+- `src/components/Shell.tsx` (строка аккаунта, выход по `gone`),
+  `ConfirmDialog.tsx` (`danger`, `pending`) + ct, `public/favicon.svg` («pt»
+  контурами), `scripts/ios/render-assets.mjs` (lock-файл), `scripts/wt-seed.mjs`
+  (`isDirectRun`);
 - `src/main.tsx` (storage), `src/components/Shell.tsx` и `ErrorBoundary.tsx`
   (`HideNativeSplash`), `src/lib/haptics.ts`, `useTheme.ts`, `speech.ts` (+ тесты),
   `src/components/exercises/TypeExercise.tsx` (+ct), `src/index.css` (safe-area,
   подложка статус-бара, `button.m-switch`);
 - `vite.config.ts`, `package.json`/`package-lock.json`, `tsconfig.node.json`,
-  `.oxlintrc.json`, `.gitignore`, `.github/workflows/ci.yml`, `scripts/wt-setup.mjs`
-  (комментарий);
+  `.oxlintrc.json` (+запрет голого `getAuthUserId` в `convex/`), `.gitignore`,
+  `.github/workflows/ci.yml`, `.github/dependabot.yml` (ignore шрифта и
+  `opentype.js`), `scripts/wt-setup.mjs` (комментарий), `src/components/Session.tsx`
+  (ключ флага финала — из `courseSeen.ts`);
 - `CLAUDE.md`, `README.md`, `.claude/skills/browser-smoke/SKILL.md`,
+  `convex-conventions/SKILL.md`, `test-policy/SKILL.md`,
   `specs/feature/auth-and-signup-gate.md`, `theme-system-mode.md`,
-  `training-ui-and-shell.md`.
+  `training-ui-and-shell.md`, `srs-scheduling.md`.
 
 ## Известные ограничения / дальнейшие шаги
 
@@ -490,9 +626,11 @@ CI прогонит и `ios-build`. После мёржа регистрация
 - Bundle ID закрепляется первой загрузкой — менять до неё.
 - Раскладка клавиатуры для ответа — последняя использованная (у русскоязычного —
   кириллица): первое переключение на латиницу — вручную; из веба не навязать.
-- **Удаление аккаунта из приложения** (App Store Review Guideline 5.1.1(v) — для
-  приложений с регистрацией) не реализовано: нужно до внешнего тестирования
-  TestFlight / публикации в App Store (Internal Testing — без ревью).
+- **Порядок релиза:** клиент зовёт `account:viewer`/`account:deleteAccount`,
+  поэтому `npm run ios:release` — только после мёржа (deploy.yml выкатывает их на
+  прод-Convex). Сборка против старого прода не падает (`viewer` через
+  `useQueries`), но удаление вернёт «Не удалось удалить аккаунт».
+- Удаление без периода отмены и без повторного ввода пароля (решение 26).
 - Замороженный клиент TestFlight против автодеплоя Convex: правки API — только
   аддитивные (решение 2, CLAUDE.md); проверки версии клиента нет.
 - Сплэш и нативный фон — по теме ОС, не по выбору в приложении (выбор живёт в
@@ -500,10 +638,8 @@ CI прогонит и `ios-build`. После мёржа регистрация
   кросс-фейд в тему приложения.
 - Беззвучный режим (переключатель на корпусе) и озвучка Web Speech в WKWebView —
   проверить на устройстве (в симуляторе переключателя нет).
-- Иконку рендерит Chromium шрифтом, доступным на машине (Bricolage Grotesque не
-  установлен → `system-ui`): перерисовка `npm run ios:assets` на другой машине
-  может чуть изменить глиф «pt» — перерисовывать там же или перевести текст
-  фавикона в контуры.
+- Смена надписи или шрифта логотипа — через параметры `favicon-outline.mjs`
+  (`npm run favicon:outline` → `npm run ios:assets`), руками path не правят.
 - Автоподпись архива требует у команды хотя бы одно устройство (хендофф, шаг 1).
 - Первый запуск после установки: iOS показывает чёрный кадр, пока создаёт снимок
   LaunchScreen (системное поведение, дальше — сплэш).

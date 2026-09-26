@@ -5,8 +5,9 @@ description: >-
   и их convex-test тестов в convex/ — новый endpoint, изменение
   getSrsState/recordAnswer/сида, серверная авторизация. Несёт серверные готчи
   проекта: запрет не-ASCII в именах полей Convex (pt → массивы + adaptSrs),
-  натуральные ключи vs _id, getAuthUserId, internal-функции и многослойные гейты,
-  паттерн convex-test (modules glob, withIdentity). Для контент-ДАННЫХ в content.ts
+  натуральные ключи vs _id, пользователь через liveUserId/requireLiveUserId
+  (не голый getAuthUserId), internal-функции и многослойные гейты, паттерн
+  convex-test (modules glob, asNewUser с настоящей сессией). Для контент-ДАННЫХ в content.ts
   — content-authoring; для логики SM-2/порогов/очереди — srs-invariants.
 ---
 
@@ -40,12 +41,25 @@ Convex быстро движется — перед написанием фун�
 
 ## Авторизация
 
-`const userId = await getAuthUserId(ctx)`:
-- в **query** — `if (!userId) return null` (UI разведёт незалогиненного);
-- в **mutation/action** — `if (!userId) throw new Error("Not authenticated")`.
+Пользователь вызова — ТОЛЬКО через [`convex/account.ts`](../../../convex/account.ts):
+- в **query** — `const userId = await liveUserId(ctx); if (!userId) return null`
+  (UI разведёт незалогиненного);
+- в **mutation** — `const userId = await requireLiveUserId(ctx)` (бросает
+  `Not authenticated`).
 
-В тестах identity задаётся как `subject: \`${userId}|session\`` (формат, который
-парсит `getAuthUserId`).
+Голый `getAuthUserId` запрещён правилом `no-restricted-imports` (`.oxlintrc.json`):
+JWT Convex Auth действует до часа и ПОСЛЕ выхода или удаления аккаунта, а
+`liveUserId` проверяет, что в базе есть и пользователь, и его сессия. Иначе
+старый токен удалённого аккаунта писал бы строки-сироты.
+
+Новая таблица с `userId` → допиши её в `USER_OWNED_TABLES` (`account.ts`) и дай
+ей индекс `by_user`: `deleteAccount` удаляет по этому списку, а тест сверяет его
+со схемой.
+
+В тестах — `asNewUser(t)` из [`src/test/convexAuth.ts`](../../../src/test/convexAuth.ts):
+пользователь + НАСТОЯЩАЯ сессия, identity `${userId}|${sessionId}` (выдуманный
+`|session` `liveUserId` отвергнет). Там же `stubJwtEnv`/`signUpWith`/`signInWith`
+для полного входа.
 
 ## Public vs internal, гейты опасных операций
 
@@ -80,8 +94,7 @@ import { api, internal } from "./_generated/api";
 const modules = import.meta.glob(["./**/*.*s", "!./**/*.test.ts"]);
 
 const t = convexTest(schema, modules);
-const userId = await t.run((ctx) => ctx.db.insert("users", {}));
-const as = t.withIdentity({ subject: `${userId}|session` });
+const { as } = await asNewUser(t); // import { asNewUser } from "../src/test/convexAuth"
 await as.mutation(api.progress.recordAnswer, { lessonKey, pt, quality: 2, mode: "type" });
 
 // env-гейты: vi.stubEnv(...) + afterEach(() => vi.unstubAllEnvs())

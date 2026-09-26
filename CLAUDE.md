@@ -127,6 +127,7 @@ npm run ios:build      # iOS: vite --mode ios (dist-ios, base "/", Convex из .
 npm run ios:sim        # iOS: ios:build + xcodebuild под симулятор (без подписи) + install/launch
 npm run ios:open       # открыть ios/App в Xcode
 npm run ios:assets     # иконка/сплэш из public/favicon.svg → ios/App/App/Assets.xcassets
+npm run favicon:outline  # «pt» фавикона → контуры Bricolage 800 (после — ios:assets)
 npm run ios:release    # TestFlight (ВЛАДЕЛЕЦ): прод-бандл + archive + upload; нужен .env.ios-release.local
                        # (проверка настройки без сборки: sh scripts/ios/release.sh --check)
 ```
@@ -175,8 +176,9 @@ worktree-логика — только для *linked* worktree (детект �
   только на «событие повторения», потолок `MAX_INTERVAL`), этапные счётчики
   `mcCorrect/typeCorrect` и «выучено» по ОБОИМ навыкам, классификацию
   (`getSrsState`), идемпотентность сида, `getCourse`, регистрацию (включена;
-  гейт `SIGNUP_ENABLED`) и нормализацию email.
-  Авторизованный контекст: `t.withIdentity({ subject: ` + "`${userId}|session`" + ` })`;
+  гейт `SIGNUP_ENABLED`), нормализацию email и удаление аккаунта.
+  Авторизованный контекст: `asNewUser(t)` из [`src/test/convexAuth.ts`](src/test/convexAuth.ts)
+  (пользователь + настоящая сессия — `liveUserId` проверяет обе);
   загрузка модулей: `import.meta.glob(["./**/*.*s", "!./**/*.test.ts"])`.
 - **Фронт-юнит** — Vitest + jsdom + Testing Library, файлы `src/**/*.test.ts(x)`.
   Покрывают чистую логику `src/lib`. Недетерминированное — мокать `./shuffle`
@@ -245,6 +247,13 @@ worktree-логика — только для *linked* worktree (детект �
   `signUp` на занятый email → `ConvexError("ACCOUNT_EXISTS")` БЕЗ проверки пароля
   (иначе signUp — оракул подбора пароля без rate limit); коды ошибок
   (`ACCOUNT_EXISTS`/`INVALID_EMAIL`/`REGISTRATION_DISABLED`) SignIn переводит в текст.
+  **Пользователь вызова — ТОЛЬКО `liveUserId`/`requireLiveUserId`**
+  ([`convex/account.ts`](convex/account.ts)): JWT живёт до часа и после выхода
+  или удаления аккаунта, поэтому проверяем, что пользователь и сессия ещё в базе
+  (голый `getAuthUserId` в `convex/` запрещён lint-правилом). Удаление аккаунта
+  (App Store 5.1.1(v)) — `account:deleteAccount` из строки аккаунта на главном
+  экране (`AccountFooter`); новая таблица с `userId` — в `USER_OWNED_TABLES`
+  (тест сверяет со схемой); `account:viewer` = `gone` → клиент выходит сам.
   → [`specs/feature/auth-and-signup-gate.md`](specs/feature/auth-and-signup-gate.md).
 - **Готчи:** `getSrsState` отдаёт `cards`/`tags` МАССИВАМИ (не Record) — `pt`
   содержит не-ASCII (á, ã, ç…), запрещённый в именах полей Convex; клиент собирает
@@ -267,7 +276,9 @@ worktree-логика — только для *linked* worktree (детект �
   отступы `.m-app` и подложка `body::before` через `env(safe-area-inset-*)` (в браузере 0);
   клавиатура ужимает сам WebView (`Keyboard.resize = native`). Фон до первой
   отрисовки — цвет `PageBackground` каталога ассетов = `--page` (генерит
-  `npm run ios:assets`, рассинхрон ловит тест). Минимальная iOS — 16.4 (цель бандла
+  `npm run ios:assets`, рассинхрон ловит тест). Иконка и сплэш — из
+  `public/favicon.svg`, где «pt» — контуры шрифта (`npm run favicon:outline`, руками
+  path не править; PNG сверяет с фавиконом `assets.lock.json`). Минимальная iOS — 16.4 (цель бандла
   Vite 8 — safari16.4). В вебе поведение не меняется.
   **Сборка в TestFlight — замороженный клиент** (живёт до 90 дней), а прод-Convex
   деплоится на каждый мёрж: серверные изменения API только аддитивные (новые
@@ -278,7 +289,8 @@ worktree-логика — только для *linked* worktree (детект �
 
 ```
 convex/         схема, content.ts (сид-данные), seed.ts, courseQueries.ts,
-                progress.ts (SRS), auth.ts/auth.config.ts/http.ts
+                progress.ts (SRS), account.ts (liveUserId, viewer, удаление аккаунта),
+                auth.ts/auth.config.ts/http.ts
                 *.test.ts — backend-тесты (convex-test)
 src/lib/        types, queue (interleaved-сборка), srs (+adaptSrs), srsPredict (зеркало
                 планировщика для мгновенной метки повтора, пин-тест к серверу),
@@ -287,13 +299,16 @@ src/lib/        types, queue (interleaved-сборка), srs (+adaptSrs), srsPre
                 *.test.ts — unit-тесты (Vitest)
 src/components/ Shell (оркестратор) → Header/ScoreRow/TabBar → ReviewTab/TopicsTab/
                 Theory → Session → exercises/{Mc,Type,SentenceBuilder} → Feedback/Complete
-                + ConfirmDialog (модалка выхода из сессии вместо window.confirm)
+                + ConfirmDialog (модалка подтверждения: выход из сессии, удаление аккаунта)
+                + AccountFooter (email и «Удалить аккаунт» внизу главного экрана)
                 *.ct.tsx — компонентные тесты (Playwright CT)
-src/test/       setup.ts (jest-dom), mocks/ (стабы для CT)
+src/test/       setup.ts (jest-dom), mocks/ (стабы для CT), convexAuth.ts (asNewUser и др. для backend-тестов)
 playwright/     index.html/index.tsx — точка монтирования Playwright CT
 scripts/        worktree.mjs (детект/порт-офсет) · wt-setup/wt-seed.mjs (локальный Convex + сид)
+                · favicon-outline.mjs («pt» фавикона контурами) · is-direct-run.mjs (запуск как CLI)
                 ios/: run-sim.sh (сборка+запуск в симуляторе), release.sh + ExportOptions.plist
-                (archive → TestFlight), render-assets.mjs + png.mjs (иконка/сплэш, RGB без альфы),
+                (archive → TestFlight), render-assets.mjs + png.mjs (иконка/сплэш, RGB без альфы;
+                assets.lock.json — sha256 фавикона, из которого отрисованы PNG),
                 page-colors.mjs (--page → PageBackground/сплэш)
 capacitor.config.ts  appId io.github.ksenyagorbatova.portuguese, webDir dist-ios, плагины
 ios/            Xcode-проект Capacitor (SPM: App/CapApp-SPM/Package.swift — генерит cap sync);

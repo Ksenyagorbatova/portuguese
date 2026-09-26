@@ -14,9 +14,17 @@ demo-доступ). Гейт регистрации остаётся в коде
 ## Изменения данных / API
 
 Convex Auth таблицы (`...authTables` в [`convex/schema.ts`](../../convex/schema.ts)):
-`users`, `authAccounts`, `authSessions`, … Каждая Convex-функция получает
-пользователя через `getAuthUserId(ctx)`; identity subject в тестах —
-`` `${userId}|session` ``.
+`users`, `authAccounts`, `authSessions`, … Convex-функции получают пользователя
+ТОЛЬКО через `liveUserId` / `requireLiveUserId` ([`convex/account.ts`](../../convex/account.ts)):
+id из JWT плюс проверка, что в базе есть и пользователь, и его сессия. JWT Convex
+Auth действует до часа и после выхода или удаления аккаунта, поэтому голый
+`getAuthUserId` запрещён правилом `no-restricted-imports` в `.oxlintrc.json`.
+В тестах — `asNewUser(t)` из `src/test/convexAuth.ts` (пользователь + настоящая
+сессия, identity `` `${userId}|${sessionId}` ``).
+
+`account:viewer` — `null` (гость) | `{ state: "live", email }` |
+`{ state: "gone" }` (токен валиден, а аккаунта или сессии уже нет).
+`account:deleteAccount` — удаление вызывающего пользователя (ниже).
 
 ## Поведение
 
@@ -65,6 +73,36 @@ Convex Auth таблицы (`...authTables` в [`convex/schema.ts`](../../convex
   - **Закрыть регистрацию снова — переключить ОБА флага в `false`** (и вернуть
     тесты `convex/auth.test.ts` / `SignIn.ct.tsx` к варианту «disabled» — см. историю
     `git log -- convex/auth.test.ts`).
+- **Удаление аккаунта** (App Store Review Guideline 5.1.1(v) — приложение с
+  регистрацией обязано его давать; на сайте то же). Внизу главного экрана (обе
+  вкладки, не в сессии и не в теории) — строка аккаунта: email и «Удалить
+  аккаунт» ([`AccountFooter`](../../src/components/AccountFooter.tsx)). Дальше
+  `ConfirmDialog` в «опасном» варианте: «Удалить аккаунт?» → «Удалить навсегда».
+  Пока запрос в пути, диалог остаётся модальным (кнопки `aria-disabled`, Esc и
+  подложка не закрывают, «Удаляем аккаунт…», без сети — «Ждём соединения…»).
+  Успех — флаг финала курса на устройстве стирается (`forgetCourseSeen`: он
+  выведен из прогресса), затем `signOut()` и экран входа. Ошибка — диалог закрывается, баннер
+  «Не удалось удалить аккаунт», фокус возвращается на кнопку. Офлайн кнопка
+  отключена с пояснением: иначе мутация встала бы в очередь без ответа.
+  Сервер (`deleteAccount`) одной транзакцией удаляет:
+  - данные приложения по списку `USER_OWNED_TABLES`;
+  - аккаунты провайдеров с кодами подтверждения;
+  - счётчики неудачных входов (по `_id` аккаунта и по email);
+  - сессии (refresh по ним сразу невозможен);
+  - сам users-документ.
+
+  refresh-токены сессий дочищаются в фоне пачками (`purgeRefreshTokens`, по
+  1000). Email свободен: регистрация на него снова создаёт чистый аккаунт.
+- **Токен удалённого или вышедшего аккаунта.** На другом устройстве JWT ещё до
+  часа валиден: `viewer` отдаёт `gone`, и `Shell` сам вызывает `signOut()`.
+  Без этого `getSrsState` = `null` держал бы экран на «Загрузка…» без шапки.
+  Все записи (`recordAnswer`, `markTheorySeen`, `deleteAccount`) такому токену
+  отвечают `Not authenticated`: строк-сирот нет. Токен вышедшей (отозванной)
+  сессии аккаунт удалить не может.
+- **Гонка входа и удаления.** Вход по паролю — две транзакции: поиск аккаунта,
+  затем создание сессии. Колбэк `beforeSessionCreation` в `convexAuth` отвергает
+  сессию для уже удалённого пользователя кодом `ACCOUNT_DELETED` и откатывает
+  вход.
 - **OAuth** (GitHub/Google) — опционально, `OAUTH_ENABLED = false`: провайдеры
   закомментированы в `auth.ts`; чтобы включить — создать OAuth-приложения, задать
   env, раскомментировать, поднять флаг.
@@ -90,6 +128,12 @@ Password лежит в `provider.options.authorize` (`@convex-dev/auth` 0.0.93 �
 при загрузке (`options.authorize is missing`), а не молча отключает защиту. Парные флаги (сервер + клиент) держать синхронно: один без
 другого даёт либо «кнопка есть, но падает», либо «нельзя, но сервер бы пустил».
 
+**Удаление — полное, проверяемое схемой.** Список таблиц приложения с данными
+пользователя (`USER_OWNED_TABLES`) тест сверяет со схемой: любая таблица со
+ссылкой на `users` обязана в нём быть и иметь индекс `by_user`. Auth-таблицы
+`deleteAccount` чистит явно. Своя транзакционная очистка вместо библиотечной
+`invalidateSessions`: та требует action-контекст и отдельную транзакцию.
+
 Провайдеры в `App.tsx`/`main.tsx`: `ConvexAuthProvider`, затем
 `<AuthLoading>`/`<Unauthenticated>`/`<Authenticated>` разводят на `Splash`/`SignIn`/`Shell`.
 
@@ -108,6 +152,40 @@ Password лежит в `provider.options.authorize` (`@convex-dev/auth` 0.0.93 �
   стабом `JWT_PRIVATE_KEY` (jose, RS256) + различение `InvalidSecret`/`InvalidAccountId`);
   `adminResetPassword` (старый пароль перестаёт работать, новый работает,
   пароль <8 отклоняется без изменения секрета, несуществующий аккаунт — ошибка).
+- [`convex/account.test.ts`](../../convex/account.test.ts):
+  - стирание всего, что связано с пользователем (users, аккаунт, сессии,
+    refresh-токены, лимиты по `_id` и по email, коды, прогресс, теория,
+    статистика), и ничего чужого;
+  - сессии уходят сразу, 2300 refresh-токенов — пачками в фоне;
+  - гость — `Not authenticated`;
+  - протухший токен удалённого аккаунта: ни записей, ни `getSrsState`/`getCourse`,
+    `viewer` — `gone`;
+  - токен вышедшей сессии удалить аккаунт не может;
+  - гонка: `auth:store signIn` для удалённого пользователя → `ACCOUNT_DELETED`
+    и ноль сессий;
+  - email свободен для новой регистрации;
+  - полнота по схеме (`USER_OWNED_TABLES`, индекс `by_user`);
+  - `viewer`: `live`/`null`/`gone`.
+- CT: [`AccountFooter.ct.tsx`](../../src/components/AccountFooter.ct.tsx):
+  - email и кнопка; подтверждение «опасного» вида с фокусом на «Отмена»;
+  - «Отмена» ничего не удаляет;
+  - подтверждение → одна мутация и `signOut`;
+  - в пути диалог модальный (`aria-disabled`, Esc не закрывает);
+  - ошибка → баннер и фокус на кнопке;
+  - офлайн — кнопка отключена с пояснением;
+  - без email — текст без адреса;
+  - успех стирает флаг финала курса, ошибка — нет;
+  - длинный email переносится внутри диалога на экране 320px;
+  - зона нажатия кнопки — 44px по высоте;
+  - email и пояснение офлайн — контраст AA в обеих темах.
+
+  [`Shell.ct.tsx`](../../src/components/Shell.ct.tsx):
+  - строка аккаунта только на главном экране (нет в сессии и в теории);
+  - падение `account:viewer` не роняет приложение;
+  - `gone` → `signOut`.
+
+  [`ConfirmDialog.ct.tsx`](../../src/components/ConfirmDialog.ct.tsx): вариант
+  `danger`, состояние `pending`.
 - [`src/components/SignIn.ct.tsx`](../../src/components/SignIn.ct.tsx):
   переключатель виден и переводит форму в «Регистрация»/«Зарегистрироваться»
   (`autocomplete=new-password`) и обратно; переключатель — `button type=button`,
@@ -127,6 +205,14 @@ Password лежит в `provider.options.authorize` (`@convex-dev/auth` 0.0.93 �
 - [`src/components/SignIn.tsx`](../../src/components/SignIn.tsx) — форма, парные флаги, тексты ошибок.
 - [`src/main.tsx`](../../src/main.tsx), [`src/App.tsx`](../../src/App.tsx) — провайдер и развод по состоянию авторизации.
 - [`src/lib/authStorage.ts`](../../src/lib/authStorage.ts) (+test) — адаптер токенов над `@capacitor/preferences` для iOS-оболочки.
+- [`convex/account.ts`](../../convex/account.ts) (+test) — `liveUserId`/`requireLiveUserId`,
+  `viewer`, `deleteAccount`, `purgeRefreshTokens`, `USER_OWNED_TABLES`.
+- [`src/components/AccountFooter.tsx`](../../src/components/AccountFooter.tsx) (+ct) —
+  строка аккаунта и поток удаления; выход по `gone` — в
+  [`Shell.tsx`](../../src/components/Shell.tsx).
+- [`src/test/convexAuth.ts`](../../src/test/convexAuth.ts) — общие хелперы backend-тестов
+  (`asNewUser`, `stubJwtEnv`, `signUpWith`/`signInWith`).
+- [`.oxlintrc.json`](../../.oxlintrc.json) — запрет голого `getAuthUserId` в `convex/`.
 
 ## Известные ограничения
 
