@@ -85,19 +85,29 @@ npm run ios:open           # открыть в Xcode (подпись/запус�
 
 **TestFlight** (раздача тестерам, 90 дней на сборку):
 
-1. App Store Connect → Apps → «+» → New App: iOS, «Português», Russian, Bundle ID
-   `io.github.ksenyagorbatova.portuguese` (менять — в `capacitor.config.ts` и до
-   первой загрузки).
-2. App Store Connect → Users and Access → Integrations → App Store Connect API →
+1. developer.apple.com → Certificates, Identifiers & Profiles → Identifiers → «+» →
+   App ID с Bundle ID `io.github.ksenyagorbatova.portuguese` (менять — в
+   `capacitor.config.ts` и до первой загрузки). Там же в Devices — хотя бы один
+   iPhone: автоподпись архива берёт development-профиль, а без устройств Apple
+   его не выдаёт.
+2. App Store Connect → Apps → «+» → New App: iOS, «Português», Russian, Bundle ID
+   из шага 1.
+3. App Store Connect → Users and Access → Integrations → App Store Connect API →
    Team Keys → ключ с ролью **App Manager**; `.p8` — в
    `~/.appstoreconnect/private_keys/`.
-3. `cp .env.ios-release.example .env.ios-release.local` и заполнить
-   (`IOS_TEAM_ID`, `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_PATH`, прод-`VITE_CONVEX_URL`).
-4. `npm run ios:release` — прод-бандл, `xcodebuild archive` (automatic signing по
+4. `cp .env.ios-release.example .env.ios-release.local` и заполнить
+   (`IOS_TEAM_ID`, `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_PATH`; файл читается
+   построчно `KEY=VALUE`, `~/` раскрывается). Прод-URL Convex уже в коммитнутом
+   `.env.ios-release`. Проверка без сборки: `sh scripts/ios/release.sh --check`.
+5. `npm run ios:release` — прод-бандл, `xcodebuild archive` (automatic signing по
    ключу API) и загрузка; через 5–15 минут сборка в TestFlight → добавить тестеров.
 
-Без `.env.ios-release.local` скрипт ничего не собирает: печатает эти шаги и
-выходит с кодом 2.
+Без `.env.ios-release.local` (или с неполным/некорректным) скрипт ничего не
+собирает: печатает эти шаги и выходит с кодом 2.
+
+Сборка в TestFlight — замороженный клиент, а прод-Convex обновляется на каждый
+мёрж в `main`: меняя API Convex, сохраняйте совместимость (только аддитивные
+правки), пока установленные сборки живы.
 
 ---
 

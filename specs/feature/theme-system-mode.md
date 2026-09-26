@@ -43,8 +43,15 @@ resolved-цвет (`#f4f3ef` / `#16150f`, синхронно с `--page` в `src
 `SystemBars.setStyle({ style: resolved === "dark" ? SystemBarsStyle.Dark :
 SystemBarsStyle.Light })` (`@capacitor/core`; `Dark` = СВЕТЛЫЙ текст для тёмного
 фона). Явная светлая тема на тёмной ОС иначе оставляла бы белые часы на светлой
-странице. Отказ плагина гасится. Фон WebView до первой отрисовки — цвет `--page`
-по теме ОС (`MainViewController` в `ios/App/App/SceneDelegate.swift`).
+странице. Отказ плагина гасится. Фон WebView до первой отрисовки — цвет
+`PageBackground` из каталога ассетов по теме ОС (`MainViewController` в
+`ios/App/App/SceneDelegate.swift`); colorset и фон сплэша генерирует
+`npm run ios:assets` из `--page` в `src/index.css`
+([`scripts/ios/page-colors.mjs`](../../scripts/ios/page-colors.mjs)), рассинхрон
+правки `--page` и закоммиченного colorset ловит `page-colors.test.ts`. Сплэш и
+нативный фон следуют теме ОС, а не выбору в приложении (выбор живёт в
+`localStorage` WebView, натив о нём не знает): при явной теме против ОС сплэш —
+цвета темы ОС, затем кросс-фейд в тему приложения.
 
 **Anti-flash до первой отрисовки** — inline-скрипт в
 [`index.html`](../../index.html): явные `light`/`dark` уважает, иначе резолвит по ОС
@@ -65,6 +72,8 @@ SystemBarsStyle.Light })` (`@capacitor/core`; `Dark` = СВЕТЛЫЙ текст
 - [`index.html`](../../index.html) — anti-flash inline-скрипт, `theme-color`.
 - [`src/components/Header.tsx`](../../src/components/Header.tsx) — кнопка переключателя (иконки/подписи).
 - [`src/App.tsx`](../../src/App.tsx) — прокидывает `choice`/`cycle` в `Shell`/`Header`.
+- iOS: [`scripts/ios/page-colors.mjs`](../../scripts/ios/page-colors.mjs) (+test) →
+  `ios/App/App/Assets.xcassets/PageBackground.colorset`, `SceneDelegate.swift`.
 
 ## Известные ограничения
 

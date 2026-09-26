@@ -128,16 +128,18 @@ npm run ios:sim        # iOS: ios:build + xcodebuild под симулятор (
 npm run ios:open       # открыть ios/App в Xcode
 npm run ios:assets     # иконка/сплэш из public/favicon.svg → ios/App/App/Assets.xcassets
 npm run ios:release    # TestFlight (ВЛАДЕЛЕЦ): прод-бандл + archive + upload; нужен .env.ios-release.local
+                       # (проверка настройки без сборки: sh scripts/ios/release.sh --check)
 ```
 
 Локально нужны: `.env.local` с `VITE_CONVEX_URL` (создаётся `npx convex dev`),
 и dev-`SITE_URL` (`npx convex env set SITE_URL http://localhost:5173`).
 Версия Node — 24 (см. `.nvmrc`); первый `npm install` подключает pre-push hook.
 Для iOS — Xcode 26 (симулятор iPhone; `ios:sim` берёт запущенный iPhone или
-«iPhone 17 Pro», `IOS_SIM_UDID=<udid>` — конкретный). Готчи iOS-сборки: `xcodebuild`
-с `-packageAuthorizationProvider netrc` (иначе SwiftPM ждёт диалог Keychain за
-учёткой github.com и висит); JS-консоль приложения — в stdout (`CAPLog`), смотреть
-через `xcrun simctl launch --console-pty <udid> io.github.ksenyagorbatova.portuguese`.
+«iPhone 17 Pro», `IOS_SIM_UDID=<udid>` — конкретный; DerivedData — вне репо,
+`~/Library/Developer/Xcode/DerivedData/portuguese-ios-<хеш пути>`). Готчи iOS-сборки:
+`xcodebuild` с `-packageAuthorizationProvider netrc` (иначе SwiftPM ждёт диалог
+Keychain за учёткой github.com и висит); JS-консоль приложения — в stdout (`CAPLog`),
+смотреть через `xcrun simctl launch --console-pty <udid> io.github.ksenyagorbatova.portuguese`.
 
 ## Worktree (параллельная разработка)
 
@@ -240,6 +242,9 @@ worktree-логика — только для *linked* worktree (детект �
   гейт `SIGNUP_ENABLED = true` остаётся рубильником (парные флаги: сервер
   [`convex/auth.ts`](convex/auth.ts) + клиент
   [`src/components/SignIn.tsx`](src/components/SignIn.tsx); закрыть — оба в `false`).
+  `signUp` на занятый email → `ConvexError("ACCOUNT_EXISTS")` БЕЗ проверки пароля
+  (иначе signUp — оракул подбора пароля без rate limit); коды ошибок
+  (`ACCOUNT_EXISTS`/`INVALID_EMAIL`/`REGISTRATION_DISABLED`) SignIn переводит в текст.
   → [`specs/feature/auth-and-signup-gate.md`](specs/feature/auth-and-signup-gate.md).
 - **Готчи:** `getSrsState` отдаёт `cards`/`tags` МАССИВАМИ (не Record) — `pt`
   содержит не-ASCII (á, ã, ç…), запрещённый в именах полей Convex; клиент собирает
@@ -257,9 +262,17 @@ worktree-логика — только для *linked* worktree (детект �
   ([`authStorage.ts`](src/lib/authStorage.ts), проп `storage`), хаптика →
   `@capacitor/haptics` ([`haptics.ts`](src/lib/haptics.ts)), статус-бар →
   `SystemBars` из `@capacitor/core` ([`useTheme.ts`](src/lib/useTheme.ts)), сплэш
-  прячет JS после первой отрисовки (`HideNativeSplash`). WebView — под статус-баром:
-  отступы `.m-app` и подложка `body::before` через `env(safe-area-inset-*)` (в браузере 0).
-  В вебе поведение не меняется. → [`specs/feat/ios-capacitor-app.md`](specs/feat/ios-capacitor-app.md).
+  прячет первый настоящий экран (`HideNativeSplash` в SignIn / Shell с загруженным
+  курсом / fallback ErrorBoundary — не спиннер). WebView — под статус-баром:
+  отступы `.m-app` и подложка `body::before` через `env(safe-area-inset-*)` (в браузере 0);
+  клавиатура ужимает сам WebView (`Keyboard.resize = native`). Фон до первой
+  отрисовки — цвет `PageBackground` каталога ассетов = `--page` (генерит
+  `npm run ios:assets`, рассинхрон ловит тест). Минимальная iOS — 16.4 (цель бандла
+  Vite 8 — safari16.4). В вебе поведение не меняется.
+  **Сборка в TestFlight — замороженный клиент** (живёт до 90 дней), а прод-Convex
+  деплоится на каждый мёрж: серверные изменения API только аддитивные (новые
+  аргументы `v.optional`, поля ответов не удалять/не переименовывать), пока
+  установленные сборки их используют. → [`specs/feat/ios-capacitor-app.md`](specs/feat/ios-capacitor-app.md).
 
 ## Структура
 
@@ -280,11 +293,13 @@ src/test/       setup.ts (jest-dom), mocks/ (стабы для CT)
 playwright/     index.html/index.tsx — точка монтирования Playwright CT
 scripts/        worktree.mjs (детект/порт-офсет) · wt-setup/wt-seed.mjs (локальный Convex + сид)
                 ios/: run-sim.sh (сборка+запуск в симуляторе), release.sh + ExportOptions.plist
-                (archive → TestFlight), render-assets.mjs + png.mjs (иконка/сплэш, RGB без альфы)
+                (archive → TestFlight), render-assets.mjs + png.mjs (иконка/сплэш, RGB без альфы),
+                page-colors.mjs (--page → PageBackground/сплэш)
 capacitor.config.ts  appId io.github.ksenyagorbatova.portuguese, webDir dist-ios, плагины
 ios/            Xcode-проект Capacitor (SPM: App/CapApp-SPM/Package.swift — генерит cap sync);
-                App/App: Info.plist, SceneDelegate.swift (+MainViewController — фон WebView),
-                Assets.xcassets; App/App/public и capacitor.config.json — генерятся (gitignored)
+                App/App: Info.plist, PrivacyInfo.xcprivacy, SceneDelegate.swift (+MainViewController —
+                фон WebView), Assets.xcassets (AppIcon, Splash, PageBackground);
+                App/App/public и capacitor.config.json — генерятся (gitignored)
 specs/          спеки на задачу specs/<branch>.md + baseline-спеки specs/feature/*
 .claude/        settings.json (permissions + PostToolUse lint-хук) · hooks/lint-edited-file.sh
                 · skills/{spec,test-policy,context7-first,content-authoring,
@@ -303,8 +318,10 @@ CI ([`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)) на push в
 jobs (secret-scan через gitleaks, lint, typecheck, build, backend-тесты,
 frontend-тесты, компонентные, `ios-build` — компиляция iOS-проекта под симулятор
 на `macos-latest`). iOS-релиз в TestFlight — НЕ в CI: `npm run ios:release`
-вручную владельцем (ключ App Store Connect API в `.env.ios-release.local`);
-контентные правки приложению пересборки не требуют (контент в Convex).
+вручную владельцем (ключ App Store Connect API в `.env.ios-release.local`, прод-URL
+Convex — в коммитнутом `.env.ios-release`); контентные правки приложению
+пересборки не требуют (контент в Convex), а правки API Convex — только аддитивные
+(см. «iOS-оболочка» выше).
 
 ## Известные компромиссы
 

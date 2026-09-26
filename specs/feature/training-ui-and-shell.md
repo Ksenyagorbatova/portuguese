@@ -288,10 +288,16 @@ Chrome/macOS (`cancel` оставлял его в очереди без звук
   верхнего инсета цвета `--page` (z 40, ниже модалки, клики не ловит) — при
   прокрутке контент не уезжает под часы. В браузере инсеты 0 — веб не меняется.
   Поле ответа `TypeExercise`: `autoCapitalize="none" autoCorrect="off"
-  spellCheck={false} enterKeyHint="done" lang="pt-PT"` (iOS не капитализирует и
-  не «исправляет» португальское слово; «Done» шлёт Enter в keyup-логику).
-  Нативный сплэш прячет `HideNativeSplash` (сосед `ErrorBoundary` в `main.tsx`)
-  после `window load` + 2 кадров.
+  spellCheck={false} enterKeyHint="done"` (iOS не капитализирует и не
+  «исправляет» португальское слово; «Done» шлёт Enter в keyup-логику). Без
+  `lang="pt-PT"`: раскладку iOS он не переключает, а доступное имя поля —
+  русский плейсхолдер. Клавиатура ужимает сам WebView (`Keyboard.resize =
+  native`): поле, «Проверить», RetryBox и низ формы входа докручиваются над ней.
+  Нативный сплэш прячет `HideNativeSplash` (после `window load` + 2 кадров) —
+  его рендерит первый НАСТОЯЩИЙ экран: `SignIn`, `Shell` с загруженными
+  курсом и SRS, fallback `ErrorBoundary`; спиннер `Splash` сплэш не снимает
+  (иначе старт «логотип → «Загрузка…» → главный»). Страховка — авто-скрытие
+  через 3 с (`launchShowDuration`).
 
 ## Тестирование
 
@@ -322,11 +328,13 @@ once-гейт финала курса и деривация липучек из 
 `[speech] voices/start/end/error` в `console.debug` (Capacitor пробрасывает её в
 нативный лог). iOS-оболочка: `SafeArea.ct.tsx` (safe-area-правила `.m-app` и
 подложка статус-бара в CSSOM), `TypeExercise.ct.tsx` (атрибуты поля ответа),
-`HideNativeSplash.test.tsx`, `native.test.ts`, `haptics.test.ts` (нативная ветка).
+`HideNativeSplash.test.tsx` + `HideNativeSplash.screens.test.tsx` (кто снимает
+сплэш: Shell только с данными, SignIn, fallback ошибки; здоровый ErrorBoundary —
+нет), `native.test.ts`, `haptics.test.ts` (нативная ветка).
 
 ## Карта файлов
 
-- Оркестрация: [`Shell.tsx`](../../src/components/Shell.tsx), [`App.tsx`](../../src/App.tsx), [`main.tsx`](../../src/main.tsx), [`Splash.tsx`](../../src/components/Splash.tsx), [`ErrorBoundary.tsx`](../../src/components/ErrorBoundary.tsx), [`OfflineBanner.tsx`](../../src/components/OfflineBanner.tsx).
+- Оркестрация: [`Shell.tsx`](../../src/components/Shell.tsx), [`App.tsx`](../../src/App.tsx), [`main.tsx`](../../src/main.tsx), [`Splash.tsx`](../../src/components/Splash.tsx), [`ErrorBoundary.tsx`](../../src/components/ErrorBoundary.tsx), [`OfflineBanner.tsx`](../../src/components/OfflineBanner.tsx), [`HideNativeSplash.tsx`](../../src/components/HideNativeSplash.tsx) + [`native.ts`](../../src/lib/native.ts) (iOS-оболочка).
 - Хром/дашборд: [`Header.tsx`](../../src/components/Header.tsx), [`TabBar.tsx`](../../src/components/TabBar.tsx), [`ReviewTab.tsx`](../../src/components/ReviewTab.tsx), [`ScoreRow.tsx`](../../src/components/ScoreRow.tsx), [`TopicsTab.tsx`](../../src/components/TopicsTab.tsx).
 - Тренировка: [`Session.tsx`](../../src/components/Session.tsx), [`Theory.tsx`](../../src/components/Theory.tsx), [`exercises/`](../../src/components/exercises/), [`Feedback.tsx`](../../src/components/Feedback.tsx), [`Complete.tsx`](../../src/components/Complete.tsx), [`CourseComplete.tsx`](../../src/components/CourseComplete.tsx), [`ConfirmDialog.tsx`](../../src/components/ConfirmDialog.tsx).
 - Утилиты: [`text.ts`](../../src/lib/text.ts), [`wrongOptions.ts`](../../src/lib/wrongOptions.ts), [`speech.ts`](../../src/lib/speech.ts), [`srs.ts`](../../src/lib/srs.ts) (`nextReviewForecast`/`daysSinceStart`), [`Icon.tsx`](../../src/components/Icon.tsx) (`volume`/`volume-off`).

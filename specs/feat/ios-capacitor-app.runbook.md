@@ -387,7 +387,51 @@ grep -iE "unhandled|typeerror|referenceerror|failed to load|convex.*error|auth.*
 - **`launchShowDuration: 0` ≠ «сплэш до готовности»** — плагин с нулём не
   показывает сплэш вообще (см. спеку, решение 20).
 - **Статус-бар** — `SystemBars` из core вместо `@capacitor/status-bar` (решение 19).
-- **Не понадобились:** fallback CocoaPods, перебор `Keyboard.resize`, плагин TTS.
-- **Команды для следующей сессии:** сборка+установка —
-  `xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination "platform=iOS Simulator,id=$UDID" -derivedDataPath ios/DerivedData -packageAuthorizationProvider netrc CODE_SIGNING_ALLOWED=NO -quiet build`
-  → `xcrun simctl install $UDID ios/DerivedData/Build/Products/Debug-iphonesimulator/App.app`.
+- **Не понадобились:** fallback CocoaPods, плагин TTS.
+- **Команды для следующей сессии:** сборка+установка — `npm run ios:sim`
+  (DerivedData — `~/Library/Developer/Xcode/DerivedData/portuguese-ios-<хеш пути>`),
+  или вручную `xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration
+  Debug -sdk iphonesimulator -destination "platform=iOS Simulator,id=$UDID"
+  -derivedDataPath "$DERIVED" -packageAuthorizationProvider netrc
+  CODE_SIGNING_ALLOWED=NO -quiet build` → `xcrun simctl install $UDID
+  "$DERIVED/Build/Products/Debug-iphonesimulator/App.app"`. Первый запуск после
+  установки — чёрные кадры (iOS строит снимок LaunchScreen): видео холодного старта
+  писать после одного прогревочного запуска.
+
+### Ф6: что нашло код-ревью и что изменилось после смоука Ф4
+
+`/code-review` (max: 10 ракурсов + свип, субагенты на Opus) — 15 подтверждённых/
+правдоподобных находок, все исправлены с тестом, воспроизводящим дефект (красный
+до фикса); после правок — повторный смоук (спека, «Тестирование»).
+
+- **signUp как оракул пароля (безопасность).** Проверено по исходнику
+  `@convex-dev/auth` 0.0.93: signUp на существующий аккаунт идёт в
+  `createAccountFromCredentials`, который сверяет пароль и выдаёт сессию без rate
+  limit. Тест «даже верный пароль → ACCOUNT_EXISTS, ноль сессий» был красным;
+  в симуляторе на живом dev-деплое — «Аккаунт с таким email уже есть — войдите.»
+  (`cr-kbd/08`).
+- **Клавиатура: `body` → `native`.** Решение Ф3 «body достаточно» проверялось на
+  карточке Type, где всё и так выше клавиатуры. Ревью по `Keyboard.m` + CSS: режим
+  `body` пишет `<body>` inline-height, а `min-height: 100vh` его перебивает —
+  форма входа с баннером ошибки теряла низ под клавиатурой. В `native` WebView
+  ужат до 539 pt (17 Pro), форма докручивается целиком (`cr-kbd/09`, `10`),
+  RetryBox и «Проверить» над клавиатурой (`cr-kbd/03`).
+- **Двойной сплэш.** Видео холодного старта ревью-сборки: логотип → спиннер
+  «Загрузка…» → дашборд (`HideNativeSplash` сидел на корне и снимал сплэш до
+  данных). Теперь его рендерят только настоящие экраны; видео `cr-fix-light2`,
+  `cr-fix-dark`: логотип → кросс-фейд → дашборд.
+- **`isOpaque = false`** в `capacitorDidLoad` оказалось лишним и вредным:
+  `WebViewDelegationHandler.willLoadWebview` (вызывается ПОСЛЕ `capacitorDidLoad`)
+  сохраняет текущее значение и восстанавливает его после загрузки — WebView
+  оставался прозрачным навсегда. Убрано; белого кадра нет (те же видео).
+- **Манифест приватности, iOS 16.4, `hasNativePlugin`** — по чек-листу App Store /
+  цели бандла Vite 8 / отказоустойчивости провайдера авторизации.
+- **release.sh** исполнял env-файл как shell (плейсхолдер `<you>` из образца —
+  синтаксическая ошибка) и подставлял Team ID в `sed` без проверки — тест
+  `release.test.ts` против старого скрипта: 8 из 11 красные.
+- **Свип нашёл ещё четыре:** `lang="pt-PT"` на поле с русским плейсхолдером
+  (VoiceOver), порядок хендоффа (App ID до New App), development-профиль архива
+  требует устройство, правило аддитивного API для замороженного клиента —
+  исправлено кодом/документацией.
+- **Не сделано (осознанно):** детерминированный рендер иконки (Bricolage не
+  установлен — глиф из `system-ui`; кандидат — текст фавикона в контуры).

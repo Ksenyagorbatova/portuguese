@@ -46,67 +46,81 @@ baseline-спеки auth/theme/training-ui), смоук в симуляторе 
 
 - **Схема Convex не меняется.** Серверные функции — без изменений сигнатур.
 - **Регистрация:** `SIGNUP_ENABLED = true` в [`convex/auth.ts`](../../convex/auth.ts)
-  и [`src/components/SignIn.tsx`](../../src/components/SignIn.tsx). Константа
-  `REGISTRATION_DISABLED` и ветка в `profile()` остаются (откат — одним флагом).
+  и [`src/components/SignIn.tsx`](../../src/components/SignIn.tsx); рубильник
+  `assertSignUpAllowed` (код `REGISTRATION_DISABLED`) остаётся — откат одним флагом.
+  Новые коды `ConvexError` провайдера Password: `ACCOUNT_EXISTS` (signUp на занятый
+  email — до проверки пароля), `INVALID_EMAIL` (не похоже на email); клиент
+  переводит коды в тексты (решение 9). Сигнатуры функций не меняются.
 - **Хранилище токенов Convex Auth:** `ConvexAuthProvider storage={pickTokenStorage()}`
   ([`src/lib/authStorage.ts`](../../src/lib/authStorage.ts)): в нативной оболочке —
-  адаптер над `@capacitor/preferences` (`getItem` → `value ?? null`), в вебе —
-  `undefined` → прежний localStorage.
+  адаптер над `@capacitor/preferences` (`getItem` → `value ?? null`), если плагин
+  есть в нативной сборке (`hasNativePlugin("Preferences")`); в вебе — `undefined` →
+  прежний localStorage.
 - **Зависимости:** `@capacitor/core`, `@capacitor/ios` 8.5.2, `@capacitor/preferences`
   8.0.1, `@capacitor/haptics` 8.0.2, `@capacitor/splash-screen` 8.0.2,
-  `@capacitor/keyboard` 8.0.5; dev — `@capacitor/cli` 8.5.2. Без
+  `@capacitor/keyboard` 8.0.5; dev — `@capacitor/cli` 8.5.2 и `playwright-core`
+  (версия раннера CT — тот же Chromium; для `render-assets.mjs`). Без
   `@capacitor/status-bar` (решение 19) и без `@capacitor/assets` (решение 18).
 - **Сборка:** [`vite.config.ts`](../../vite.config.ts): режимы `ios*` →
   `build.outDir = "dist-ios"`; `base` для них `/` (Pages-сборка — `/portuguese/`,
   как раньше). `ios` берёт `VITE_CONVEX_URL` из `.env.local` (dev-деплой),
-  `ios-release` — из `.env.ios-release.local` (прод, gitignored по маске
-  `.env.*.local`); пример — `.env.ios-release.example`.
+  `ios-release` — прод-URL из коммитнутого `.env.ios-release` (не секрет — он же
+  в бандле сайта; `release.sh` ещё и экспортирует его в окружение сборки). Секреты
+  Apple — в `.env.ios-release.local` (gitignored по маске `.env.*.local`), образец —
+  `.env.ios-release.example`.
 - **npm-скрипты:** `ios:build` (`vite build --mode ios && cap sync ios`), `ios:sim`
   (`ios:build` + [`scripts/ios/run-sim.sh`](../../scripts/ios/run-sim.sh): xcodebuild
-  под симулятор без подписи → install → launch), `ios:open` (`cap open ios`),
+  под симулятор без подписи → install → launch; решение 24), `ios:open` (`cap open ios`),
   `ios:assets` ([`render-assets.mjs`](../../scripts/ios/render-assets.mjs)),
   `ios:release` ([`release.sh`](../../scripts/ios/release.sh): прод-бандл + archive +
-  upload).
+  upload; `--check` — только проверка настройки).
 - **Прод-URL Convex** (публичен — в бандле сайта): `https://harmless-seahorse-836.convex.cloud`.
 - **Info.plist:** `CFBundleDisplayName = Português`; только Portrait (ключ `~ipad`
   удалён); `ITSAppUsesNonExemptEncryption = NO`; `NSAppTransportSecurity.
   NSAllowsLocalNetworking = YES`; `CFBundleDevelopmentRegion = ru` +
   `CFBundleLocalizations = [ru]`. В pbxproj `TARGETED_DEVICE_FAMILY = 1`.
   `CAPACITOR_DEBUG` (инспектор WebView, подробный лог) — только Debug
-  (`debug.xcconfig`), в Release выключен.
+  (`debug.xcconfig`), в Release выключен. `IPHONEOS_DEPLOYMENT_TARGET = 16.4`
+  (решение 1); манифест приватности `PrivacyInfo.xcprivacy` в ресурсах App
+  (решение 23).
 - **Нативный код:** в [`SceneDelegate.swift`](../../ios/App/App/SceneDelegate.swift)
   корневой контроллер — `MainViewController` (подкласс `CAPBridgeViewController`,
-  штатный способ Capacitor): фон WebView — цвет страницы по теме ОС (решение 21).
-- **Конфиги качества:** `.oxlintrc.json` ignorePatterns += `ios`, `dist-ios`;
+  штатный способ Capacitor): фон WebView — цвет `PageBackground` из каталога
+  ассетов (решение 21).
+- **Конфиги качества:** `.oxlintrc.json` ignorePatterns += `/ios` (от корня —
+  `scripts/ios` линтуется), `dist-ios`;
   `.gitignore` += `dist-ios` (внутри `ios/` — `.gitignore` шаблона: `App/App/public`,
   `App/App/capacitor.config.json`, `DerivedData`, `xcuserdata`…);
   `tsconfig.node.json` include += `capacitor.config.ts`.
 - **CI:** [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) += job
-  `ios-build` (`macos-latest`, самый свежий Xcode 26.x образа): `npm ci` →
-  `npm run ios:build` с `VITE_CONVEX_URL=https://ci-placeholder.convex.cloud` →
-  `xcodebuild -resolvePackageDependencies` → `xcodebuild … -sdk iphonesimulator
-  -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build`,
-  везде `-packageAuthorizationProvider netrc`.
+  `ios-build` (решение 25): `npm ci` → `npm run ios:build` с
+  `VITE_CONVEX_URL=https://ci-placeholder.convex.cloud` → `xcodebuild … -sdk
+  iphonesimulator -destination 'generic/platform=iOS Simulator'
+  -packageAuthorizationProvider netrc ARCHS=arm64 CODE_SIGNING_ALLOWED=NO build`.
 
 ## Поведение (для пользователя)
 
 - На iPhone: иконка «Português» (флаг Португалии + «pt», как фавикон сайта),
   сплэш — логотип на фоне темы (светлый/тёмный по ОС), затем кросс-фейд прямо в
-  экран входа/дашборд. Никакой адресной строки, никакого белого кадра.
+  экран входа/дашборд — без промежуточного спиннера «Загрузка…», без адресной
+  строки и белого кадра.
 - **Вход сохраняется между запусками** и не стирается политикой WebKit (токен в
   Preferences/UserDefaults, не в localStorage WKWebView); переживает и обновление
   приложения. Выход удаляет ключи.
 - **Регистрация доступна** (и на сайте): «Нет аккаунта? Зарегистрироваться» →
   форма «Регистрация» → аккаунт создаётся (email нормализуется, пароль ≥ 8) и
-  сразу впускает. Поле email без автокапитализации/автокоррекции.
+  сразу впускает. Занятый email → «Аккаунт с таким email уже есть — войдите.»
+  (без входа, даже с верным паролем); опечатка в адресе → «Проверьте email…».
+  Поле email без автокапитализации/автокоррекции.
 - **Хаптика на iPhone** впервые работает (Taptic Engine): лёгкий impact на верный,
   системный «error» на промах/ретрай; mute глушит её, как и раньше.
 - **Статус-бар** следует теме приложения: светлый текст на тёмной, тёмный на
   светлой, в т.ч. при явном выборе, противоречащем ОС; на «system» — за ОС вживую.
   Контент не заезжает под «остров»/часы и home indicator (safe-area), при
   прокрутке под статус-баром — непрозрачная подложка цвета страницы.
-- **Ввод ответа** («Напишите по-португальски»): поле и «Проверить» остаются над
-  клавиатурой (iPhone 17 Pro и SE); без автокоррекции и автокапитализации;
+- **Клавиатура ужимает экран**: поле ответа и «Проверить», RetryBox «Не совсем!»,
+  баннер ошибки и низ формы входа — над клавиатурой или докручиваются к ней
+  (iPhone 17 Pro и SE). Поле ответа без автокоррекции и автокапитализации;
   клавиша ввода — «done», отвечает как Enter.
 - **Озвучка** — Web Speech API в WKWebView, голос pt-PT «Joana» (в русской
   локали — «Жуана»): авто-озвучка после ответа, 🔊 вручную, аудио-карточки.
@@ -119,29 +133,39 @@ baseline-спеки auth/theme/training-ui), смоук в симуляторе 
 
 1. **Capacitor 8.5, iOS-платформа через SPM** (`npx cap add ios --packagemanager SPM`):
    без Ruby/CocoaPods; `Package.resolved` закоммичен (capacitor-swift-pm 8.5.2).
-   Deployment target — iOS 15.0 (шаблон), симуляторы проекта — 17.4 и 26.5.
-   Fallback CocoaPods не понадобился (см. решение 14).
+   **Минимальная iOS — 16.4** (шаблон — 15.0): Vite 8 собирает бандл под
+   `baseline-widely-available` (Safari 16.4+), CSS использует `:has()` — на более
+   старой iOS бандл мог бы не выполниться. Отсекает только iPhone, застрявшие на
+   iOS 15 (6s/7/SE 1-го поколения). `cap sync` выводит из таргета платформу
+   SPM-пакета (`.iOS(.v16)`). Симуляторы проекта — 17.4 и 26.5.
 2. **Локальный бандл, а не `server.url` на GitHub Pages.** Обёртка-«окно на сайт»
    дешевле, но App Store её заворачивает по 4.2, и старт зависит от Pages.
-   Серверные правки держим additive: старый клиент на телефоне переживает свежий бэкенд.
+   Цена — **замороженный клиент**: сборка в TestFlight живёт до 90 дней, а
+   прод-Convex деплоится на каждый мёрж, поэтому правки API Convex — только
+   аддитивные (новые аргументы `v.optional`, поля ответов не удалять и не
+   переименовывать); правило — в CLAUDE.md.
 3. **`appId = io.github.ksenyagorbatova.portuguese`, `appName = Português`.** Bundle ID
    можно сменить до ПЕРВОЙ загрузки в App Store Connect (`capacitor.config.ts` +
    `PRODUCT_BUNDLE_IDENTIFIER` в pbxproj), после неё он закреплён за записью.
 4. **iPhone-only, портрет** — меньше матрица проверок; тренажёр — телефонный формат.
 5. **Токены Convex Auth — в `@capacitor/preferences`** через проп `storage`
    (штатный путь провайдера для нативных оболочек): UserDefaults переживают всё,
-   кроме удаления приложения. `pickTokenStorage()` решает по `isNative()`.
+   кроме удаления приложения. `pickTokenStorage()` решает по
+   `hasNativePlugin("Preferences")`: нативная сборка без плагина (не прогнали
+   `cap sync`) остаётся на localStorage, а не застревает в AuthLoading на
+   реджекте `Preferences.get`.
 6. **Нативные плагины — за существующими модулями, не по компонентам:**
    [`native.ts`](../../src/lib/native.ts) — единственная точка `isNative()` (+
-   `hideNativeSplash`); [`haptics.ts`](../../src/lib/haptics.ts) —
-   `Haptics.impact({ style: Light })` / `Haptics.notification({ type: Error })`
-   в нативе, `navigator.vibrate` в вебе, mute глушит обе ветки, отказ плагина
-   гасится; [`useTheme.ts`](../../src/lib/useTheme.ts) — статус-бар (решение 19);
-   [`TypeExercise.tsx`](../../src/components/exercises/TypeExercise.tsx) — атрибуты
-   `autoCapitalize="none" autoCorrect="off" spellCheck={false} enterKeyHint="done"
-   lang="pt-PT"` (полезны и в мобильном браузере). `capacitor.config.ts`:
-   `ios.contentInset = "never"`, `Keyboard.resize = KeyboardResize.Body`,
-   SplashScreen — решение 20.
+   `hasNativePlugin`, `hideNativeSplash`); [`haptics.ts`](../../src/lib/haptics.ts) —
+   один helper: mute глушит всё, в нативе `Haptics.impact({ style: Light })` /
+   `Haptics.notification({ type: Error })`, в вебе `navigator.vibrate`, отказ
+   плагина гасится; [`useTheme.ts`](../../src/lib/useTheme.ts) — статус-бар
+   (решение 19); [`TypeExercise.tsx`](../../src/components/exercises/TypeExercise.tsx) —
+   `autoCapitalize="none" autoCorrect="off" spellCheck={false} enterKeyHint="done"`
+   (полезны и в мобильном браузере). Без `lang="pt-PT"` на поле: раскладку iOS он
+   не переключает, а доступное имя поля — русский плейсхолдер, который VoiceOver
+   прочёл бы португальским голосом. `capacitor.config.ts`: `ios.contentInset =
+   "never"`, Keyboard — решение 22, SplashScreen — решение 20.
 7. **Озвучка: Web Speech API, без плагина TTS.** Capacitor выставляет
    `mediaTypesRequiringUserActionForPlayback = []`, авто-озвучка без жеста работает.
    Диагностика в [`speech.ts`](../../src/lib/speech.ts): `console.debug("[speech]
@@ -152,34 +176,56 @@ baseline-спеки auth/theme/training-ui), смоук в симуляторе 
 8. **ATS: `NSAllowsLocalNetworking = YES`** — Debug-сборка в worktree ходит в
    локальный Convex `http://127.0.0.1:3210`; безвреден в release (прод — https/wss).
 9. **Регистрация — оба флага, тесты перевёрнуты, а не удалены** (см. «Тестирование»).
-   Сообщение UI на ошибку регистрации («Возможно, аккаунт с таким email уже есть»)
-   покрывает и повтор email, и закрытый флаг (откат).
-10. **Release без fastlane:** [`release.sh`](../../scripts/ios/release.sh) —
-    проверка `.env.ios-release.local` (нет файла/переменной/.p8/не https-URL → печать
-    инструкции и exit 2) → `vite build --mode ios-release` с прод-URL из env
-    (env процесса сильнее `.env.local`) + проверка, что в бандле прод-URL и нет
-    dev-URL → `cap sync` → `xcodebuild archive` (`generic/platform=iOS`,
-    `-allowProvisioningUpdates` + ключ API, `DEVELOPMENT_TEAM`, automatic signing) →
-    `-exportArchive` с [`ExportOptions.plist`](../../scripts/ios/ExportOptions.plist)
+   **signUp на занятый email не проверяет пароль:** штатный путь Password для
+   существующего аккаунта (`createAccountFromCredentials`) сверяет пароль и при
+   совпадении впускает — без rate limit пути signIn, т.е. signUp был бы оракулом
+   подбора пароля. Обёртка `rejectSignUpForExistingAccounts` подменяет
+   `provider.options.authorize` (там живёт настоящий authorize: `@convex-dev/auth`
+   0.0.93 мерджит `options` в провайдер при материализации): для `signUp` —
+   рубильник, валидация email, `retrieveAccount` без секрета и
+   `ConvexError("ACCOUNT_EXISTS")`, затем исходный authorize. Смена формы
+   провайдера роняет модуль при загрузке, а не молча снимает защиту. Коды
+   `ConvexError` доходят до прод-клиента (обычный `Error` — только «Server
+   Error»), поэтому UI различает «аккаунт есть» / «опечатка в email» /
+   «регистрация закрыта» / общий сбой. Переключатель «Нет аккаунта?» —
+   `<button type="button">` (раньше `<div>` — недоступен с клавиатуры).
+10. **Release без fastlane:** [`release.sh`](../../scripts/ios/release.sh) читает
+    `.env.ios-release.local` построчно `KEY=VALUE` — НЕ исполняет его как shell
+    (плейсхолдер `<you>` или пробел в пути ломали `source`); кавычки снимаются,
+    `~/` раскрывается, CRLF не мешает. Валидация до сборки (нет файла/ключа/.p8,
+    Team ID и Key ID не `[A-Z0-9]{10}`, Issuer ID не из UUID-символов, прод-URL не
+    `https://*.convex.cloud` → инструкция и exit 2; `--check` — только проверка).
+    Прод-URL — из коммитнутого `.env.ios-release`, экспортируется в окружение
+    сборки (сильнее любых `.env`-файлов); после `vite build --mode ios-release` —
+    проверка, что в бандле прод-URL и нет dev-URL → `cap sync` → `xcodebuild
+    archive` (`generic/platform=iOS`, `-allowProvisioningUpdates` + ключ API,
+    `DEVELOPMENT_TEAM`, automatic signing) → `-exportArchive` с
+    [`ExportOptions.plist`](../../scripts/ios/ExportOptions.plist)
     (`app-store-connect`, `destination = upload`, `manageAppVersionAndBuildNumber`).
 11. **Команда подписи:** на машине `Apple Development … (2GJM94F693)` и
     `Developer ID Application … (G2AA82378K)`; Developer ID — только у платной
     программы → в примере env `IOS_TEAM_ID=G2AA82378K`, при провале provisioning
-    скрипт подсказывает вторую. Симуляторной сборке команда не нужна.
+    скрипт подсказывает вторую. Автоподпись архива берёт development-профиль, а
+    Apple выдаёт его только команде хотя бы с одним зарегистрированным
+    устройством — это шаг хендоффа (вместе с явной регистрацией App ID: форма New
+    App в App Store Connect предлагает только уже заведённые Bundle ID).
+    Симуляторной сборке команда не нужна.
 12. **Ничего не покидает машину без владельца:** ни push, ни PR, ни загрузки, ни
     archive/provisioning. Внешние взаимодействия сессии — только dev-деплой Convex
     (`npx convex dev` + `seed:seedContent` на `fast-hound-404`), npm registry, context7.
-13. **Иконки/сплэш — из `public/favicon.svg`** (единый источник дизайна) — решение 18.
-14. **CLI-сборка — с `-packageAuthorizationProvider netrc`.** Первый резолв SPM висел
-    бесконечно на «Resolve Package Graph»: перед скачиванием бинарных артефактов
-    `capacitor-swift-pm` (Capacitor/Cordova.xcframework.zip из GitHub Releases)
-    SwiftPM ищет учётку github.com в связке ключей → модальный запрос Keychain,
-    который в неинтерактивном запуске некому подтвердить (curl/nscurl те же URL
-    качали за секунду). С `netrc` — 2 с. Флаг — в `run-sim.sh`, `release.sh`, CI.
-15. **Safe-area — правка CSS (была только нижняя).** С `contentInset: "never"`
-    WebView начинается под статус-баром: шапка/бренд входа уезжали под Dynamic
-    Island (скриншот первого запуска). `.m-app` — `env(safe-area-inset-top)` в обоих
-    правилах (базовое и ≤480px), «чистое поле» сессии — `+ env(safe-area-inset-bottom)`.
+13. **Иконки/сплэш — из `public/favicon.svg`, цвета фона — из `--page`**
+    (единые источники дизайна) — решения 18 и 21.
+14. **CLI-сборка — с `-packageAuthorizationProvider netrc`.** Иначе перед
+    скачиванием бинарных артефактов `capacitor-swift-pm` (Capacitor/Cordova
+    .xcframework.zip из GitHub Releases) SwiftPM ищет учётку github.com в связке
+    ключей: модальный запрос Keychain в неинтерактивном запуске некому
+    подтвердить, сборка висит на «Resolve Package Graph». Флаг — в `run-sim.sh`,
+    `release.sh`, CI.
+15. **Safe-area — в CSS.** С `contentInset: "never"` WebView начинается под
+    статус-баром, поэтому `.m-app` отступает на `env(safe-area-inset-top)` в обоих
+    правилах (базовое и ≤480px), «чистое поле» сессии — ещё и на
+    `env(safe-area-inset-bottom)`; иначе шапка и бренд входа уходят под Dynamic
+    Island.
 16. **Локализация бандла — `ru`** (`CFBundleDevelopmentRegion`, `CFBundleLocalizations`):
     системные строки UIKit/WebKit (меню «Вставить», панели) по-русски, в App Store
     Connect язык «Русский». `navigator.language` в коде не используется.
@@ -190,8 +236,12 @@ baseline-спеки auth/theme/training-ui), смоук в симуляторе 
     (нативный бинарь) в devDependencies всех CI-джобов ради разовой генерации.
     [`render-assets.mjs`](../../scripts/ios/render-assets.mjs) (`npm run ios:assets`)
     рендерит фавикон Chromium'ом playwright-core прямо в `Assets.xcassets`:
-    `AppIcon-512@2x.png` 1024² full-bleed (углы скругляет iOS) и сплэш 2732² —
-    светлый `#f4f3ef` + тёмный `#16150f` (appearance `dark`), логотип по центру.
+    `AppIcon-512@2x.png` 1024² full-bleed (углы скругляет iOS) и сплэш 2732² на
+    фоне `--page` обеих тем (appearance `dark`), логотип по центру; тем же
+    `--page` пишет `PageBackground.colorset` (решение 21). Цвета читает
+    [`page-colors.mjs`](../../scripts/ios/page-colors.mjs) из `src/index.css`
+    (`:root` / `[data-theme="dark"]`), страж рассинхрона — `page-colors.test.ts`
+    (закоммиченный colorset = текущий `--page`).
     Скриншот Chromium содержит альфа-канал → свой кодек
     [`png.mjs`](../../scripts/ios/png.mjs) (все 5 фильтров строк → RGB, colour
     type 2); `sips -g hasAlpha` → `no`. Правки фавикона, ломающие замены
@@ -203,49 +253,94 @@ baseline-спеки auth/theme/training-ui), смоук в симуляторе 
     `useTheme` (Dark = светлый текст) — один источник. Плюс `body::before` —
     непрозрачная подложка высотой `safe-area-inset-top` цвета `--page` (z 40, ниже
     модалки, `pointer-events: none`): при прокрутке контент уходил под часы.
-20. **Сплэш прячет JS после первой отрисовки, таймер — страховка.** С
-    `launchShowDuration: 0` плагин сплэш не показывает вовсе, и после LaunchScreen
-    был виден белый WebView ~0,7 с (видео холодного старта). Теперь
-    `launchAutoHide: true, launchShowDuration: 3000, launchFadeOutDuration: 200`, а
-    `HideNativeSplash` (сосед `ErrorBoundary` в [`main.tsx`](../../src/main.tsx) —
-    уйдёт и при ошибке рендера) зовёт `SplashScreen.hide({ fadeOutDuration: 200 })`
-    после `window load` + двух кадров: первый кадр WebKit ждёт render-blocking CSS
-    Google Fonts.
-21. **Фон WebView = цвет страницы по теме ОС** (`MainViewController`): динамический
-    `UIColor` #f4f3ef/#16150f и `isOpaque = false` вместо белого `systemBackground` —
-    никакого белого кадра ни в светлой, ни в тёмной теме.
-22. **Клавиатура: `Keyboard.resize = body` достаточно** — перебирать `native`/`ionic`
-    не понадобилось. iOS даёт полю `type=email` ASCII-клавиатуру, а обычному
-    текстовому — последнюю раскладку (у русскоязычного — кириллицу): для ответа по-
-    португальски пользователь один раз переключает раскладку глобусом, iOS её
-    запоминает. Полю нельзя навязать раскладку из веба (см. ограничения).
+20. **Сплэш снимает первый настоящий экран; таймер — страховка.** Нативный сплэш
+    держится, пока не отрисован экран, который пользователь и должен увидеть:
+    `<HideNativeSplash />` рендерят `SignIn`, `Shell` с загруженными курсом и SRS и
+    fallback `ErrorBoundary` — но не спиннер `Splash` (иначе старт «логотип →
+    «Загрузка…» → главный»). `hideNativeSplash()` зовёт `SplashScreen.hide()`
+    (дефолтный fade 200 мс) после `window load` + двух кадров: первый кадр WebKit
+    ждёт render-blocking CSS Google Fonts. В конфиге — только `launchShowDuration:
+    3000`: авто-скрытие, если такой экран не отрисовался (медленная сеть — тогда
+    виден веб-спиннер); с `0` плагин сплэш не показывает вовсе и между LaunchScreen
+    и первой отрисовкой мелькает WebView. `launchFadeOutDuration` iOS-плагин не
+    читает, `launchAutoHide: true` — дефолт.
+21. **Фон WebView до первой отрисовки — `PageBackground`** (`MainViewController`):
+    цвет каталога ассетов со светлым и тёмным вариантом (= `--page`, решение 18)
+    вместо белого `systemBackground`. Прозрачность не трогаем: Capacitor сам держит
+    WebView прозрачным на время первой загрузки (сквозь него и виден этот фон) и
+    потом восстанавливает прежнее `isOpaque` (`WebViewDelegationHandler`), а
+    `isOpaque = false` в `capacitorDidLoad` он бы сохранил и «восстановил» —
+    WebView остался бы прозрачным навсегда.
+22. **Клавиатура: `resize: native` + `autoBackdropColor: "dom"`.** Плагин снимает
+    собственные keyboard-обсерверы WKWebView; в режиме `body` он задаёт `<body>`
+    inline-`height`, который наш `body { min-height: 100vh }` перебивает — низ
+    формы (баннер ошибки + переключатель входа) оставался под клавиатурой без
+    прокрутки. В `native` ужимается сам WebView: вьюпорт = видимая часть, `100vh`
+    следует за ним, всё докручивается, `safe-area-inset-bottom` над клавиатурой = 0.
+    Подложка за клавиатурой — фон `body` (`--page` текущей темы), а не чёрное окно.
+    Раскладка: `type=email` — ASCII-клавиатура, обычное поле — последняя
+    использованная (у русскоязычного — кириллица, переключить глобусом один раз);
+    из веба её не навязать.
+23. **Манифест приватности** [`PrivacyInfo.xcprivacy`](../../ios/App/App/PrivacyInfo.xcprivacy)
+    в ресурсах App: `NSPrivacyAccessedAPICategoryUserDefaults` с причиной `CA92.1`
+    (Preferences — required-reason API; без декларации App Store Connect
+    отвечает ITMS-91053), `NSPrivacyTracking = false`, собираемые данные — email
+    и взаимодействие с продуктом (прогресс), связаны с пользователем, цель App
+    Functionality, без трекинга. Манифест самого Capacitor идёт в его фреймворке.
+    Анкету App Privacy в App Store Connect владелец заполняет тем же.
+24. **`run-sim.sh`:** Bundle ID — из собранного `Info.plist` (источник —
+    `capacitor.config.ts` → проект), `simctl bootstatus -b` (сам грузит
+    выключенный симулятор), DerivedData — вне дерева исходников, но свой на
+    checkout/worktree: `~/Library/Developer/Xcode/DerivedData/portuguese-ios-<хеш
+    пути>` (переопределяется `IOS_DERIVED_DATA`).
+25. **CI `ios-build`:** `macos-latest`, самый свежий СТАБИЛЬНЫЙ Xcode 26.x образа
+    (beta/RC отброшены), пакеты резолвит сам `xcodebuild build`, `ARCHS=arm64` —
+    один срез симулятора.
 
 ## Тестирование
 
 **Автотесты** (по [`test-policy`](../../.claude/skills/test-policy/SKILL.md)), все в
-тех же коммитах, что и код; итог — Vitest 24 файла / 259 тестов, Playwright CT 149:
+тех же коммитах, что и код; итог — Vitest 27 файлов / 290 тестов (backend +
+frontend), Playwright CT 155:
 
 - backend [`convex/auth.test.ts`](../../convex/auth.test.ts) — «registration
   enabled»: флаг `true`; `signUp` создаёт ровно `users` + `authAccounts` (секрет —
   хеш), выпускает токены; нормализация email; повторный `signUp` (другой регистр) →
-  `already exists` без дубля и без смены пароля; `signIn` зарегистрированными
-  кредами, неверный пароль → `InvalidSecret`; пароль < 8 — отказ до записи строк.
+  `ACCOUNT_EXISTS` без дубля и без смены пароля; `signUp` на существующий email
+  даже с верным паролем → `ACCOUNT_EXISTS` и ноль сессий; мусорный email →
+  `INVALID_EMAIL` без строк; рубильник `assertSignUpAllowed`; `signIn`
+  зарегистрированными кредами, неверный пароль → `InvalidSecret`; пароль < 8 —
+  отказ до записи строк.
 - unit: [`authStorage.test.ts`](../../src/lib/authStorage.test.ts) (get/set/remove,
-  `value ?? null`, `pickTokenStorage` веб/натив); [`native.test.ts`](../../src/lib/native.test.ts)
-  (`isNative`, `hideNativeSplash`: после load + 2 кадров, ожидание `load`, no-op в
-  вебе, отказ плагина); [`haptics.test.ts`](../../src/lib/haptics.test.ts) (+натив:
+  `value ?? null`, `pickTokenStorage`: веб, натив с плагином, натив без плагина →
+  localStorage); [`native.test.ts`](../../src/lib/native.test.ts) (`isNative`,
+  `hasNativePlugin`, `hideNativeSplash`: после load + 2 кадров, дефолтный fade,
+  ожидание `load`, no-op в вебе, отказ плагина);
+  [`HideNativeSplash.screens.test.tsx`](../../src/components/HideNativeSplash.screens.test.tsx)
+  (сплэш снимают Shell только с данными, SignIn и fallback ошибки; спиннер и
+  здоровый ErrorBoundary — нет); [`haptics.test.ts`](../../src/lib/haptics.test.ts) (+натив:
   impact/notification, mute, отказ плагина; веб не зовёт плагин);
   [`useTheme.test.ts`](../../src/lib/useTheme.test.ts) (+статус-бар: веб не зовёт,
   натив DARK/LIGHT, живая смена ОС, отказ плагина); [`speech.test.ts`](../../src/lib/speech.test.ts)
   (+диагностика `[speech]`, поведение speak не меняется);
   [`HideNativeSplash.test.tsx`](../../src/components/HideNativeSplash.test.tsx);
   [`scripts/ios/png.test.ts`](../../scripts/ios/png.test.ts) (все 5 фильтров,
-  RGB без альфы, отказ на полупрозрачном пикселе).
+  RGB без альфы, отказ на полупрозрачном пикселе);
+  [`page-colors.test.ts`](../../scripts/ios/page-colors.test.ts) (`--page` обеих тем
+  из `index.css`, громкий отказ без него, colorset с тёмным вариантом, страж
+  рассинхрона закоммиченного colorset);
+  [`release.test.ts`](../../scripts/ios/release.test.ts) (`release.sh --check` в
+  копии репозитория: нет файла → хендофф; образец как есть и `<you>` — разбор без
+  исполнения; все недостающие ключи; кривые Team ID (в т.ч. `; touch pwned` — ничего
+  не выполняется), Key ID, Issuer ID; прод-URL не `*.convex.cloud` / нет файла;
+  кавычки, пробелы, CRLF, `~/` → exit 0, прод-URL из `.env.ios-release`).
 - CT: [`SignIn.ct.tsx`](../../src/components/SignIn.ct.tsx) (переключатель ↔ форма
-  регистрации, `autocomplete`, атрибуты email); [`SafeArea.ct.tsx`](../../src/components/SafeArea.ct.tsx)
+  регистрации, `autocomplete`, атрибуты email; переключатель — `button`, работает
+  с клавиатуры; рубильник прячет его; коды ошибок → тексты, прочий сбой — общий
+  текст); [`SafeArea.ct.tsx`](../../src/components/SafeArea.ct.tsx)
   (safe-area в правилах `.m-app` и подложка статус-бара — по CSSOM, т.к. в
   десктопном Chromium инсеты 0); [`TypeExercise.ct.tsx`](../../src/components/exercises/TypeExercise.ct.tsx)
-  (атрибуты поля ответа).
+  (атрибуты поля ответа, без `lang`).
 - `npm run build` (Pages): `dist/` с base `/portuguese/`, `404.html == index.html`.
 
 **Смоук в симуляторе** — протокол в раннбуке, доказательства (скриншоты, видео
@@ -311,21 +406,27 @@ spec-гейт и `verify`) и
 `gh pr create --base main --title "feat: iOS-приложение на Capacitor + включение регистрации" --body-file specs/feat/ios-capacitor-app.pr.md`;
 CI прогонит и `ios-build`. После мёржа регистрация откроется и на проде (сайт).
 
-**TestFlight** (≈10 минут веб-интерфейсов Apple с 2FA, потом одна команда):
+**TestFlight** (≈15 минут веб-интерфейсов Apple с 2FA, потом одна команда):
 
-1. App Store Connect → Apps → «+» → New App: iOS, «Português», primary language
-   Russian, Bundle ID `io.github.ksenyagorbatova.portuguese`, SKU любой. (App ID
-   создастся сам при первом archive с ключом API — или заранее в developer.apple.com
-   → Identifiers.)
-2. App Store Connect → Users and Access → Integrations → App Store Connect API →
+1. developer.apple.com → Certificates, Identifiers & Profiles:
+   **Identifiers** → «+» → App IDs → App → Bundle ID (Explicit)
+   `io.github.ksenyagorbatova.portuguese` (форма New App в шаге 2 предлагает только
+   заведённые Bundle ID); **Devices** — если у команды нет ни одного устройства,
+   добавить свой iPhone (UDID): автоподпись архива берёт development-профиль, а без
+   устройств Apple его не выдаёт.
+2. App Store Connect → Apps → «+» → New App: iOS, «Português», primary language
+   Russian, Bundle ID из шага 1, SKU любой. Там же — анкета App Privacy (как в
+   `PrivacyInfo.xcprivacy`: email и прогресс для работы приложения, без трекинга).
+3. App Store Connect → Users and Access → Integrations → App Store Connect API →
    Team Keys → ключ с ролью **App Manager**; `.p8` (скачивается один раз) — в
    `~/.appstoreconnect/private_keys/AuthKey_<KEYID>.p8`, записать Key ID и Issuer ID.
-3. `cp .env.ios-release.example .env.ios-release.local` и заполнить (`IOS_TEAM_ID`,
-   `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_PATH`; `VITE_CONVEX_URL` уже прод).
-4. `npm run ios:release` → сборка в TestFlight через 5–15 минут обработки.
-5. TestFlight → Internal Testing (участники команды, без ревью) или External
+4. `cp .env.ios-release.example .env.ios-release.local` и заполнить (`IOS_TEAM_ID`,
+   `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_PATH`; прод-URL уже в `.env.ios-release`);
+   `sh scripts/ios/release.sh --check` — проверка без сборки.
+5. `npm run ios:release` → сборка в TestFlight через 5–15 минут обработки.
+6. TestFlight → Internal Testing (участники команды, без ревью) или External
    (публичная ссылка; первая сборка версии проходит Beta App Review) → тестеры.
-6. Сборка живёт 90 дней — повторять шаг 4 раз в квартал или на релиз кода
+7. Сборка живёт 90 дней — повторять шаг 5 раз в квартал или на релиз кода
    (build number Xcode поднимает сам), либо Xcode Cloud на push в `main`.
 
 ## Карта файлов
@@ -333,21 +434,27 @@ CI прогонит и `ios-build`. После мёржа регистрация
 **Добавлено:**
 - `capacitor.config.ts`; `ios/` — Xcode-проект шаблона Capacitor 8.5 (SPM:
   `App/CapApp-SPM/Package.swift` генерит `cap sync`, `Package.resolved`), правки:
-  `App/App/Info.plist`, `App/App/SceneDelegate.swift` (+`MainViewController`),
-  `App/App/Assets.xcassets` (иконка, сплэш light/dark), `project.pbxproj`
-  (`TARGETED_DEVICE_FAMILY = 1`);
-- `scripts/ios/run-sim.sh`, `release.sh`, `ExportOptions.plist`, `render-assets.mjs`,
-  `png.mjs` + `png.d.mts` + `png.test.ts`; `.env.ios-release.example`;
+  `App/App/Info.plist`, `App/App/PrivacyInfo.xcprivacy`, `App/App/SceneDelegate.swift`
+  (+`MainViewController`), `App/App/Assets.xcassets` (иконка, сплэш light/dark,
+  `PageBackground.colorset`), `project.pbxproj` (`TARGETED_DEVICE_FAMILY = 1`,
+  deployment target 16.4, манифест приватности в ресурсах);
+- `scripts/ios/run-sim.sh`, `release.sh` + `release.test.ts`, `ExportOptions.plist`,
+  `render-assets.mjs`, `png.mjs` + `png.d.mts` + `png.test.ts`, `page-colors.mjs` +
+  `page-colors.d.mts` + `page-colors.test.ts`; `.env.ios-release` (прод-URL),
+  `.env.ios-release.example`;
 - `src/lib/native.ts`, `src/lib/authStorage.ts`, `src/components/HideNativeSplash.tsx`
-  (+ тесты), `src/components/SafeArea.ct.tsx`;
+  (+ `HideNativeSplash.test.tsx`, `HideNativeSplash.screens.test.tsx`, тесты модулей),
+  `src/components/SafeArea.ct.tsx`;
 - `specs/feat/ios-capacitor-app.md` (эта спека), `.runbook.md`, `.pr.md`.
 
 **Изменено:**
 - `convex/auth.ts`, `convex/auth.test.ts`, `convex/seed.ts` (комментарий),
-  `src/components/SignIn.tsx` + `.ct.tsx`;
-- `src/main.tsx` (storage, `HideNativeSplash`), `src/lib/haptics.ts`, `useTheme.ts`,
-  `speech.ts` (+ тесты), `src/components/exercises/TypeExercise.tsx` (+ct),
-  `src/index.css` (safe-area, подложка статус-бара);
+  `src/components/SignIn.tsx` + `.ct.tsx`, `src/test/mocks/convexAuthReact.ts`,
+  `playwright/index.tsx` (сброс `__signInError`);
+- `src/main.tsx` (storage), `src/components/Shell.tsx` и `ErrorBoundary.tsx`
+  (`HideNativeSplash`), `src/lib/haptics.ts`, `useTheme.ts`, `speech.ts` (+ тесты),
+  `src/components/exercises/TypeExercise.tsx` (+ct), `src/index.css` (safe-area,
+  подложка статус-бара, `button.m-switch`);
 - `vite.config.ts`, `package.json`/`package-lock.json`, `tsconfig.node.json`,
   `.oxlintrc.json`, `.gitignore`, `.github/workflows/ci.yml`, `scripts/wt-setup.mjs`
   (комментарий);
@@ -363,6 +470,21 @@ CI прогонит и `ios-build`. После мёржа регистрация
 - Bundle ID закрепляется первой загрузкой — менять до неё.
 - Раскладка клавиатуры для ответа — последняя использованная (у русскоязычного —
   кириллица): первое переключение на латиницу — вручную; из веба не навязать.
+- **Удаление аккаунта из приложения** (App Store Review Guideline 5.1.1(v) — для
+  приложений с регистрацией) не реализовано: нужно до внешнего тестирования
+  TestFlight / публикации в App Store (Internal Testing — без ревью).
+- Замороженный клиент TestFlight против автодеплоя Convex: правки API — только
+  аддитивные (решение 2, CLAUDE.md); проверки версии клиента нет.
+- Сплэш и нативный фон — по теме ОС, не по выбору в приложении (выбор живёт в
+  `localStorage` WebView): при явной теме против ОС сплэш — цвета ОС, затем
+  кросс-фейд в тему приложения.
+- Беззвучный режим (переключатель на корпусе) и озвучка Web Speech в WKWebView —
+  проверить на устройстве (в симуляторе переключателя нет).
+- Иконку рендерит Chromium шрифтом, доступным на машине (Bricolage Grotesque не
+  установлен → `system-ui`): перерисовка `npm run ios:assets` на другой машине
+  может чуть изменить глиф «pt» — перерисовывать там же или перевести текст
+  фавикона в контуры.
+- Автоподпись архива требует у команды хотя бы одно устройство (хендофф, шаг 1).
 - Первый запуск после установки: iOS показывает чёрный кадр, пока создаёт снимок
   LaunchScreen (системное поведение, дальше — сплэш).
 - Шрифты (Bricolage Grotesque, Manrope) — с Google Fonts: без сети — системные.
