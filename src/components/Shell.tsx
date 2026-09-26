@@ -1,5 +1,7 @@
-import { useMemo, useState } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQueries, useQuery } from "convex/react";
+import { useAuthActions } from "@convex-dev/auth/react";
+import type { FunctionReturnType } from "convex/server";
 import { api } from "../../convex/_generated/api";
 import type {
   CompleteHeading,
@@ -48,6 +50,24 @@ export function Shell({
   // rebuild happens per server update, not on every render.
   const srs = useMemo(() => (rawSrs == null ? rawSrs : adaptSrs(rawSrs)), [rawSrs]);
 
+  // Кто вошёл: email для строки аккаунта и сигнал «gone» — токен ещё валиден,
+  // а аккаунт или сессия удалены (например, удалили с другого устройства):
+  // тогда выходим, иначе getSrsState = null держал бы экран на «Загрузка…» без
+  // шапки до истечения токена. useQueries, а не useQuery: ошибка запроса
+  // (например, прод без account:viewer у сборки из TestFlight) приходит
+  // значением и не роняет всё приложение в экран ошибки.
+  const viewerQuery = useMemo(() => ({ viewer: { query: api.account.viewer, args: {} } }), []);
+  const viewerResult = useQueries(viewerQuery).viewer as
+    | FunctionReturnType<typeof api.account.viewer>
+    | Error
+    | undefined;
+  const viewer = viewerResult instanceof Error ? undefined : viewerResult;
+  const { signOut } = useAuthActions();
+  const accountGone = viewer?.state === "gone";
+  useEffect(() => {
+    if (accountGone) void signOut();
+  }, [accountGone, signOut]);
+
   const [tab, setTab] = useState<Tab>("review");
   const [view, setView] = useState<View>({ kind: "home" });
   const [score, setScore] = useState({ correct: 0, total: 0 });
@@ -66,7 +86,8 @@ export function Shell({
     setMutedState(next);
   }
 
-  // course === undefined → loading; srs === null → not authed yet (race)
+  // course === undefined → loading; srs === null → not authed yet (race) или
+  // аккаунт удалён при живом токене — тогда выше уже зовём signOut.
   if (!course || !srs) return <Splash />;
   const c = course;
   const s = srs;
@@ -333,7 +354,9 @@ export function Shell({
         {content}
       </div>
       {/* Аккаунт (email + удаление) — только на главном экране, не в сессии/теории. */}
-      {view.kind === "home" && <AccountFooter />}
+      {view.kind === "home" && (
+        <AccountFooter email={viewer?.state === "live" ? viewer.email : null} />
+      )}
     </>
   );
 }

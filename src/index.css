@@ -500,7 +500,7 @@ body::before{content:"";position:fixed;top:0;left:0;right:0;height:env(safe-area
 [data-theme="dark"] .m-dialog-overlay{background:rgba(0,0,0,.55)}
 .m-dialog{max-width:320px;width:100%;box-shadow:var(--e3);text-align:center;animation:m-rise var(--dur) var(--ease)}
 .m-dialog-title{font-family:var(--font-display);font-size:19px;font-weight:700;color:var(--ink-900)}
-.m-dialog-msg{font-size:14px;color:var(--ink-600);font-weight:500;margin-top:6px;margin-bottom:16px}
+.m-dialog-msg{font-size:14px;color:var(--ink-600);font-weight:500;margin-top:6px;margin-bottom:16px;overflow-wrap:anywhere}
 .m-dialog-actions{display:flex;flex-direction:column;gap:10px}
 @keyframes m-fade{from{opacity:0}to{opacity:1}}
 
@@ -558,11 +558,16 @@ button.m-switch{display:block;width:100%;border-radius:var(--r-sm)}
 
 /* Строка аккаунта внизу главного экрана: email + «Удалить аккаунт». Тихая,
    но на первом экране — Apple требует, чтобы удаление было легко найти. */
-.m-account{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:2px 10px;margin:24px 0 4px;font-size:13px;color:var(--ink-400)}
+.m-account{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:2px 10px;margin:24px 0 4px;font-size:13px;color:var(--ink-500)}
 .m-account-email{overflow-wrap:anywhere;text-align:center}
-button.m-account-delete{font:inherit;font-weight:600;color:var(--due-ink);background:none;border:none;padding:6px 8px;border-radius:var(--r-sm);cursor:pointer}
+button.m-account-delete{position:relative;font:inherit;font-weight:600;color:var(--due-ink);background:none;border:none;padding:6px 8px;border-radius:var(--r-sm);cursor:pointer}
+/* Зона нажатия до 44pt по высоте (кнопка 28px), как ::after у .m-session-exit. */
+button.m-account-delete::after{content:"";position:absolute;inset:-8px 0}
 button.m-account-delete:disabled{opacity:.6;cursor:default}
 .m-account .m-auth-err{flex-basis:100%;text-align:center}
+.m-account-note{flex-basis:100%;text-align:center;font-size:12px}
+/* Кнопка в процессе (aria-disabled, а не disabled — фокус не теряется). */
+.m-btn[aria-disabled="true"]{opacity:.65;cursor:progress}
 
 /* ── A11y: единый язык клавиатурного фокуса ────────────────────────────────
    То же кольцо, что у инпутов (.m-input:focus) — на ВСЕХ интерактивах, но

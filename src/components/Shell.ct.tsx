@@ -316,7 +316,10 @@ test("logo click outside a session goes home without any confirm", async ({ moun
 test("the account footer sits on the home tabs and hides in a session", async ({ mount }) => {
   const c = await mount<HooksConfig>(<Shell themeChoice="light" onCycleTheme={noop} />, {
     hooksConfig: {
-      queries: { ...queries({ seenTheory: ["l1"] }), "account:viewer": { email: "alice@example.com" } },
+      queries: {
+        ...queries({ seenTheory: ["l1"] }),
+        "account:viewer": { state: "live", email: "alice@example.com" },
+      },
     },
   });
   const del = c.getByRole("button", { name: "Удалить аккаунт" });
@@ -329,4 +332,49 @@ test("the account footer sits on the home tabs and hides in a session", async ({
   await c.getByText("Урок 1").click();
   await expect(c.locator(".m-q-kind")).toBeVisible();
   await expect(c.getByRole("button", { name: "Удалить аккаунт" })).toHaveCount(0);
+});
+
+test("the account footer hides on the theory screen", async ({ mount }) => {
+  const c = await mount<HooksConfig>(<Shell themeChoice="light" onCycleTheme={noop} />, {
+    hooksConfig: {
+      queries: { ...queries(), "account:viewer": { state: "live", email: "alice@example.com" } },
+    },
+  });
+  await expect(c.getByRole("button", { name: "Удалить аккаунт" })).toBeVisible();
+
+  await c.getByRole("button", { name: "Темы", exact: true }).click();
+  await c.getByText("Урок 1").click();
+  await expect(c.locator(".m-theory-title")).toHaveText("Урок 1");
+  await expect(c.getByRole("button", { name: "Удалить аккаунт" })).toHaveCount(0);
+});
+
+// account:viewer — второстепенный запрос: его падение (например, старый прод
+// без функции у сборки из TestFlight) не должно ронять всё приложение в экран
+// ошибки — строка аккаунта просто без email.
+test("a failing account:viewer query does not take the app down", async ({ mount }) => {
+  const c = await mount<HooksConfig>(<Shell themeChoice="light" onCycleTheme={noop} />, {
+    hooksConfig: {
+      queries: {
+        ...queries(),
+        "account:viewer": { __error: "Could not find public function for 'account:viewer'" },
+      },
+    },
+  });
+  await expect(c.getByRole("button", { name: "Темы", exact: true })).toBeVisible();
+  await expect(c.getByRole("button", { name: "Удалить аккаунт" })).toBeVisible();
+});
+
+// Токен ещё валиден, а аккаунт удалён с другого устройства (viewer «gone»,
+// getSrsState null): Shell выходит, а не висит на «Загрузка…» без шапки.
+test("a «gone» viewer signs the stale session out instead of spinning forever", async ({
+  mount,
+  page,
+}) => {
+  const q = queries();
+  await mount<HooksConfig>(<Shell themeChoice="light" onCycleTheme={noop} />, {
+    hooksConfig: {
+      queries: { ...q, "progress:getSrsState": null, "account:viewer": { state: "gone" } },
+    },
+  });
+  await expect.poll(() => page.evaluate(() => window.__signOutCalls ?? 0)).toBe(1);
 });

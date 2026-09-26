@@ -95,3 +95,36 @@ test("without danger the confirm button stays primary", async ({ mount }) => {
   const c = await mount(<ConfirmDialog {...labels} onConfirm={() => {}} onCancel={() => {}} />);
   await expect(c.getByRole("button", { name: "Выйти" })).toHaveClass(/m-btn--primary/);
 });
+
+// Пока действие в пути (удаление аккаунта): кнопки aria-disabled (фокус
+// остаётся в диалоге), подтверждение показывает pendingLabel, Esc и подложка
+// не отменяют, повторных вызовов нет.
+test("pending: buttons are aria-disabled, confirm shows progress, Esc and backdrop do not cancel", async ({
+  mount,
+  page,
+}) => {
+  let confirmed = 0;
+  let cancelled = 0;
+  const c = await mount(
+    <ConfirmDialog
+      {...labels}
+      danger
+      pending
+      pendingLabel="Удаляем…"
+      onConfirm={() => (confirmed += 1)}
+      onCancel={() => (cancelled += 1)}
+    />,
+  );
+  const confirm = c.getByRole("button", { name: "Удаляем…" });
+  await expect(confirm).toHaveAttribute("aria-disabled", "true");
+  await expect(c.getByRole("button", { name: "Остаться" })).toHaveAttribute("aria-disabled", "true");
+  // force: Playwright считает aria-disabled неактивным и сам не кликнул бы —
+  // а пользователь кликнуть может; проверяем, что обработчики молчат.
+  await confirm.click({ force: true });
+  await c.getByRole("button", { name: "Остаться" }).click({ force: true });
+  await page.keyboard.press("Escape");
+  await page.mouse.click(5, 5); // подложка
+  expect(confirmed).toBe(0);
+  expect(cancelled).toBe(0);
+  await expect(c.getByRole("dialog")).toHaveAttribute("aria-busy", "true");
+});

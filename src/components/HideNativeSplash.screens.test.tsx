@@ -13,6 +13,8 @@ vi.mock("convex/react", async () => {
   const { getFunctionName } = await import("convex/server");
   return {
     useQuery: (ref: Parameters<typeof getFunctionName>[0]) => queries.data[getFunctionName(ref)],
+    useQueries: (qs: Record<string, { query: Parameters<typeof getFunctionName>[0] }>) =>
+      Object.fromEntries(Object.entries(qs).map(([k, { query }]) => [k, queries.data[getFunctionName(query)]])),
     useMutation: () => async () => undefined,
     useConvexConnectionState: () => ({ isWebSocketConnected: true, hasEverConnected: true }),
   };

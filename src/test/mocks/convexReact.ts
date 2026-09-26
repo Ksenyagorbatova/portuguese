@@ -75,8 +75,29 @@ export function __setQueryData(data: Record<string, unknown>): void {
   queryData = data;
 }
 
+// Фикстура-ошибка `{ __error: "…" }` моделирует падение query на сервере
+// (например, старый прод без функции): useQuery её БРОСАЕТ, как настоящий,
+// а useQueries отдаёт Error значением — тоже как настоящий convex/react.
+type ErrorFixture = { __error: string };
+function isErrorFixture(value: unknown): value is ErrorFixture {
+  return typeof value === "object" && value !== null && "__error" in value;
+}
+
 export function useQuery(ref: FunctionReference<"query">): unknown {
-  return queryData[getFunctionName(ref)];
+  const value = queryData[getFunctionName(ref)];
+  if (isErrorFixture(value)) throw new Error(value.__error);
+  return value;
+}
+
+export function useQueries(
+  queries: Record<string, { query: FunctionReference<"query">; args: unknown }>,
+): Record<string, unknown> {
+  const results: Record<string, unknown> = {};
+  for (const [key, { query }] of Object.entries(queries)) {
+    const value = queryData[getFunctionName(query)];
+    results[key] = isErrorFixture(value) ? new Error(value.__error) : value;
+  }
+  return results;
 }
 
 // Стаб состояния соединения для офлайн-баннера: онлайн по умолчанию; тест
