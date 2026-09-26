@@ -54,6 +54,50 @@ npm run dev             # http://localhost:5173/ (dev сервится с кор
 | `npm run verify` | check + test + test:ct — то же, что форсит pre-push hook |
 | `npm run wt:setup` | настройка git-worktree: локальный Convex + сид (см. CLAUDE.md) |
 | `npm run wt:seed` | пере-сид локального деплоя worktree (контент + dev-аккаунт) |
+| `npm run ios:build` | iOS: веб-бандл `dist-ios` (Convex из `.env.local`) + `cap sync ios` |
+| `npm run ios:sim` | iOS: `ios:build` + сборка под симулятор + установка и запуск |
+| `npm run ios:open` | открыть iOS-проект в Xcode |
+| `npm run ios:assets` | перерисовать иконку и сплэш из `public/favicon.svg` |
+| `npm run ios:release` | сборка и загрузка в TestFlight (нужен `.env.ios-release.local`) |
+
+---
+
+## iOS-приложение: сборка, симулятор, TestFlight
+
+Та же SPA в нативной оболочке [Capacitor 8](https://capacitorjs.com/) (Swift
+Package Manager, проект — `ios/`). Бандл лежит внутри приложения, контент — в
+Convex: правки тем/слов доезжают без новой сборки. Подробности и решения —
+[`specs/feat/ios-capacitor-app.md`](specs/feat/ios-capacitor-app.md).
+
+**Нужно:** macOS + Xcode 26 (с iOS-симулятором), Node 24, `.env.local` с
+`VITE_CONVEX_URL` (dev-деплой, как для `npm run dev`).
+
+```bash
+npm ci
+npm run ios:sim            # собрать и запустить в симуляторе (iPhone 17 Pro по умолчанию)
+IOS_SIM_UDID=<udid> npm run ios:sim   # конкретный симулятор (xcrun simctl list devices)
+npm run ios:open           # открыть в Xcode (подпись/запуск на своём iPhone)
+```
+
+Бэкенду нужен `npx convex dev` (dev-функции с включённой регистрацией). Если
+сборка висит на «Resolve Package Graph» — SwiftPM ждёт доступ к Keychain; скрипты
+передают `-packageAuthorizationProvider netrc`, в Xcode достаточно подтвердить диалог.
+
+**TestFlight** (раздача тестерам, 90 дней на сборку):
+
+1. App Store Connect → Apps → «+» → New App: iOS, «Português», Russian, Bundle ID
+   `io.github.ksenyagorbatova.portuguese` (менять — в `capacitor.config.ts` и до
+   первой загрузки).
+2. App Store Connect → Users and Access → Integrations → App Store Connect API →
+   Team Keys → ключ с ролью **App Manager**; `.p8` — в
+   `~/.appstoreconnect/private_keys/`.
+3. `cp .env.ios-release.example .env.ios-release.local` и заполнить
+   (`IOS_TEAM_ID`, `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_PATH`, прод-`VITE_CONVEX_URL`).
+4. `npm run ios:release` — прод-бандл, `xcodebuild archive` (automatic signing по
+   ключу API) и загрузка; через 5–15 минут сборка в TestFlight → добавить тестеров.
+
+Без `.env.ios-release.local` скрипт ничего не собирает: печатает эти шаги и
+выходит с кодом 2.
 
 ---
 
@@ -123,8 +167,8 @@ npx convex env set SITE_URL https://ksenyagorbatova.github.io/portuguese --prod
 
 Проверки на PR — [`.github/workflows/ci.yml`](.github/workflows/ci.yml): отдельные
 параллельные jobs (secret-scan через gitleaks, lint, typecheck, build,
-backend-/frontend-/компонентные тесты), без подключения к Convex
-(`convex/_generated` закоммичен).
+backend-/frontend-/компонентные тесты, `ios-build` — компиляция iOS-проекта под
+симулятор на macOS), без подключения к Convex (`convex/_generated` закоммичен).
 
 Деплой — [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) на каждый
 пуш в `main` (т.е. при мёрже PR):

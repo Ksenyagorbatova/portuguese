@@ -12,6 +12,8 @@
 Convex (БД + функции + авторизация `@convex-dev/auth`, провайдер Password) ·
 Node 24. Тесты: Vitest (+ convex-test) и Playwright Component Testing.
 Сайт: `https://ksenyagorbatova.github.io/portuguese/` (base path `/portuguese/`).
+**iOS-приложение** — та же SPA в нативной оболочке Capacitor 8 (SPM, `ios/`),
+раздача через TestFlight → [`specs/feat/ios-capacitor-app.md`](specs/feat/ios-capacitor-app.md).
 
 ## Метод работы: context7 (ОБЯЗАТЕЛЬНО)
 
@@ -121,11 +123,21 @@ npm run build          # прод-сборка
 npx convex run seed:seedContent   # залить/обновить контент в БД (идемпотентно)
 npm run wt:setup       # настроить git-worktree (локальный Convex + сид) — см. «Worktree»
 npm run wt:seed        # пере-сид локального деплоя worktree (контент + dev-аккаунт)
+npm run ios:build      # iOS: vite --mode ios (dist-ios, base "/", Convex из .env.local) + cap sync
+npm run ios:sim        # iOS: ios:build + xcodebuild под симулятор (без подписи) + install/launch
+npm run ios:open       # открыть ios/App в Xcode
+npm run ios:assets     # иконка/сплэш из public/favicon.svg → ios/App/App/Assets.xcassets
+npm run ios:release    # TestFlight (ВЛАДЕЛЕЦ): прод-бандл + archive + upload; нужен .env.ios-release.local
 ```
 
 Локально нужны: `.env.local` с `VITE_CONVEX_URL` (создаётся `npx convex dev`),
 и dev-`SITE_URL` (`npx convex env set SITE_URL http://localhost:5173`).
 Версия Node — 24 (см. `.nvmrc`); первый `npm install` подключает pre-push hook.
+Для iOS — Xcode 26 (симулятор iPhone; `ios:sim` берёт запущенный iPhone или
+«iPhone 17 Pro», `IOS_SIM_UDID=<udid>` — конкретный). Готчи iOS-сборки: `xcodebuild`
+с `-packageAuthorizationProvider netrc` (иначе SwiftPM ждёт диалог Keychain за
+учёткой github.com и висит); JS-консоль приложения — в stdout (`CAPLog`), смотреть
+через `xcrun simctl launch --console-pty <udid> io.github.ksenyagorbatova.portuguese`.
 
 ## Worktree (параллельная разработка)
 
@@ -238,6 +250,16 @@ worktree-логика — только для *linked* worktree (детект �
   `speak()` лечит зависание движка Chrome/macOS; `canSpeakPortuguese()` требует
   загруженного pt-голоса. CSS перенесён вербатим из исходного одно-файлового HTML
   ([`src/index.css`](src/index.css)) — имена классов сохранять.
+- **iOS-оболочка (Capacitor 8)** — локальный бандл `dist-ios` в WKWebView
+  (`capacitor://localhost`), не `server.url`. Платформа — ТОЛЬКО через
+  `isNative()` ([`src/lib/native.ts`](src/lib/native.ts)); натив подключён за
+  существующими модулями: токены Convex Auth → `@capacitor/preferences`
+  ([`authStorage.ts`](src/lib/authStorage.ts), проп `storage`), хаптика →
+  `@capacitor/haptics` ([`haptics.ts`](src/lib/haptics.ts)), статус-бар →
+  `SystemBars` из `@capacitor/core` ([`useTheme.ts`](src/lib/useTheme.ts)), сплэш
+  прячет JS после первой отрисовки (`HideNativeSplash`). WebView — под статус-баром:
+  отступы `.m-app` и подложка `body::before` через `env(safe-area-inset-*)` (в браузере 0).
+  В вебе поведение не меняется. → [`specs/feat/ios-capacitor-app.md`](specs/feat/ios-capacitor-app.md).
 
 ## Структура
 
@@ -257,6 +279,12 @@ src/components/ Shell (оркестратор) → Header/ScoreRow/TabBar → Re
 src/test/       setup.ts (jest-dom), mocks/ (стабы для CT)
 playwright/     index.html/index.tsx — точка монтирования Playwright CT
 scripts/        worktree.mjs (детект/порт-офсет) · wt-setup/wt-seed.mjs (локальный Convex + сид)
+                ios/: run-sim.sh (сборка+запуск в симуляторе), release.sh + ExportOptions.plist
+                (archive → TestFlight), render-assets.mjs + png.mjs (иконка/сплэш, RGB без альфы)
+capacitor.config.ts  appId io.github.ksenyagorbatova.portuguese, webDir dist-ios, плагины
+ios/            Xcode-проект Capacitor (SPM: App/CapApp-SPM/Package.swift — генерит cap sync);
+                App/App: Info.plist, SceneDelegate.swift (+MainViewController — фон WebView),
+                Assets.xcassets; App/App/public и capacitor.config.json — генерятся (gitignored)
 specs/          спеки на задачу specs/<branch>.md + baseline-спеки specs/feature/*
 .claude/        settings.json (permissions + PostToolUse lint-хук) · hooks/lint-edited-file.sh
                 · skills/{spec,test-policy,context7-first,content-authoring,
@@ -273,7 +301,10 @@ CI ([`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)) на push в
 `CONVEX_DEPLOY_KEY` (GitHub Actions secret). Прод и dev — разные базы Convex.
 Проверки на PR ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) — отдельные
 jobs (secret-scan через gitleaks, lint, typecheck, build, backend-тесты,
-frontend-тесты, компонентные).
+frontend-тесты, компонентные, `ios-build` — компиляция iOS-проекта под симулятор
+на `macos-latest`). iOS-релиз в TestFlight — НЕ в CI: `npm run ios:release`
+вручную владельцем (ключ App Store Connect API в `.env.ios-release.local`);
+контентные правки приложению пересборки не требуют (контент в Convex).
 
 ## Известные компромиссы
 

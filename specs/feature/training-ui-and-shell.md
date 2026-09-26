@@ -1,6 +1,6 @@
 # UI тренировки: Shell, хедер, сессия, теория, упражнения
 
-Статус: baseline (отгружено) · 2026-06-11
+Статус: baseline (отгружено) · 2026-06-11 · обновлено 2026-09-26 (iOS-оболочка: safe-area, ввод, сплэш)
 
 ## Цель
 
@@ -279,7 +279,19 @@ Chrome/macOS (`cancel` оставлял его в очереди без звук
 - **Фавикон (П.7):** [`public/favicon.svg`](../../public/favicon.svg) = логотип
   шапки (флаг Португалии + «pt»), подключён в [`index.html`](../../index.html)
   через `%BASE_URL%favicon.svg` (учитывает base-path: `/favicon.svg` в dev,
-  `/portuguese/favicon.svg` в проде).
+  `/portuguese/favicon.svg` в проде). Он же — исходник иконки и сплэша
+  iOS-приложения (`scripts/ios/render-assets.mjs`).
+- **iOS-оболочка (Capacitor, с 2026-09-26)** — WebView под статус-баром и
+  home indicator: `.m-app` отступает на `env(safe-area-inset-top)` сверху (оба
+  правила: базовое и ≤480px) и на `env(safe-area-inset-bottom)` снизу (включая
+  «чистое поле» сессии); `body::before` — непрозрачная подложка высотой
+  верхнего инсета цвета `--page` (z 40, ниже модалки, клики не ловит) — при
+  прокрутке контент не уезжает под часы. В браузере инсеты 0 — веб не меняется.
+  Поле ответа `TypeExercise`: `autoCapitalize="none" autoCorrect="off"
+  spellCheck={false} enterKeyHint="done" lang="pt-PT"` (iOS не капитализирует и
+  не «исправляет» португальское слово; «Done» шлёт Enter в keyup-логику).
+  Нативный сплэш прячет `HideNativeSplash` (сосед `ErrorBoundary` в `main.tsx`)
+  после `window load` + 2 кадров.
 
 ## Тестирование
 
@@ -306,7 +318,11 @@ DOM до ответа, русские варианты, серверный ре�
 once-гейт финала курса и деривация липучек из `cards.lapses`.
 Юнит-тесты Vitest: [`src/lib/speech.test.ts`](../../src/lib/speech.test.ts) —
 `resume()` будит движок, `canSpeakPortuguese` (true с pt-голосом, false без речи/
-голоса), mute (`speakAuto` no-op при mute, ручной `speak` в обход).
+голоса), mute (`speakAuto` no-op при mute, ручной `speak` в обход), диагностика
+`[speech] voices/start/end/error` в `console.debug` (Capacitor пробрасывает её в
+нативный лог). iOS-оболочка: `SafeArea.ct.tsx` (safe-area-правила `.m-app` и
+подложка статус-бара в CSSOM), `TypeExercise.ct.tsx` (атрибуты поля ответа),
+`HideNativeSplash.test.tsx`, `native.test.ts`, `haptics.test.ts` (нативная ветка).
 
 ## Карта файлов
 

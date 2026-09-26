@@ -57,6 +57,12 @@ Convex Auth таблицы (`...authTables` в [`convex/schema.ts`](../../convex
 - **OAuth** (GitHub/Google) — опционально, `OAUTH_ENABLED = false`: провайдеры
   закомментированы в `auth.ts`; чтобы включить — создать OAuth-приложения, задать
   env, раскомментировать, поднять флаг.
+- **Хранилище токенов:** в вебе — `localStorage` (дефолт `ConvexAuthProvider`); в
+  iOS-оболочке (Capacitor) — `@capacitor/preferences` (UserDefaults) через проп
+  `storage` ([`src/lib/authStorage.ts`](../../src/lib/authStorage.ts),
+  `pickTokenStorage()` по `isNative()`): WebKit вправе чистить script-writable
+  storage, UserDefaults живут до удаления приложения. Вход переживает перезапуск;
+  выход удаляет ключи. См. [`../feat/ios-capacitor-app.md`](../feat/ios-capacitor-app.md).
 
 ## Ключевые решения и алгоритмы
 
@@ -91,6 +97,7 @@ Convex Auth таблицы (`...authTables` в [`convex/schema.ts`](../../convex
 - [`convex/auth.config.ts`](../../convex/auth.config.ts), [`convex/http.ts`](../../convex/http.ts) — конфиг/роуты.
 - [`src/components/SignIn.tsx`](../../src/components/SignIn.tsx) — форма, парные флаги, тексты ошибок.
 - [`src/main.tsx`](../../src/main.tsx), [`src/App.tsx`](../../src/App.tsx) — провайдер и развод по состоянию авторизации.
+- [`src/lib/authStorage.ts`](../../src/lib/authStorage.ts) (+test) — адаптер токенов над `@capacitor/preferences` для iOS-оболочки.
 
 ## Известные ограничения
 
