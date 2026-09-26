@@ -1,10 +1,11 @@
 import { test, expect } from "@playwright/experimental-ct-react";
 import { SignIn } from "./SignIn";
 
-// Registration is enabled (SIGNUP_ENABLED = true in SignIn.tsx / convex/auth.ts,
-// owner's decision 2026-09-26 for the iOS/TestFlight rollout). These tests lock
-// in the UI half: the switch is reachable and flips the form both ways.
-test.describe("SignIn with registration enabled", () => {
+// The sign-up flow is complete, but the flag is OFF by default (SIGNUP_ENABLED =
+// false in SignIn.tsx / convex/auth.ts: the repository and the site are public;
+// the owner re-opens it before the App Store submission). Tests that exercise
+// the switch mount with `signupEnabled` explicitly; the default mount hides it.
+test.describe("SignIn", () => {
   test("renders the sign-in form", async ({ mount }) => {
     const component = await mount(<SignIn />);
     await expect(component.getByText("С возвращением", { exact: true })).toBeVisible();
@@ -13,10 +14,10 @@ test.describe("SignIn with registration enabled", () => {
     await expect(component.getByRole("button", { name: "Войти" })).toBeVisible();
   });
 
-  test("exposes the registration switch and flips the form to sign-up and back", async ({
+  test("with the gate open: exposes the registration switch and flips the form to sign-up and back", async ({
     mount,
   }) => {
-    const component = await mount(<SignIn />);
+    const component = await mount(<SignIn signupEnabled />);
     await expect(component.getByText("Нет аккаунта?")).toBeVisible();
 
     await component.getByText("Нет аккаунта?").click();
@@ -40,7 +41,7 @@ test.describe("SignIn with registration enabled", () => {
   // Переключатель раньше был <div onClick> (мёртвый код при закрытой
   // регистрации) — с клавиатуры до регистрации было не добраться.
   test("the sign-up switch is a real button reachable from the keyboard", async ({ mount, page }) => {
-    const component = await mount(<SignIn />);
+    const component = await mount(<SignIn signupEnabled />);
     const toSignUp = component.getByRole("button", { name: "Нет аккаунта? Зарегистрироваться" });
     await expect(toSignUp).toHaveAttribute("type", "button");
     await toSignUp.focus();
@@ -50,9 +51,10 @@ test.describe("SignIn with registration enabled", () => {
     await expect(component.getByRole("button", { name: "Уже есть аккаунт? Войти" })).toBeVisible();
   });
 
-  // Рубильник: SIGNUP_ENABLED=false (проп — для теста) прячет переключатель.
-  test("the kill switch hides the sign-up switch", async ({ mount }) => {
-    const component = await mount(<SignIn signupEnabled={false} />);
+  // Дефолт (SIGNUP_ENABLED = false) прячет переключатель: на сайте и в приложении
+  // сейчас только вход существующим аккаунтом.
+  test("the default (flag off) hides the sign-up switch", async ({ mount }) => {
+    const component = await mount(<SignIn />);
     await expect(component.getByText("Нет аккаунта?")).toHaveCount(0);
     await expect(component.getByRole("button", { name: "Войти", exact: true })).toBeVisible();
   });
@@ -82,7 +84,7 @@ test.describe("SignIn with registration enabled", () => {
     ["INVALID_EMAIL", "Проверьте email — похоже, в нём опечатка."],
   ] as const) {
     test(`sign-up error ${code} shows a specific message`, async ({ mount, page }) => {
-      const component = await mount(<SignIn />);
+      const component = await mount(<SignIn signupEnabled />);
       await page.evaluate((c) => (window.__signInError = c), code);
       await component.getByText("Нет аккаунта?").click();
       await component.getByPlaceholder("Email").fill("taken@example.com");
@@ -96,7 +98,7 @@ test.describe("SignIn with registration enabled", () => {
     mount,
     page,
   }) => {
-    const component = await mount(<SignIn />);
+    const component = await mount(<SignIn signupEnabled />);
     await page.evaluate(() => (window.__signInError = true));
     await component.getByText("Нет аккаунта?").click();
     await component.getByPlaceholder("Email").fill("new@example.com");

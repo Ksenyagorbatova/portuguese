@@ -7,11 +7,12 @@ import { HideNativeSplash } from "./HideNativeSplash";
 // setting their OAuth env vars (see README). Until then, Password-only.
 const OAUTH_ENABLED = false;
 
-// Public registration toggle — ENABLED since 2026-09-26 (iOS/TestFlight: testers
-// sign up from the phone). Keep in sync with SIGNUP_ENABLED in convex/auth.ts
-// (the server enforces it; this only shows/hides the UI). When false, the
-// sign-up switch is hidden and only existing users can sign in.
-const SIGNUP_ENABLED = true;
+// Public registration toggle — CLOSED again since 2026-09-26: the sign-up flow is
+// complete, but the repository and the site are public, so the owner re-opens it
+// only before the App Store submission. Keep in sync with SIGNUP_ENABLED in
+// convex/auth.ts (the server enforces it; this only shows/hides the UI). When
+// false, the sign-up switch is hidden and only existing users can sign in.
+const SIGNUP_ENABLED = false;
 
 type Flow = "signIn" | "signUp";
 

@@ -240,10 +240,13 @@ worktree-логика — только для *linked* worktree (детект �
 - **Тема** — тройной переключатель light/dark/system (дефолт `system`, следит за ОС),
   anti-flash в [`index.html`](index.html).
   → [`specs/feature/theme-system-mode.md`](specs/feature/theme-system-mode.md).
-- **Авторизация** — Password (email). Регистрация ВКЛЮЧЕНА (с 2026-09-26) —
-  гейт `SIGNUP_ENABLED = true` остаётся рубильником (парные флаги: сервер
+- **Авторизация** — Password (email). Регистрация: флоу готов, но флаг ВРЕМЕННО
+  ВЫКЛЮЧЕН (`SIGNUP_ENABLED = false`, решение владельца 2026-09-26: репозиторий и
+  сайт публичные; открыть перед App Store). Парные флаги: сервер
   [`convex/auth.ts`](convex/auth.ts) + клиент
-  [`src/components/SignIn.tsx`](src/components/SignIn.tsx); закрыть — оба в `false`).
+  [`src/components/SignIn.tsx`](src/components/SignIn.tsx) — открыть/закрыть = оба;
+  серверный env `SIGNUP_ENABLED=true|false` (`npx convex env set …`) перекрывает
+  дефолт без деплоя (`signUpEnabled()`), им же тесты открывают полные флоу signUp.
   `signUp` на занятый email → `ConvexError("ACCOUNT_EXISTS")` БЕЗ проверки пароля
   (иначе signUp — оракул подбора пароля без rate limit); коды ошибок
   (`ACCOUNT_EXISTS`/`INVALID_EMAIL`/`REGISTRATION_DISABLED`) SignIn переводит в текст.

@@ -12,15 +12,18 @@ import type { DataModel } from "./_generated/dataModel";
 
 // Password (email + password) works out of the box — no external setup needed.
 //
-// ─── Public registration is ENABLED (re-opened 2026-09-26) ───────────────────
-// Owner's decision for the iOS/TestFlight rollout: testers must be able to
-// create an account from the phone. The gate stays in place as a kill switch:
-// flip SIGNUP_ENABLED to false to close sign-up again. The block lives in
-// profile(), which Convex Auth's Password.authorize() calls for EVERY flow (and
-// passes `flow`) BEFORE creating/fetching the account — so with the flag off a
-// "signUp" is rejected before any user/account row is written, while "signIn"
-// (and future reset/verify) are untouched. The matching client-side flag lives
-// in src/components/SignIn.tsx — keep BOTH in sync.
+// ─── Public registration: flow complete, flag CLOSED again (2026-09-26) ──────
+// The sign-up flow (ACCOUNT_EXISTS guard, INVALID_EMAIL, UI switch, tests) is
+// finished, but the owner keeps public registration OFF for now: the repository
+// and the site are public, and an open sign-up is an abuse surface. It will be
+// re-opened before the App Store submission — flip SIGNUP_ENABLED below AND the
+// client flag in src/components/SignIn.tsx (or set the Convex env var
+// SIGNUP_ENABLED=true on a deployment to open the server side without a deploy,
+// see signUpEnabled()). The block lives in profile(), which Convex Auth's
+// Password.authorize() calls for EVERY flow (and passes `flow`) BEFORE
+// creating/fetching the account — so with the gate closed a "signUp" is rejected
+// before any user/account row is written, while "signIn" (and future
+// reset/verify) are untouched. Keep BOTH flags in sync.
 //
 // To enable OAuth later:
 //   1. Create GitHub/Google OAuth apps with callback URL
@@ -31,9 +34,25 @@ import type { DataModel } from "./_generated/dataModel";
 // import GitHub from "@auth/core/providers/github";
 // import Google from "@auth/core/providers/google";
 
-// Public registration switch (also flip the client flag in SignIn.tsx).
-// false → server rejects every signUp with REGISTRATION_DISABLED.
-export const SIGNUP_ENABLED = true;
+// Public registration switch — the compiled default (also flip the client flag
+// in SignIn.tsx). false → server rejects every signUp with REGISTRATION_DISABLED.
+export const SIGNUP_ENABLED = false;
+
+// Effective gate: the Convex env var SIGNUP_ENABLED ("true" / "false") overrides
+// the compiled default — the owner can open or close sign-up on a deployment
+// without a deploy (`npx convex env set SIGNUP_ENABLED true`), and backend tests
+// exercise the full signUp flow via vi.stubEnv while the shipped default stays
+// closed. Read at call time (not at module load) so stubs and env changes apply.
+// Anything else than "true"/"false" falls back to the default.
+export function signUpEnabled(): boolean {
+  // `globalThis.process`, не голый `process`: файл тайпчекается и под tsconfig
+  // приложения (через convex/_generated/api.d.ts), где нет типов Node — как seed.ts.
+  const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process
+    ?.env?.SIGNUP_ENABLED;
+  if (env === "true") return true;
+  if (env === "false") return false;
+  return SIGNUP_ENABLED;
+}
 
 // Error codes (ConvexError data — unlike plain Errors they survive to production
 // clients, so SignIn.tsx can show a specific message).
@@ -42,9 +61,9 @@ export const ACCOUNT_EXISTS = "ACCOUNT_EXISTS"; // signUp on a taken email
 export const INVALID_EMAIL = "INVALID_EMAIL"; // malformed email (any flow)
 export const ACCOUNT_DELETED = "ACCOUNT_DELETED"; // session for a deleted user
 
-// The kill switch as a pure function (tested with enabled=false while the flag
-// is on): only the signUp flow is gated; signIn/reset are never affected.
-export function assertSignUpAllowed(flow: unknown, enabled: boolean = SIGNUP_ENABLED): void {
+// The kill switch as a pure function: only the signUp flow is gated; signIn/reset
+// are never affected. `enabled` defaults to the effective gate (signUpEnabled()).
+export function assertSignUpAllowed(flow: unknown, enabled: boolean = signUpEnabled()): void {
   if (!enabled && flow === "signUp") throw new ConvexError(REGISTRATION_DISABLED);
 }
 

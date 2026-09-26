@@ -82,7 +82,8 @@ IOS_SIM_UDID=<udid> npm run ios:sim   # конкретный симулятор 
 npm run ios:open           # открыть в Xcode (подпись/запуск на своём iPhone)
 ```
 
-Бэкенду нужен `npx convex dev` (dev-функции с включённой регистрацией). Если
+Бэкенду нужен `npx convex dev` (регистрация закрыта флагом `SIGNUP_ENABLED`;
+открыть на dev без деплоя — `npx convex env set SIGNUP_ENABLED true`). Если
 сборка висит на «Resolve Package Graph» — SwiftPM ждёт доступ к Keychain; скрипты
 передают `-packageAuthorizationProvider netrc`, в Xcode достаточно подтвердить диалог.
 

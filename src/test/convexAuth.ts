@@ -11,13 +11,17 @@ import { DEV_PASSWORD } from "../../convex/seed";
 export type T = TestConvex<typeof schema>;
 
 // Полный signIn/signUp доходит до выпуска JWT — ему нужны env прод-деплоя.
-// Одноразовый RS256-ключ (WebCrypto доступен в edge-runtime). Снимать —
-// vi.unstubAllEnvs() в afterEach теста.
+// Одноразовый RS256-ключ (WebCrypto доступен в edge-runtime). Заодно ОТКРЫВАЕТ
+// гейт регистрации через env (SIGNUP_ENABLED=true — см. signUpEnabled() в
+// convex/auth.ts): по умолчанию флаг выключен, а полные флоу signUp тестам
+// нужны. Тест закрытого гейта ставит vi.stubEnv("SIGNUP_ENABLED", "false")
+// уже после этого вызова. Снимать — vi.unstubAllEnvs() в afterEach теста.
 export async function stubJwtEnv() {
   const { privateKey } = await generateKeyPair("RS256", { extractable: true });
   vi.stubEnv("JWT_PRIVATE_KEY", await exportPKCS8(privateKey));
   vi.stubEnv("CONVEX_SITE_URL", "https://test.convex.site");
   vi.stubEnv("SITE_URL", "http://localhost:5173");
+  vi.stubEnv("SIGNUP_ENABLED", "true");
 }
 
 export function signUpWith(t: T, email: string, password: string = DEV_PASSWORD) {
