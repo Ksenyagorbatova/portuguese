@@ -39,7 +39,7 @@ test("accepts the correctly built sentence", async ({ mount }) => {
   await expect(component.getByText("Верно!")).toBeVisible();
   expect(answeredFirstTry).toBe(true);
   // Once resolved, the ✕ remove-hints are gone (tiles are no longer editable).
-  await expect(component.locator(".m-atile-x")).toHaveCount(0);
+  await expect(component.locator(".m-atile-x:visible")).toHaveCount(0);
 });
 
 test("builds and checks the sentence with the keyboard only", async ({ mount, page }) => {
@@ -140,4 +140,23 @@ test("answer tiles show a removable ✕ and clicking a tile removes it", async (
 
   await component.locator(".m-answer .m-atile").first().click();
   await expect(component.locator(".m-answer .m-atile")).toHaveCount(1);
+});
+test.describe("phone actions", () => {
+  test.use({ viewport: { width: 375, height: 667 } });
+  test("the primary action stays at the bottom while tiles wrap and feedback appears", async ({ mount }) => {
+    const phrase = { words: ["Bom", "dia!", "Estou", "bem,", "obrigada."],
+      answer: "Bom dia! Estou bem, obrigada.", ru: "Доброе утро! Я в порядке, спасибо." };
+    const c = await mount(<div className="m-app"><SentenceBuilder sentence={phrase}
+      isLast={false} onAnswered={() => {}} onNext={() => {}} /></div>);
+    const check = c.getByRole("button", { name: "Проверить", exact: true });
+    const before = await check.boundingBox();
+    expect(before!.y).toBeGreaterThan(550);
+    for (const word of phrase.words) await c.locator(".m-bank").getByRole("button", { name: word, exact: true }).click();
+    const selected = await check.boundingBox();
+    expect(Math.abs(selected!.y - before!.y)).toBeLessThan(2);
+    await check.click();
+    const next = await c.getByRole("button", { name: "Дальше", exact: true }).boundingBox();
+    expect(Math.abs(next!.y - before!.y)).toBeLessThan(2);
+    await expect(c).toContainText("Верно!");
+  });
 });

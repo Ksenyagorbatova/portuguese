@@ -19,18 +19,16 @@ import { isMuted, setMuted } from "../lib/speech";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Header } from "./Header";
 import { OfflineBanner } from "./OfflineBanner";
-import { ScoreRow } from "./ScoreRow";
-import { TabBar } from "./TabBar";
+import { TabBar, type Tab } from "./TabBar";
 import { ReviewTab } from "./ReviewTab";
 import { TopicsTab } from "./TopicsTab";
 import { Theory } from "./Theory";
 import { Session } from "./Session";
 import { Splash } from "./Splash";
 import { HideNativeSplash } from "./HideNativeSplash";
-import { AccountFooter } from "./AccountFooter";
+import { Profile } from "./Profile";
 import type { ThemeChoice } from "../lib/useTheme";
 
-type Tab = "review" | "topics";
 type View =
   | { kind: "home" }
   | { kind: "theory"; topicKey: string; lesson: LessonView }
@@ -70,13 +68,13 @@ export function Shell({
 
   const [tab, setTab] = useState<Tab>("review");
   const [view, setView] = useState<View>({ kind: "home" });
-  const [score, setScore] = useState({ correct: 0, total: 0 });
   const [nonce, setNonce] = useState(0); // bump to remount Session on (re)start
   // Очередь дойдена до конца — Session уже показывает Complete (view.kind при
   // этом всё ещё "session"): прерывать нечего, goHome не спрашивает confirm.
   const [sessionDone, setSessionDone] = useState(false);
   // Открыт ли диалог «Выйти из тренировки?» (свой вместо window.confirm).
   const [confirmExit, setConfirmExit] = useState(false);
+  useEffect(() => { window.scrollTo(0, 0); }, [view.kind, tab, nonce]);
   // Mute авто-озвучки (П.3). Источник истины — модуль speech (он же гейт аудио
   // и хаптики); это зеркало только для перерисовки иконки в шапке.
   const [muted, setMutedState] = useState(() => isMuted());
@@ -93,13 +91,11 @@ export function Shell({
   const s = srs;
 
   function startReview() {
-    setScore({ correct: 0, total: 0 });
     setNonce((n) => n + 1);
     setSessionDone(false);
     setView({ kind: "session", queue: buildReviewQueue(c, s), origin: "review" });
   }
   function startLesson(topicKey: string, lesson: LessonView) {
-    setScore({ correct: 0, total: 0 });
     setNonce((n) => n + 1);
     setSessionDone(false);
     setView({
@@ -113,7 +109,6 @@ export function Shell({
   function startSentences(topicKey: string) {
     const topic = c.topics.find((t: TopicView) => t.topicKey === topicKey);
     if (!topic || topic.sentences.length === 0) return;
-    setScore({ correct: 0, total: 0 });
     setNonce((n) => n + 1);
     setSessionDone(false);
     setView({ kind: "session", queue: buildSentenceQueue(topic), origin: { kind: "sentences", topicKey } });
@@ -234,7 +229,6 @@ export function Shell({
   // наследуется (после неё финал снова считает CTA по факту).
   function retryMistakes(origin: SessionOrigin, words: WordView[]) {
     if (words.length === 0) return;
-    setScore({ correct: 0, total: 0 });
     setNonce((n) => n + 1);
     setSessionDone(false);
     setView({ kind: "session", queue: buildMistakesQueue(words, s), origin });
@@ -269,12 +263,13 @@ export function Shell({
         heading={headingOf(view.origin)}
         nextStep={nextStepOf(view.origin)}
         courseComplete={courseCompleteOf(view.origin)}
-        onScore={(correct, total) => setScore({ correct, total })}
         onRestart={onRestart}
         onPickLesson={onPickLesson}
         onGoReview={() => switchTab("review")}
         onGoTopics={() => switchTab("topics")}
-        onExit={() => setView({ kind: "home" })}
+        onExit={goHome}
+        muted={muted}
+        onToggleMute={toggleMute}
         onRetryMistakes={(words) => retryMistakes(view.origin, words)}
         onReadTheory={(topicKey, lessonKey) => {
           const lesson = findLesson(topicKey, lessonKey);
@@ -286,6 +281,7 @@ export function Shell({
   } else if (view.kind === "theory") {
     content = (
       <Theory
+        key={view.lesson.lessonKey}
         lesson={view.lesson}
         onBegin={() => beginFromTheory(view.topicKey, view.lesson)}
         onBack={() => switchTab("topics")}
@@ -295,6 +291,9 @@ export function Shell({
     content =
       tab === "review" ? (
         <ReviewTab course={c} srs={s} onStart={startReview} onGoTopics={() => switchTab("topics")} />
+      ) : tab === "profile" ? (
+        <Profile email={viewer?.state === "live" ? viewer.email : null}
+          themeChoice={themeChoice} onCycleTheme={onCycleTheme} muted={muted} onToggleMute={toggleMute} />
       ) : (
         <TopicsTab
           course={c}
@@ -321,19 +320,17 @@ export function Shell({
       {/* iOS-оболочка: данные курса загружены — первый настоящий экран, убрать
           нативный сплэш (иначе логотип сменялся бы спиннером «Загрузка…»). */}
       <HideNativeSplash />
-      <Header
+      {(!inSession || sessionDone) && <Header
         streak={s.streak}
         doneToday={s.doneToday}
         muted={muted}
         onToggleMute={toggleMute}
-        themeChoice={themeChoice}
-        onCycleTheme={onCycleTheme}
         onHome={goHome}
-      />
+      />}
       {confirmExit && (
         <ConfirmDialog
           title="Выйти из тренировки?"
-          message="Прогресс этой сессии не сохранится."
+          message="Отправленные ответы сохраняются. Текущая тренировка завершится."
           confirmLabel="Выйти"
           cancelLabel="Остаться"
           onConfirm={() => {
@@ -344,19 +341,11 @@ export function Shell({
         />
       )}
       <OfflineBanner />
-      {!inSession && (
-        <>
-          {score.total > 0 && <ScoreRow correct={score.correct} total={score.total} />}
-          <TabBar tab={tab} onTab={switchTab} />
-        </>
-      )}
       <div className="m-view" key={viewKey}>
+        {view.kind === "home" && <h1 className="m-page-title">{tab === "review" ? "Сегодня" : tab === "topics" ? "Курс" : "Профиль"}</h1>}
         {content}
       </div>
-      {/* Аккаунт (email + удаление) — только на главном экране, не в сессии/теории. */}
-      {view.kind === "home" && (
-        <AccountFooter email={viewer?.state === "live" ? viewer.email : null} />
-      )}
+      {view.kind === "home" && <TabBar tab={tab} onTab={switchTab} />}
     </>
   );
 }

@@ -52,6 +52,8 @@ export function Session({
   onReadTheory,
   courseComplete,
   onComplete,
+  muted,
+  onToggleMute,
 }: {
   queue: SessionItem[];
   course: Course;
@@ -59,7 +61,7 @@ export function Session({
   dueCountAll: number;
   heading: CompleteHeading;
   nextStep: NextStep | null;
-  onScore: (correct: number, total: number) => void;
+  onScore?: (correct: number, total: number) => void;
   onRestart: () => void;
   onPickLesson: (topicKey: string, lessonKey: string) => void;
   onGoReview: () => void;
@@ -75,6 +77,8 @@ export function Session({
   // Сессия дойдена до экрана Complete (очередь исчерпана) — Shell по этому
   // флагу перестаёт спрашивать confirm при выходе по логотипу.
   onComplete?: () => void;
+  muted?: boolean;
+  onToggleMute?: () => void;
 }) {
   // The queue is STATIC: built once before mount, never grows — a miss does not
   // re-insert the card (per-word progress is server-side, the next session
@@ -130,7 +134,7 @@ export function Session({
       total: score.total + 1,
     };
     setScore(ns);
-    onScore(ns.correct, ns.total);
+    onScore?.(ns.correct, ns.total);
 
     const item = queue[idx];
     if (item.kind !== "word") return; // предложения (sentence/build/cloze) в разбор ошибок не попадают
@@ -310,6 +314,10 @@ export function Session({
         <span className="m-progress-count">
           {idx + 1}/{queue.length}
         </span>
+        {onToggleMute && <button className="m-icon-btn" onClick={onToggleMute}
+          aria-label={muted ? "Звук: выключен" : "Звук: включён"}>
+          <Icon name={muted ? "volume-off" : "volume"} />
+        </button>}
       </div>
       {exercise}
     </div>

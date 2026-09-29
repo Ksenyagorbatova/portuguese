@@ -1,17 +1,23 @@
-type Tab = "review" | "topics";
+import { Icon, type IconName } from "./Icon";
 
-// Segmented control with a spring-animated sliding thumb.
+export type Tab = "review" | "topics" | "profile";
+const TABS: { tab: Tab; label: string; icon: IconName }[] = [
+  { tab: "review", label: "Сегодня", icon: "repeat" },
+  { tab: "topics", label: "Курс", icon: "book-open" },
+  { tab: "profile", label: "Профиль", icon: "user" },
+];
+
+// Fixed thumb-reachable navigation outside lessons and exercises.
 export function TabBar({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
-  const i = tab === "topics" ? 1 : 0;
   return (
-    <div className="m-seg" data-i={i}>
-      <div className="m-seg-thumb" />
-      <button className={"m-seg-btn" + (i === 0 ? " on" : "")} onClick={() => onTab("review")}>
-        Повторение
-      </button>
-      <button className={"m-seg-btn" + (i === 1 ? " on" : "")} onClick={() => onTab("topics")}>
-        Темы
-      </button>
-    </div>
+    <nav className="m-bottom-nav" aria-label="Основная навигация">
+      {TABS.map((item) => (
+        <button key={item.tab} className="m-nav-item" type="button"
+          aria-current={tab === item.tab ? "page" : undefined} onClick={() => onTab(item.tab)}>
+          <Icon name={item.icon} size={22} />
+          <span>{item.label}</span>
+        </button>
+      ))}
+    </nav>
   );
 }

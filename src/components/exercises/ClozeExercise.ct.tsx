@@ -14,6 +14,37 @@ const sentence: TopicSentenceView = {
 const pool = ["Quem", "isto", "meu", "Onde"];
 const noop = () => {};
 
+test("accepted alternative forms never become wrong options", async ({ mount }) => {
+  const ambiguous = {
+    ...sentence,
+    words: ["Estou", "bem,", "obrigada."],
+    answer: "Estou bem, obrigada.",
+    ru: "Я в порядке, спасибо.",
+    blank: "obrigada",
+    acceptedBlanks: ["Obrigado"],
+    context: "Вы отвечаете на вопрос о самочувствии.",
+  };
+  const c = await mount(
+    <ClozeExercise sentence={ambiguous} pool={["obrigada", "Obrigado", "Olá", "amanhã"]}
+      isLast={false} onAnswered={noop} onNext={noop} />,
+  );
+  await expect(c.getByRole("button", { name: "Obrigado", exact: true })).toHaveCount(0);
+  await expect(c).toContainText(ambiguous.context);
+  await c.getByRole("button", { name: "obrigada", exact: true }).click();
+  await expect(c).toContainText("Верно!");
+  await expect(c).toContainText("Также допустимо: Obrigado");
+});
+
+test("written choices with different accents stay distinct", async ({ mount }) => {
+  const c = await mount(
+    <ClozeExercise sentence={{ ...sentence, words: ["Ela", "tem", "filhos."],
+      answer: "Ela tem filhos.", ru: "У неё есть дети.", blank: "tem" }}
+      pool={["tem", "têm", "sou", "vou"]} isLast={false} onAnswered={noop} onNext={noop} />,
+  );
+  await c.getByRole("button", { name: "têm", exact: true }).click();
+  await expect(c).toContainText("Ещё одна попытка");
+});
+
 test("cloze renders the gap, the ru prompt and the option buttons", async ({ mount }) => {
   const component = await mount(
     <ClozeExercise sentence={sentence} pool={pool} isLast={false} onAnswered={noop} onNext={noop} />,

@@ -1,5 +1,8 @@
 import { query } from "./_generated/server";
 import { liveUserId } from "./account";
+import { v } from "convex/values";
+
+const sentenceFields = { sentenceKey: v.string(), words: v.array(v.string()), answer: v.string(), ru: v.string() };
 
 // getCourse — returns the entire course content tree (was the TOPICS +
 // CROSS_SENTENCES constants in the original HTML). Identical for every user,
@@ -10,6 +13,19 @@ import { liveUserId } from "./account";
 // (null → клиентский Shell показывает Splash при любом falsy значении).
 export const getCourse = query({
   args: {},
+  returns: v.union(v.null(), v.object({
+    topics: v.array(v.object({
+      topicKey: v.string(), label: v.string(), icon: v.string(),
+      lessons: v.array(v.object({
+        lessonKey: v.string(), label: v.string(),
+        theory: v.object({ intro: v.string(), tip: v.string(), sections: v.array(v.object({ heading: v.string(), words: v.array(v.string()) })) }),
+        words: v.array(v.object({ lessonKey: v.string(), pt: v.string(), ru: v.string(), note: v.optional(v.string()) })),
+      })),
+      sentences: v.array(v.object({ ...sentenceFields, topicKey: v.string(), blank: v.string(),
+        acceptedBlanks: v.optional(v.array(v.string())), context: v.optional(v.string()) })),
+    })),
+    crossSentences: v.array(v.object({ ...sentenceFields, required: v.array(v.string()) })),
+  })),
   handler: async (ctx) => {
     const userId = await liveUserId(ctx);
     if (!userId) return null;
@@ -67,6 +83,8 @@ export const getCourse = query({
           answer: s.answer,
           ru: s.ru,
           blank: s.blank,
+          ...(s.acceptedBlanks ? { acceptedBlanks: s.acceptedBlanks } : {}),
+          ...(s.context ? { context: s.context } : {}),
         })),
       })),
       crossSentences: [...crossSentences].sort(byOrder).map((s) => ({

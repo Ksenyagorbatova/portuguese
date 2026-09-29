@@ -39,5 +39,16 @@ export default defineConfig({
       },
     },
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    {
+      name: "webkit-iphone",
+      use: { ...devices["iPhone 13"] },
+      testMatch: [
+        "**/MobileAccessibility.ct.tsx", "**/TabBar.ct.tsx", "**/Theory.ct.tsx", "**/Profile.ct.tsx",
+        "**/exercises/ClozeExercise.ct.tsx",
+        "**/exercises/SentenceBuilder.ct.tsx", "**/exercises/TypeExercise.ct.tsx",
+      ],
+    },
+  ],
 });

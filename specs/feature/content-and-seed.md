@@ -15,15 +15,19 @@
 `Word { pt, ru, note? }`, `Theory { intro, tip, sections[] }`,
 `Lesson { id, label, theory, words[] }`, `Topic { label, icon, lessons[] }`,
 `CrossSentence { words, answer, ru, required }`. Экспортируются `TOPICS`
-(`Record<string, Topic>`) и `CROSS_SENTENCES`.
+(`Record<string, Topic>`) и `CROSS_SENTENCES`. `TOPIC_SENTENCES` содержит
+`TopicSentence { topicKey, words, answer, ru, blank, acceptedBlanks?, context? }`.
+`acceptedBlanks` — дополнительные корректные заполнения пропуска; `context` —
+контекст говорящего/диалога. Оба поля необязательны в схеме и `getCourse`,
+поэтому существующие строки и замороженные iOS-клиенты совместимы.
 
-Таблицы (`topics`/`lessons`/`words`/`crossSentences`) — см.
+Таблицы (`topics`/`lessons`/`words`/`crossSentences`/`topicSentences`) — см.
 [`convex/schema.ts`](../../convex/schema.ts), у каждой натуральный ключ и поле `order`.
 
 API:
 - `seed:seedContent` ([`convex/seed.ts`](../../convex/seed.ts)) — internalMutation,
   идемпотентный upsert + prune контентных сирот; возвращает счётчики, включая
-  `pruned: { topics, lessons, words, crossSentences }`.
+  `pruned: { topics, lessons, words, crossSentences, topicSentences }`.
 - `getCourse` ([`convex/courseQueries.ts`](../../convex/courseQueries.ts)) — всё дерево
   курса; **auth-gated**: неавторизованному возвращает `null` (как `getSrsState`;
   клиентский Shell показывает Splash при любом falsy).
@@ -71,6 +75,10 @@ Per-user таблицы (`progress`/`theorySeen`/`userStats`) prune НЕ тро�
 
 **`note: undefined`** на re-seed: Convex трактует это как «поле отсутствует» при
 insert, а `patch({ note: undefined })` чистит устаревшую заметку.
+Так же обновляются/очищаются `acceptedBlanks` и `context` у предложений тем;
+`sentenceKey = ts_NNNN` и `_id` сохраняются. В заданиях с благодарностью без
+указанного пола `obrigado` и `obrigada` допустимы; обе формы исключаются из
+пула неправильных ответов. Смена реплик отмечается контекстом диалога.
 
 **Перекрёстные ссылки внутри контента обязаны разрешаться** (закреплено тестами,
 см. ниже): каждая строка `theory.sections[].words` — существующий `word.pt` СВОЕГО

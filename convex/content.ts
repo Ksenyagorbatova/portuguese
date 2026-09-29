@@ -32,6 +32,8 @@ export type TopicSentence = {
   answer: string;
   ru: string;
   blank: string;
+  acceptedBlanks?: string[];
+  context?: string;
 };
 
 // Each topic has sub-lessons (usually ~10 words; larger lessons close over several sessions).
@@ -1598,9 +1600,9 @@ export const CROSS_SENTENCES: CrossSentence[] = [
 export const TOPIC_SENTENCES: TopicSentence[] = [
   // greetings — приветствия, вежливость, реакции (всё из слов темы)
   { topicKey: "greetings", words: ["Olá!", "Bom", "dia!"], answer: "Olá! Bom dia!", ru: "Привет! Доброе утро!", blank: "Olá" },
-  { topicKey: "greetings", words: ["Bom", "dia!", "Estou", "bem,", "obrigada."], answer: "Bom dia! Estou bem, obrigada.", ru: "Доброе утро! Я в порядке, спасибо.", blank: "obrigada" },
-  { topicKey: "greetings", words: ["Obrigado!", "De", "nada."], answer: "Obrigado! De nada.", ru: "Спасибо! Не за что.", blank: "Obrigado" },
-  { topicKey: "greetings", words: ["Desculpe,", "não", "faz", "mal."], answer: "Desculpe, não faz mal.", ru: "Извините, ничего страшного.", blank: "Desculpe" },
+  { topicKey: "greetings", words: ["Bom", "dia!", "Estou", "bem,", "obrigada."], answer: "Bom dia! Estou bem, obrigada.", ru: "Доброе утро! Я в порядке, спасибо.", blank: "obrigada", acceptedBlanks: ["Obrigado"], context: "Ответ на вопрос «Как дела?»" },
+  { topicKey: "greetings", words: ["Obrigado!", "De", "nada."], answer: "Obrigado! De nada.", ru: "Спасибо! Не за что.", blank: "Obrigado", acceptedBlanks: ["Obrigada"], context: "Два собеседника: благодарность и ответ." },
+  { topicKey: "greetings", words: ["Desculpe,", "não", "faz", "mal."], answer: "Desculpe, não faz mal.", ru: "Извините, ничего страшного.", blank: "Desculpe", context: "Два собеседника: извинение и ответ." },
   { topicKey: "greetings", words: ["Parabéns!", "Boa", "sorte!"], answer: "Parabéns! Boa sorte!", ru: "Поздравляю! Удачи!", blank: "Parabéns" },
   { topicKey: "greetings", words: ["Prazer!", "Até", "logo!"], answer: "Prazer! Até logo!", ru: "Приятно познакомиться! До свидания!", blank: "Prazer" },
   { topicKey: "greetings", words: ["Boa", "noite!", "Até", "amanhã!"], answer: "Boa noite! Até amanhã!", ru: "Спокойной ночи! До завтра!", blank: "amanhã" },

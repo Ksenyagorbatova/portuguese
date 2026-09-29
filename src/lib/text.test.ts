@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { deaccent, normStr, normWord, variantsMatch, sentenceMatch } from "./text";
+import { classifyAnswer, deaccent, normStr, normWord, variantsMatch, sentenceMatch } from "./text";
 
 describe("deaccent", () => {
   it("strips Portuguese accents and lowercases", () => {
@@ -20,6 +20,25 @@ describe("normStr", () => {
 });
 
 describe("variantsMatch", () => {
+  it("distinguishes exact spelling from accepted missing accents", () => {
+    expect(classifyAnswer("  NÃO! ", "não")).toBe("exact");
+    expect(classifyAnswer("nao", "não")).toBe("missing_accents");
+    expect(classifyAnswer("não e", "Não é")).toBe("missing_accents");
+    expect(classifyAnswer("avó", "avô")).toBe("incorrect");
+    expect(classifyAnswer(" ", " ")).toBe("incorrect");
+    expect(classifyAnswer("olá🙂", "olá")).toBe("incorrect");
+  });
+  it("rejects an explicitly different accent instead of merging Portuguese forms", () => {
+    expect(variantsMatch("avó", "avô")).toBe(false);
+    expect(variantsMatch("vêm", "vem")).toBe(false);
+    expect(variantsMatch("é", "e")).toBe(false);
+    expect(variantsMatch("não é", "Não e")).toBe(false);
+  });
+  it("still accepts omitted accents, including partially accented phrases", () => {
+    expect(variantsMatch("avo", "avô")).toBe(true);
+    expect(variantsMatch("não e", "Não é")).toBe(true);
+    expect(variantsMatch("na\u0303o", "não")).toBe(true);
+  });
   it("matches ignoring accents, case and surrounding space", () => {
     expect(variantsMatch("nao", "não")).toBe(true);
     expect(variantsMatch("  OLÁ ", "olá")).toBe(true);

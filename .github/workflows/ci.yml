@@ -110,14 +110,14 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
+          key: playwright-chromium-webkit-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
       - name: Install Playwright browser
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium webkit
       # Browsers came from the cache — only the OS packages are still needed.
       - name: Install Playwright OS dependencies
         if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: npx playwright install-deps chromium
+        run: npx playwright install-deps chromium webkit
       - run: npm run test:ct
       # On failure, surface the traces (test-results/) and the HTML report
       # (playwright-report/, generated on CI by playwright-ct.config.ts).
@@ -134,9 +134,9 @@ jobs:
 
   # iOS-оболочка (Capacitor 8, SPM): веб-бандл режима ios + компиляция
   # Xcode-проекта под симулятор, без подписи. Репо публичный — macOS-минуты
-  # бесплатны. Convex не нужен: бандл только собирается, не запускается, поэтому
-  # VITE_CONVEX_URL — заглушка. netrc — SwiftPM не ищет учётку github.com в
-  # Keychain перед скачиванием бинарных артефактов capacitor-swift-pm.
+  # бесплатны. Нативные XCTest проверяют аудиосессию и Web Speech без данных
+  # Convex, поэтому VITE_CONVEX_URL — заглушка. netrc — SwiftPM не ищет учётку
+  # github.com в Keychain перед скачиванием артефактов capacitor-swift-pm.
   ios-build:
     runs-on: macos-latest
     timeout-minutes: 30
@@ -167,3 +167,13 @@ jobs:
           xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug
           -sdk iphonesimulator -destination 'generic/platform=iOS Simulator'
           -packageAuthorizationProvider netrc ARCHS=arm64 CODE_SIGNING_ALLOWED=NO build
+      - name: Test native audio session
+        run: |
+          PT_SIM_UDID=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          devices = json.load(sys.stdin)["devices"]
+          print(next(d["udid"] for group in devices.values() for d in group if d["name"].startswith("iPhone")))
+          ')
+          xcodebuild test -project ios/App/App.xcodeproj -scheme App -configuration Debug \
+            -destination "platform=iOS Simulator,id=$PT_SIM_UDID" \
+            -packageAuthorizationProvider netrc -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO

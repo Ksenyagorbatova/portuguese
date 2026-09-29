@@ -1,5 +1,6 @@
 import UIKit
 import Capacitor
+import AVFAudio
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -7,7 +8,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // Web Speech in WKWebView uses the app's AVSpeechSynthesizer session.
+        // The default soloAmbient category silences it with Ring/Silent on.
+        // Configure playback before WebKit starts; the synthesizer activates
+        // the session when speaking. Mixing preserves other apps' audio.
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
+        } catch {
+            NSLog("[speech] Failed to configure playback audio session: %@", error.localizedDescription)
+        }
         return true
     }
 

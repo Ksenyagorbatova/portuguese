@@ -64,6 +64,8 @@ export default defineSchema({
     answer: v.string(),
     ru: v.string(),
     blank: v.string(),
+    acceptedBlanks: v.optional(v.array(v.string())),
+    context: v.optional(v.string()),
     order: v.number(),
   }).index("by_sentenceKey", ["sentenceKey"]),
 
