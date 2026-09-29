@@ -14,6 +14,29 @@ const lesson: LessonView = {
   words: [{ lessonKey: "l1", pt: "olá", ru: "привет" }],
 };
 
+test("long theory is split into short pages with all words reachable before practice", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 375, height: 667 });
+  const words = Array.from({ length: 10 }, (_, i) => ({ lessonKey: "l1", pt: `palavra${i}`, ru: `слово ${i}` }));
+  let began = false;
+  const c = await mount(<Theory lesson={{ ...lesson, words, theory: { ...lesson.theory,
+    sections: [{ heading: "Слова", words: words.map((w) => w.pt) }] } }} onBegin={() => { began = true; }} />);
+  await expect(c.locator(".m-flip")).toHaveCount(4);
+  await expect(c.locator(".m-theory-step")).toHaveText("1 / 3 · Слова");
+  await c.getByRole("button", { name: "Следующие слова" }).click();
+  await expect(c.getByText("palavra4", { exact: true })).toBeVisible();
+  await c.getByRole("button", { name: "Следующие слова" }).click();
+  await expect(c.locator(".m-flip")).toHaveCount(2);
+  await c.getByRole("button", { name: "Предыдущие слова" }).click();
+  await expect(c.locator(".m-theory-step")).toHaveText("2 / 3 · Слова");
+  await c.getByRole("button", { name: "Следующие слова" }).click();
+  const begin = c.getByRole("button", { name: /Начать практику/ });
+  const box = await begin.boundingBox();
+  expect(box!.y).toBeGreaterThan(550);
+  expect(box!.y + box!.height).toBeLessThanOrEqual(667);
+  await begin.click();
+  expect(began).toBe(true);
+});
+
 test("renders the lesson theory and word cards", async ({ mount }) => {
   const component = await mount(<Theory lesson={lesson} onBegin={() => {}} />);
   await expect(component).toContainText("Приветствия");

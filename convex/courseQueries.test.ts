@@ -13,6 +13,25 @@ async function asUser(t: ReturnType<typeof convexTest>) {
 }
 
 describe("getCourse", () => {
+  it("returns accepted blanks and context, and still reads legacy sentences", async () => {
+    const t = convexTest(schema, modules);
+    await t.mutation(internal.seed.seedContent, {});
+    const as = await asUser(t);
+    const course = await as.query(api.courseQueries.getCourse, {});
+    const greetings = course!.topics.find((topic) => topic.topicKey === "greetings")!;
+    expect(greetings.sentences.find((s) => s.blank === "obrigada")).toMatchObject({
+      acceptedBlanks: ["Obrigado"], context: "Ответ на вопрос «Как дела?»",
+    });
+    await t.run(async (ctx) => {
+      const row = await ctx.db.query("topicSentences").withIndex("by_sentenceKey", (q) => q.eq("sentenceKey", "ts_0002")).unique();
+      await ctx.db.patch(row!._id, { acceptedBlanks: undefined, context: undefined });
+    });
+    const legacy = await as.query(api.courseQueries.getCourse, {});
+    const row = legacy!.topics[0].sentences.find((s) => s.sentenceKey === "ts_0002")!;
+    expect(row.blank).toBe("obrigada");
+    expect(row.acceptedBlanks).toBeUndefined();
+    expect(row.context).toBeUndefined();
+  });
   it("returns null when unauthenticated (как getSrsState)", async () => {
     const t = convexTest(schema, modules);
     await t.mutation(internal.seed.seedContent, {});

@@ -57,8 +57,9 @@ test("NextButton is autofocused so Enter advances", async ({ mount }) => {
       }}
     />,
   );
-  await expect(component).toBeFocused();
-  await component.press("Enter");
+  const next = component.getByRole("button", { name: "Дальше" });
+  await expect(next).toBeFocused();
+  await next.press("Enter");
   expect(clicked).toBe(1);
 });
 
@@ -72,7 +73,7 @@ test("held Enter (autorepeat) clicks «Дальше» only once", async ({ mount
       }}
     />,
   );
-  await expect(component).toBeFocused();
+  await expect(component.getByRole("button", { name: "Дальше" })).toBeFocused();
   await page.keyboard.down("Enter"); // настоящее нажатие — клик
   await page.keyboard.down("Enter"); // не отпуская: autorepeat (e.repeat) — игнор
   await page.keyboard.down("Enter");

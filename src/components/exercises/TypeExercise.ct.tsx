@@ -26,6 +26,23 @@ test("accepts a correct typed answer (accents optional)", async ({ mount }) => {
   await component.getByRole("button", { name: "Проверить" }).click();
   await expect(component.getByText("Верно!")).toBeVisible();
   expect(firstTryCorrect).toBe(true);
+  await expect(component.getByText(/Ответ принят без акцентов/)).toBeVisible();
+});
+
+test("a different explicit accent gets a retry and is not recorded as correct", async ({ mount, page }) => {
+  let answered = 0;
+  const c = await mount(<TypeExercise word={{ ...word, pt: "avô", ru: "дедушка" }} tag="new"
+    card={undefined} isLast={false} onAnswered={() => { answered++; }} onNext={() => {}} />);
+  await c.getByPlaceholder("Ваш ответ…").fill("avó");
+  await c.getByRole("button", { name: "Проверить" }).click();
+  await expect(c).toContainText("Ещё одна попытка");
+  expect(answered).toBe(0);
+  expect(await page.evaluate(() => window.__mutationMock?.calls ?? 0)).toBe(0);
+  await c.getByPlaceholder("Ваш ответ…").fill("avô");
+  await c.getByRole("button", { name: "Проверить" }).click();
+  await expect(c).toContainText("Верно!");
+  await expect(c.getByText(/Ответ принят без акцентов/)).toHaveCount(0);
+  expect(answered).toBe(1);
 });
 
 const dueCard: CardFields = {
@@ -194,7 +211,7 @@ test("the 💡-note is hidden BEFORE the answer; the service hint stays", async 
   await expect(component.locator(".m-q-note")).toHaveCount(0);
   await expect(component.getByText("ударение на á")).toHaveCount(0);
   // Служебный хинт — не заметка, остаётся как был.
-  await expect(component.getByText(/Акценты и пунктуация необязательны/)).toBeVisible();
+  await expect(component.getByText(/Можно без акцентов/)).toBeVisible();
 
   await component.getByPlaceholder("Ваш ответ…").fill("olá");
   await component.getByRole("button", { name: "Проверить" }).click();
@@ -234,7 +251,7 @@ test("the accents hint fades out after HINT_SHOW_LIMIT mounts", async ({ mount }
   for (let i = 0; i < HINT_SHOW_LIMIT; i++) {
     const c = await mount(<TypeExercise {...props} />);
     await expect(
-      c.getByText(/Акценты и пунктуация необязательны/),
+      c.getByText(/Можно без акцентов/),
       `показ №${i + 1} должен быть виден`,
     ).toBeVisible();
     await c.unmount();
@@ -324,6 +341,7 @@ test.describe("Enter в инпуте НЕ проскакивает фидбэк"
 
 test("кнопка «Проверить» несёт чип-подсказку Enter (aria-hidden, имя кнопки чистое)", async ({
   mount,
+  hasTouch,
 }) => {
   const component = await mount(
     <TypeExercise
@@ -336,7 +354,9 @@ test("кнопка «Проверить» несёт чип-подсказку E
     />,
   );
   const chip = component.locator(".m-btn-key");
-  await expect(chip).toBeVisible();
+  // На телефоне аппаратной клавиатуры обычно нет — хоткей намеренно скрыт.
+  if (hasTouch) await expect(chip).toBeHidden();
+  else await expect(chip).toBeVisible();
   await expect(chip).toHaveText("↵");
   await expect(chip).toHaveAttribute("aria-hidden", "true");
   // Имя кнопки не «Проверить ↵» — чип скрыт от скринридера.

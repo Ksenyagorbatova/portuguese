@@ -78,7 +78,7 @@ test("a lesson with unseen theory opens through the theory screen", async ({ mou
   const c = await mount<HooksConfig>(<Shell themeChoice="light" onCycleTheme={noop} />, {
     hooksConfig: { queries: queries() },
   });
-  await c.getByRole("button", { name: "Темы", exact: true }).click();
+  await c.getByRole("button", { name: "Курс", exact: true }).click();
   await c.getByText("Урок 1").click();
 
   // Theory screen, not a session: title + «Начать практику».
@@ -91,7 +91,7 @@ test("a lesson with seen theory starts the session right away", async ({ mount }
   const c = await mount<HooksConfig>(<Shell themeChoice="light" onCycleTheme={noop} />, {
     hooksConfig: { queries: queries({ seenTheory: ["l1"] }) },
   });
-  await c.getByRole("button", { name: "Темы", exact: true }).click();
+  await c.getByRole("button", { name: "Курс", exact: true }).click();
   await c.getByText("Урок 1").click();
 
   // Straight into the session: a static queue capped at SESSION_SIZE
@@ -100,17 +100,17 @@ test("a lesson with seen theory starts the session right away", async ({ mount }
   await expect(c.locator(".m-q-kind")).toBeVisible();
 });
 
-test("logo click during a session opens the in-app exit dialog; «Выйти» leaves", async ({
+test("exit during a session opens the in-app exit dialog; «Выйти» leaves", async ({
   mount,
 }) => {
   const c = await mount<HooksConfig>(<Shell themeChoice="light" onCycleTheme={noop} />, {
     hooksConfig: { queries: queries({ seenTheory: ["l1"] }) },
   });
-  await c.getByRole("button", { name: "Темы", exact: true }).click();
+  await c.getByRole("button", { name: "Курс", exact: true }).click();
   await c.getByText("Урок 1").click();
   await expect(c.locator(".m-q-kind")).toBeVisible();
 
-  await c.getByRole("button", { name: "На главный экран" }).click();
+  await c.getByRole("button", { name: "Выйти из тренировки" }).click();
   // Свой диалог (не window.confirm): role=dialog в стиле системы.
   const dialog = c.getByRole("dialog");
   await expect(dialog).toBeVisible();
@@ -131,12 +131,12 @@ test("the open dialog swallows MC hotkeys — no answering through the modal", a
   const c = await mount<HooksConfig>(<Shell themeChoice="light" onCycleTheme={noop} />, {
     hooksConfig: { queries: queries({ seenTheory: ["l1"] }) },
   });
-  await c.getByRole("button", { name: "Темы", exact: true }).click();
+  await c.getByRole("button", { name: "Курс", exact: true }).click();
   await c.getByText("Урок 1").click();
   // Первая карточка нового слова — всегда выбор (MC) с хоткеями 1–5/A–E.
   await expect(c.locator(".m-q-kind")).toContainText("Выберите");
 
-  await c.getByRole("button", { name: "На главный экран" }).click();
+  await c.getByRole("button", { name: "Выйти из тренировки" }).click();
   await expect(c.getByRole("dialog")).toBeVisible();
 
   // Хоткей при открытом диалоге НЕ отвечает на карточку под модалом.
@@ -154,18 +154,18 @@ test("«Остаться» (and Esc) keep the session running", async ({ mount, 
   const c = await mount<HooksConfig>(<Shell themeChoice="light" onCycleTheme={noop} />, {
     hooksConfig: { queries: queries({ seenTheory: ["l1"] }) },
   });
-  await c.getByRole("button", { name: "Темы", exact: true }).click();
+  await c.getByRole("button", { name: "Курс", exact: true }).click();
   await c.getByText("Урок 1").click();
   await expect(c.locator(".m-q-kind")).toBeVisible();
 
   // «Остаться» закрывает диалог, сессия на месте.
-  await c.getByRole("button", { name: "На главный экран" }).click();
+  await c.getByRole("button", { name: "Выйти из тренировки" }).click();
   await c.getByRole("button", { name: "Остаться" }).click();
   await expect(c.getByRole("dialog")).toHaveCount(0);
   await expect(c.locator(".m-q-kind")).toBeVisible();
 
   // Esc — то же самое.
-  await c.getByRole("button", { name: "На главный экран" }).click();
+  await c.getByRole("button", { name: "Выйти из тренировки" }).click();
   await expect(c.getByRole("dialog")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(c.getByRole("dialog")).toHaveCount(0);
@@ -280,7 +280,7 @@ test("a 100%-finished topic rolls the Complete CTA over to the next topic", asyn
       },
     },
   });
-  await c.getByRole("button", { name: "Темы", exact: true }).click();
+  await c.getByRole("button", { name: "Курс", exact: true }).click();
   await c.getByText("Урок 1").click();
   // Урок выучен целиком → одно-проходное повторение из единственного слова.
   await expect(c.locator(".m-progress-count")).toHaveText("1/1");
@@ -304,16 +304,15 @@ test("logo click outside a session goes home without any confirm", async ({ moun
   const c = await mount<HooksConfig>(<Shell themeChoice="light" onCycleTheme={noop} />, {
     hooksConfig: { queries: queries() },
   });
-  await c.getByRole("button", { name: "Темы", exact: true }).click();
+  await c.getByRole("button", { name: "Курс", exact: true }).click();
   await c.getByRole("button", { name: "На главный экран" }).click();
 
   await expect(c.locator(".m-hero")).toBeVisible();
   await expect(c.getByRole("dialog")).toHaveCount(0);
 });
 
-// Строка аккаунта (удаление аккаунта, App Store 5.1.1(v)) — на главном экране
-// обеих вкладок, но не в сессии («чистое поле») и не в теории.
-test("the account footer sits on the home tabs and hides in a session", async ({ mount }) => {
+// Строка аккаунта (App Store 5.1.1(v)) доступна из профиля.
+test("account controls live in Profile and are absent from study screens", async ({ mount }) => {
   const c = await mount<HooksConfig>(<Shell themeChoice="light" onCycleTheme={noop} />, {
     hooksConfig: {
       queries: {
@@ -323,11 +322,14 @@ test("the account footer sits on the home tabs and hides in a session", async ({
     },
   });
   const del = c.getByRole("button", { name: "Удалить аккаунт" });
+  await expect(del).toHaveCount(0);
+  await c.getByRole("button", { name: "Профиль", exact: true }).click();
   await expect(del).toBeVisible();
+  await expect(c.getByRole("button", { name: "Выйти из аккаунта" })).toBeVisible();
   await expect(c.getByText("alice@example.com")).toBeVisible();
 
-  await c.getByRole("button", { name: "Темы", exact: true }).click();
-  await expect(del).toBeVisible();
+  await c.getByRole("button", { name: "Курс", exact: true }).click();
+  await expect(del).toHaveCount(0);
 
   await c.getByText("Урок 1").click();
   await expect(c.locator(".m-q-kind")).toBeVisible();
@@ -340,9 +342,10 @@ test("the account footer hides on the theory screen", async ({ mount }) => {
       queries: { ...queries(), "account:viewer": { state: "live", email: "alice@example.com" } },
     },
   });
+  await c.getByRole("button", { name: "Профиль", exact: true }).click();
   await expect(c.getByRole("button", { name: "Удалить аккаунт" })).toBeVisible();
 
-  await c.getByRole("button", { name: "Темы", exact: true }).click();
+  await c.getByRole("button", { name: "Курс", exact: true }).click();
   await c.getByText("Урок 1").click();
   await expect(c.locator(".m-theory-title")).toHaveText("Урок 1");
   await expect(c.getByRole("button", { name: "Удалить аккаунт" })).toHaveCount(0);
@@ -360,7 +363,8 @@ test("a failing account:viewer query does not take the app down", async ({ mount
       },
     },
   });
-  await expect(c.getByRole("button", { name: "Темы", exact: true })).toBeVisible();
+  await expect(c.getByRole("button", { name: "Курс", exact: true })).toBeVisible();
+  await c.getByRole("button", { name: "Профиль", exact: true }).click();
   await expect(c.getByRole("button", { name: "Удалить аккаунт" })).toBeVisible();
 });
 

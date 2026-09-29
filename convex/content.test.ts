@@ -153,17 +153,37 @@ describe("целостность контента", () => {
 });
 
 describe("целостность раздела «Построение предложений» (TOPIC_SENTENCES)", () => {
-  // Зеркалит normWord из src/lib/text (deaccent + без хвостовой пунктуации): blank
+  // Зеркалит normToken из src/lib/text (акценты значимы): blank
   // чистый ("Olá"), токен в words может нести пунктуацию ("Olá!"). Копия, а не
   // импорт — convex-тесты изолированы от src-модулей (моки, отдельный рантайм).
   const norm = (s: string) =>
     s
-      .normalize("NFD")
-      .replace(new RegExp("[\\u0300-\\u036f]", "g"), "")
+      .normalize("NFC")
       .toLowerCase()
-      .replace(/[.!?,]/g, "")
+      .replace(/[.!?,…]/g, "")
+      .replace(/\s*\/\s*/g, "/")
+      .replace(/\s+/g, " ")
       .trim();
   const topicKeys = new Set(Object.keys(TOPICS));
+
+  it("допустимые формы непустые, уникальные и снабжены контекстом", () => {
+    for (const sentence of TOPIC_SENTENCES) {
+      if (!sentence.acceptedBlanks) continue;
+      const forms = [sentence.blank, ...sentence.acceptedBlanks].map(norm);
+      expect(forms.every(Boolean), sentence.answer).toBe(true);
+      expect(new Set(forms).size, sentence.answer).toBe(forms.length);
+      expect(sentence.context?.trim(), sentence.answer).toBeTruthy();
+    }
+  });
+
+  it("оба задания с благодарностью без указанного пола допускают обе формы", () => {
+    const thanks = TOPIC_SENTENCES.filter((s) => s.topicKey === "greetings" && /^obrigad[oa]$/i.test(s.blank));
+    expect(thanks).toHaveLength(2);
+    for (const sentence of thanks) {
+      expect([sentence.blank, ...(sentence.acceptedBlanks ?? [])].map(norm).sort())
+        .toEqual(["obrigada", "obrigado"]);
+    }
+  });
 
   it("answer === words.join(' ')", () => {
     const bad = TOPIC_SENTENCES.filter((s) => s.words.join(" ") !== s.answer).map(

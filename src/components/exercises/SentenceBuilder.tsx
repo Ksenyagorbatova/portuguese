@@ -6,7 +6,7 @@ import { speakAuto } from "../../lib/speech";
 import { hapticOk, hapticErr } from "../../lib/haptics";
 import { Badge } from "../Badge";
 import { Icon } from "../Icon";
-import { ResultFeedback, RetryBox, NextButton } from "../Feedback";
+import { ActionBar, ResultFeedback, RetryBox, NextButton } from "../Feedback";
 
 // Cross-topic sentences don't touch SRS in the original — they only affect the
 // session score. So this exercise calls onAnswered but NOT recordAnswer.
@@ -18,7 +18,7 @@ export function SentenceBuilder({
 }: {
   // Структурный тип: подходят и CrossSentenceView (повторение), и
   // TopicSentenceView (раздел «Построение предложений») — нужны только эти поля.
-  sentence: { words: string[]; answer: string; ru: string };
+  sentence: { words: string[]; answer: string; ru: string; context?: string };
   isLast: boolean;
   onAnswered: (result: AnswerResult) => void;
   onNext: () => void;
@@ -70,29 +70,35 @@ export function SentenceBuilder({
         <Badge tag="cross" />
       </div>
       <div className="m-q-text sentence">{sentence.ru}</div>
+      {sentence.context && <div className="m-q-context">{sentence.context}</div>}
       <div className="m-q-prompt">Расставьте слова в правильном порядке:</div>
 
-      <div className={"m-answer" + (selected.length === 0 ? " empty" : "")}>
-        {selected.length === 0 ? (
-          <span className="m-ans-ph">нажимай слова снизу…</span>
-        ) : (
-          // aria-disabled (не disabled): нативный disabled на активированной
-          // плитке роняет фокус на body — Tab-пользователь начинал бы сначала.
-          // Действие гасит guard в onClick (Enter/Space синтезируют click).
-          selected.map((id, idx) => (
-            <button
-              key={idx}
-              type="button"
-              className="m-atile"
-              lang="pt-PT"
-              aria-disabled={resolved !== null}
-              onClick={() => !resolved && setSelected((s) => s.filter((_, i) => i !== idx))}
-            >
-              {wordById.get(id)}
-              {!resolved && <Icon name="x" size={13} className="m-atile-x" />}
-            </button>
-          ))
-        )}
+      <div className={"m-answer" + (selected.length === 0 ? " empty" : "") + (resolved ? " resolved" : "")}>
+        <div className="m-answer-reserve" aria-hidden="true">
+          {sentence.words.map((word, i) => <span className="m-tile-measure" key={i}>{word}<Icon name="x" size={13} className="m-tile-measure-x" /></span>)}
+        </div>
+        <div className="m-answer-picked">
+          {selected.length === 0 ? (
+            <span className="m-ans-ph">нажимай слова снизу…</span>
+          ) : (
+            // aria-disabled (не disabled): нативный disabled на активированной
+            // плитке роняет фокус на body — Tab-пользователь начинал бы сначала.
+            // Действие гасит guard в onClick (Enter/Space синтезируют click).
+            selected.map((id, idx) => (
+              <button
+                key={idx}
+                type="button"
+                className="m-atile"
+                lang="pt-PT"
+                aria-disabled={resolved !== null}
+                onClick={() => !resolved && setSelected((s) => s.filter((_, i) => i !== idx))}
+              >
+                {wordById.get(id)}
+                <Icon name="x" size={13} className="m-atile-x" />
+              </button>
+            ))
+          )}
+        </div>
       </div>
 
       <div className="m-bank">
@@ -110,22 +116,22 @@ export function SentenceBuilder({
         ))}
       </div>
 
-      {!resolved && (
-        <div style={{ display: "flex", gap: 10 }}>
-          <button className="m-btn m-btn--primary" style={{ flex: 1 }} onClick={check}>
-            Проверить
-          </button>
-          <button className="m-btn m-btn--ghost" onClick={() => setSelected([])}>
-            Очистить
-          </button>
-        </div>
-      )}
-
       {!resolved && retry && (
         <RetryBox>
           <b>Не совсем!</b> Попробуйте ещё раз.
         </RetryBox>
       )}
+      {!resolved && (
+        <ActionBar>
+          <button className="m-btn m-btn--primary" style={{ flex: 1 }} disabled={selected.length === 0} onClick={check}>
+            Проверить
+          </button>
+          <button className="m-btn m-btn--ghost" onClick={() => setSelected([])}>
+            Очистить
+          </button>
+        </ActionBar>
+      )}
+
       {resolved && (
         <>
           <ResultFeedback ok={resolved.ok}>

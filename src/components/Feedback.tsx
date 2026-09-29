@@ -1,7 +1,37 @@
-import type { ReactNode } from "react";
+import { useLayoutEffect, useRef, type ReactNode } from "react";
 import type { WordView } from "../lib/types";
 import { speakSmart } from "../lib/speech";
 import { Icon } from "./Icon";
+
+// One action position for typing, sentence building and feedback.
+export function ActionBar({ children }: { children: ReactNode }) {
+  const space = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const viewport = window.visualViewport;
+    const element = space.current;
+    if (!viewport || !element) return;
+
+    const update = () => {
+      // Safari's keyboard shrinks only the visual viewport. Capacitor resizes
+      // the WebView itself, so its inset is already zero. Don't follow pinch zoom.
+      const inset = viewport.scale === 1
+        ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
+        : 0;
+      element.style.setProperty("--action-bottom", `${inset}px`);
+    };
+    update();
+    viewport.addEventListener("resize", update);
+    viewport.addEventListener("scroll", update);
+    window.addEventListener("resize", update);
+    return () => {
+      viewport.removeEventListener("resize", update);
+      viewport.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, []);
+
+  return <div className="m-action-space" ref={space}><div className="m-action-bar">{children}</div></div>;
+}
 
 // Structured answer feedback (icon + body). Animates in (fade + 8px rise).
 
@@ -39,11 +69,13 @@ export function WordFeedback({
   word,
   dueLabel,
   saveFailed,
+  missingAccents,
 }: {
   ok: boolean;
   word: WordView;
   dueLabel: string | null;
   saveFailed?: boolean;
+  missingAccents?: boolean;
 }) {
   return (
     <ResultFeedback ok={ok}>
@@ -60,6 +92,7 @@ export function WordFeedback({
         <Icon name="volume" size={13} />
       </button>
       {word.note && <div className="m-fb-sub">💡 {word.note}</div>}
+      {missingAccents && <div className="m-fb-sub">Ответ принят без акцентов. Запомните написание выше.</div>}
       <div className="m-fb-sub">
         <Icon name="clock" /> следующий повтор: {dueLabel ?? "—"}
       </div>
@@ -74,19 +107,20 @@ export function WordFeedback({
 
 export function NextButton({ isLast, onClick }: { isLast: boolean; onClick: () => void }) {
   return (
-    // autoFocus: после ответа фокус на «Дальше» — Enter ведёт к следующей карточке.
-    <button
-      className="m-btn m-btn--ghost m-btn--block"
-      style={{ marginTop: 10 }}
-      autoFocus
-      onKeyDown={(e) => {
-        // Зажатый Enter (autorepeat) не должен проскакивать карточку мимо
-        // фидбэка: отмена повторного keydown отменяет синтезируемый click.
-        if (e.key === "Enter" && e.repeat) e.preventDefault();
-      }}
-      onClick={onClick}
-    >
-      {isLast ? "Завершить" : "Дальше"} <Icon name="arrow-right" size={18} />
-    </button>
+    <ActionBar>
+      {/* autoFocus: после ответа Enter ведёт к следующей карточке. */}
+      <button
+        className="m-btn m-btn--primary m-btn--block"
+        autoFocus
+        onKeyDown={(e) => {
+          // Зажатый Enter (autorepeat) не должен проскакивать карточку мимо
+          // фидбэка: отмена повторного keydown отменяет синтезируемый click.
+          if (e.key === "Enter" && e.repeat) e.preventDefault();
+        }}
+        onClick={onClick}
+      >
+        {isLast ? "Завершить" : "Дальше"} <Icon name="arrow-right" size={18} />
+      </button>
+    </ActionBar>
   );
 }

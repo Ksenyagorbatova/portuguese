@@ -19,6 +19,10 @@ import { TOPICS, CROSS_SENTENCES, TOPIC_SENTENCES } from "./content";
 // Run on prod:  npx convex run seed:seedContent --prod   (needs CONVEX_DEPLOY_KEY)
 export const seedContent = internalMutation({
   args: {},
+  returns: v.object({
+    topics: v.number(), lessons: v.number(), words: v.number(), crossSentences: v.number(), topicSentences: v.number(),
+    pruned: v.object({ topics: v.number(), lessons: v.number(), words: v.number(), crossSentences: v.number(), topicSentences: v.number() }),
+  }),
   handler: async (ctx) => {
     let topicCount = 0;
     let lessonCount = 0;
@@ -124,6 +128,8 @@ export const seedContent = internalMutation({
         answer: s.answer,
         ru: s.ru,
         blank: s.blank,
+        acceptedBlanks: s.acceptedBlanks,
+        context: s.context,
         order: i,
       };
       if (exS) await ctx.db.patch(exS._id, doc);

@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { AnswerResult, BadgeTag, CardFields, WordView } from "../../lib/types";
-import { variantsMatch } from "../../lib/text";
+import { classifyAnswer } from "../../lib/text";
 import { ACCENTS_HINT_KEY, useFadingHint } from "../../lib/hints";
 import { localDay } from "../../lib/day";
 import { nextDueLabel } from "../../lib/srs";
@@ -11,7 +11,7 @@ import { speakAuto } from "../../lib/speech";
 import { hapticOk, hapticErr } from "../../lib/haptics";
 import { Badge } from "../Badge";
 import { Icon } from "../Icon";
-import { WordFeedback, RetryBox, NextButton } from "../Feedback";
+import { ActionBar, WordFeedback, RetryBox, NextButton } from "../Feedback";
 
 // dueLabel: null — ответ сервера ещё не пришёл (или мутация упала), Feedback
 // покажет «—»; saveFailed — мутация отвергнута, ответ в расписание не попал.
@@ -39,6 +39,7 @@ export function TypeExercise({
   const [value, setValue] = useState("");
   const [tries, setTries] = useState(0);
   const [retry, setRetry] = useState(false);
+  const [missingAccents, setMissingAccents] = useState(false);
   const [resolved, setResolved] = useState<Resolved | null>(null);
   // Синхронный guard от двойного ответа: проверка по state (resolved) не
   // закрывает окно между событием и применением обновления — ref выставляется
@@ -84,9 +85,11 @@ export function TypeExercise({
 
   function check() {
     if (resolved || pendingRef.current) return;
-    const ok = variantsMatch(value, word.pt);
+    const match = classifyAnswer(value, word.pt);
+    const ok = match !== "incorrect";
     const first = tries === 0;
     if (ok) {
+      setMissingAccents(match === "missing_accents");
       finish(first ? 2 : 1, true);
     } else if (tries < 1) {
       hapticErr(); // первый промах → ретрай (П.6)
@@ -150,25 +153,22 @@ export function TypeExercise({
       </div>
       {showAccentsHint && (
         <div className="m-hint">
-          <Icon name="info" /> Акценты и пунктуация необязательны — «ate logo» = «até logo»
+          <Icon name="info" /> Можно без акцентов: «ate logo» → «até logo». Написанные акценты проверяются.
         </div>
-      )}
-      {!resolved && (
-        <button
-          className="m-btn m-btn--primary m-btn--block"
-          style={{ marginTop: 14 }}
-          onClick={check}
-        >
-          Проверить
-          {/* Чип-подсказка хоткея (как A–E в выборе): ответить можно Enter'ом.
-              aria-hidden — имя кнопки остаётся «Проверить»; на таче скрыт. */}
-          <span className="m-btn-key" aria-hidden="true">↵</span>
-        </button>
       )}
       {!resolved && retry && (
         <RetryBox>
           <b>Не совсем!</b> Ещё одна попытка.
         </RetryBox>
+      )}
+      {!resolved && (
+        <ActionBar>
+          <button className="m-btn m-btn--primary m-btn--block" onClick={check}>
+            Проверить
+            {/* aria-hidden: имя кнопки остаётся «Проверить»; на таче скрыт. */}
+            <span className="m-btn-key" aria-hidden="true">↵</span>
+          </button>
+        </ActionBar>
       )}
       {resolved && (
         <>
@@ -177,6 +177,7 @@ export function TypeExercise({
             word={word}
             dueLabel={resolved.dueLabel}
             saveFailed={resolved.saveFailed}
+            missingAccents={missingAccents}
           />
           <NextButton isLast={isLast} onClick={onNext} />
         </>

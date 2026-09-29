@@ -4,7 +4,7 @@
 
 ## Цель
 
-Светлая / тёмная / системная тема одним циклическим переключателем в хедере. В
+Светлая / тёмная / системная тема одним циклическим переключателем в профиле. В
 режиме «системная» тема следует ОС и реагирует на её смену вживую. До первой
 отрисовки — без вспышки чужой темы.
 
@@ -18,7 +18,8 @@
 
 - Порядок клика: `light → dark → system → light` (`ORDER` в
   [`src/lib/useTheme.ts`](../../src/lib/useTheme.ts)).
-- Иконки/подписи в хедере: `sun` / `moon` / `contrast` — «Тема: светлая / тёмная / системная».
+- Иконки в профиле: `sun` / `moon` / `contrast`; строка «Оформление» показывает
+  «Светлая» / «Тёмная» / «Как на устройстве».
 - В режиме `system` тема = текущее `prefers-color-scheme`; смена темы ОС применяется
   без перезагрузки. Явный выбор (`light`/`dark`) системное предпочтение игнорирует.
 
@@ -70,8 +71,8 @@ SystemBarsStyle.Light })` (`@capacitor/core`; `Dark` = СВЕТЛЫЙ текст
 
 - [`src/lib/useTheme.ts`](../../src/lib/useTheme.ts) — `useTheme`, `nextThemeChoice`, `THEME_COLOR`.
 - [`index.html`](../../index.html) — anti-flash inline-скрипт, `theme-color`.
-- [`src/components/Header.tsx`](../../src/components/Header.tsx) — кнопка переключателя (иконки/подписи).
-- [`src/App.tsx`](../../src/App.tsx) — прокидывает `choice`/`cycle` в `Shell`/`Header`.
+- [`src/components/Profile.tsx`](../../src/components/Profile.tsx) — кнопка переключателя (иконки/подписи).
+- [`src/App.tsx`](../../src/App.tsx) — прокидывает `choice`/`cycle` в `Shell`/`Profile`.
 - iOS: [`scripts/ios/page-colors.mjs`](../../scripts/ios/page-colors.mjs) (+test) →
   `ios/App/App/Assets.xcassets/PageBackground.colorset`, `SceneDelegate.swift`.
 

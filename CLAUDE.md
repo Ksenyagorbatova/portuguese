@@ -229,9 +229,10 @@ worktree-логика — только для *linked* worktree (детект �
   при освоении темы на ≥80% и всех выученных `required`, в пределах бюджета
   очереди. Недетерминированное держим вне Convex-queries.
   → [`specs/feature/session-queue-and-rotation.md`](specs/feature/session-queue-and-rotation.md).
-- **UI тренировки** — хедер (логотип-«домой» с флагом Португалии, стрик, **mute**
-  `volume`/`volume-off`, переключатель темы, выход); во время сессии прячем
-  статистику/табы («чистое поле»); строка прогресса — позиция `idx+1/queue.length`
+- **UI тренировки** — нижние разделы «Сегодня», «Курс», «Профиль»; тема и аккаунт
+  в профиле. Хедер: логотип-«домой», стрик, **mute** `volume`/`volume-off`.
+  В активной сессии только выход, позиция и звук, действия закреплены снизу;
+  статистика занятия только на финале. Строка прогресса — позиция `idx+1/queue.length`
   (знаменатель статичен), не освоение; теория не скрывается после прохождения.
   Прогноз повторений в ReviewTab при due=0 («Завтра к повтору: N»); бейдж липучки
   + ссылка на теорию в разборе ошибок; финал курса `CourseComplete` при 100% всех
@@ -254,8 +255,8 @@ worktree-логика — только для *linked* worktree (детект �
   ([`convex/account.ts`](convex/account.ts)): JWT живёт до часа и после выхода
   или удаления аккаунта, поэтому проверяем, что пользователь и сессия ещё в базе
   (голый `getAuthUserId` в `convex/` запрещён lint-правилом). Удаление аккаунта
-  (App Store 5.1.1(v)) — `account:deleteAccount` из строки аккаунта на главном
-  экране (`AccountFooter`); новая таблица с `userId` — в `USER_OWNED_TABLES`
+  (App Store 5.1.1(v)) — `account:deleteAccount` из строки аккаунта в профиле
+  (`AccountFooter`); новая таблица с `userId` — в `USER_OWNED_TABLES`
   (тест сверяет со схемой); `account:viewer` = `gone` → клиент выходит сам.
   → [`specs/feature/auth-and-signup-gate.md`](specs/feature/auth-and-signup-gate.md).
 - **Готчи:** `getSrsState` отдаёт `cards`/`tags` МАССИВАМИ (не Record) — `pt`
@@ -300,10 +301,10 @@ src/lib/        types, queue (interleaved-сборка), srs (+adaptSrs), srsPre
                 learning (навыки MC/Type, пороги, SESSION_SIZE), hints (гашение
                 служебных хинтов), text, shuffle, wrongOptions, speech
                 *.test.ts — unit-тесты (Vitest)
-src/components/ Shell (оркестратор) → Header/ScoreRow/TabBar → ReviewTab/TopicsTab/
+src/components/ Shell (оркестратор) → Header/TabBar → ReviewTab/TopicsTab/Profile/
                 Theory → Session → exercises/{Mc,Type,SentenceBuilder} → Feedback/Complete
                 + ConfirmDialog (модалка подтверждения: выход из сессии, удаление аккаунта)
-                + AccountFooter (email и «Удалить аккаунт» внизу главного экрана)
+                + AccountFooter (email и «Удалить аккаунт» в профиле)
                 *.ct.tsx — компонентные тесты (Playwright CT)
 src/test/       setup.ts (jest-dom), mocks/ (стабы для CT), convexAuth.ts (asNewUser и др. для backend-тестов)
 playwright/     index.html/index.tsx — точка монтирования Playwright CT

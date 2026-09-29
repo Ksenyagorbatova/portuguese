@@ -1,7 +1,7 @@
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import type { AnswerResult, TopicSentenceView } from "../../lib/types";
 import { shuffle } from "../../lib/shuffle";
-import { normWord } from "../../lib/text";
+import { normToken } from "../../lib/text";
 import { hotkeyIndex } from "../../lib/hotkeys";
 import { speakAuto } from "../../lib/speech";
 import { hapticOk, hapticErr } from "../../lib/haptics";
@@ -12,12 +12,12 @@ import { ResultFeedback, RetryBox, NextButton } from "../Feedback";
 // Cloze-упражнение раздела «Построение предложений»: в предложении темы спрятано
 // целевое слово (sentence.blank), пользователь ВЫБИРАЕТ его из вариантов. Как и
 // SentenceBuilder, прогресс SRS не двигает — только счёт сессии (onAnswered без
-// recordAnswer). Дистракторы — другие blank-слова той же темы (pool), поэтому
-// однотипны цели. Две попытки, затем правильный ответ раскрывается.
+// recordAnswer). Дистракторы — другие blank-слова той же темы (pool), кроме
+// всех допустимых форм ответа. Две попытки, затем правильный ответ раскрывается.
 
 const KEYS = ["A", "B", "C", "D"];
 
-// Сравнение без регистра/диакритики/хвостовой пунктуации (normWord из lib/text):
+// Сравнение без регистра/пунктуации, с учётом диакритики (normToken из lib/text):
 // токен в words может нести пунктуацию ("Olá!"), а blank/варианты чистые ("Olá").
 
 export function ClozeExercise({
@@ -35,13 +35,15 @@ export function ClozeExercise({
 }) {
   // Позиция пропуска: первый токен words, совпавший с blank (нормализованно).
   const blankIdx = useMemo(
-    () => sentence.words.findIndex((w) => normWord(w) === normWord(sentence.blank)),
+    () => sentence.words.findIndex((w) => normToken(w) === normToken(sentence.blank)),
     [sentence],
   );
   // Варианты: цель + до 3 дистракторов из пула (другие blank-и темы), исключая
   // совпадающие с целью по норме (чтобы не было двух правильных).
   const options = useMemo(() => {
-    const distractors = shuffle(pool.filter((p) => normWord(p) !== normWord(sentence.blank))).slice(0, 3);
+    const accepted = new Set([sentence.blank, ...(sentence.acceptedBlanks ?? [])].map(normToken));
+    const unique = [...new Map(pool.map((p) => [normToken(p), p])).values()];
+    const distractors = shuffle(unique.filter((p) => !accepted.has(normToken(p)))).slice(0, 3);
     return shuffle([sentence.blank, ...distractors]);
   }, [sentence, pool]);
 
@@ -50,7 +52,8 @@ export function ClozeExercise({
   const [resolved, setResolved] = useState<{ ok: boolean } | null>(null);
   const pendingRef = useRef(false);
 
-  const isCorrectOpt = (o: string) => normWord(o) === normWord(sentence.blank);
+  const isCorrectOpt = (o: string) =>
+    [sentence.blank, ...(sentence.acceptedBlanks ?? [])].some((a) => normToken(a) === normToken(o));
 
   function finish(ok: boolean, firstTry: boolean) {
     if (pendingRef.current) return;
@@ -119,6 +122,7 @@ export function ClozeExercise({
         {before} <span className="m-cloze-gap">＿＿＿</span> {after}
       </div>
       <div className="m-q-prompt">{sentence.ru}</div>
+      {sentence.context && <div className="m-q-context">{sentence.context}</div>}
       <div className="m-opts">
         {options.map((o, i) => (
           <button
@@ -146,6 +150,9 @@ export function ClozeExercise({
             <b>{resolved.ok ? "Верно!" : "Правильно:"}</b>{" "}
             <span className="m-fb-pt" lang="pt-PT">{sentence.answer}</span>
             <div className="m-fb-sub">{sentence.ru}</div>
+            {!!sentence.acceptedBlanks?.length && (
+              <div className="m-fb-sub">Также допустимо: <span lang="pt-PT">{sentence.acceptedBlanks.join(", ")}</span></div>
+            )}
           </ResultFeedback>
           <NextButton isLast={isLast} onClick={onNext} />
         </>

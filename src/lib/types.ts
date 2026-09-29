@@ -34,6 +34,8 @@ export type TopicSentenceView = {
   answer: string;
   ru: string;
   blank: string;
+  acceptedBlanks?: string[];
+  context?: string;
 };
 export type Course = { topics: TopicView[]; crossSentences: CrossSentenceView[] };
 

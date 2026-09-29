@@ -9,6 +9,23 @@ import { DEV_EMAIL, DEV_PASSWORD } from "./seed";
 const modules = import.meta.glob(["./**/*.*s", "!./**/*.test.ts"]);
 
 describe("seedContent", () => {
+  it("updates and clears optional sentence metadata without changing its id", async () => {
+    const t = convexTest(schema, modules);
+    await t.mutation(internal.seed.seedContent, {});
+    const ids = await t.run(async (ctx) => {
+      const withMeta = await ctx.db.query("topicSentences").withIndex("by_sentenceKey", (q) => q.eq("sentenceKey", "ts_0002")).unique();
+      const withoutMeta = await ctx.db.query("topicSentences").withIndex("by_sentenceKey", (q) => q.eq("sentenceKey", "ts_0001")).unique();
+      await ctx.db.patch(withMeta!._id, { acceptedBlanks: ["wrong"], context: "old" });
+      await ctx.db.patch(withoutMeta!._id, { acceptedBlanks: ["stale"], context: "stale" });
+      return [withMeta!._id, withoutMeta!._id];
+    });
+    await t.mutation(internal.seed.seedContent, {});
+    const [updated, cleared] = await t.run(async (ctx) => Promise.all(ids.map((id) => ctx.db.get(id))));
+    expect(updated).toMatchObject({ _id: ids[0], acceptedBlanks: ["Obrigado"], context: "Ответ на вопрос «Как дела?»" });
+    expect(cleared!._id).toBe(ids[1]);
+    expect(cleared!.acceptedBlanks).toBeUndefined();
+    expect(cleared!.context).toBeUndefined();
+  });
   it("seeds the course and is idempotent (no duplicates on re-run)", async () => {
     const t = convexTest(schema, modules);
 

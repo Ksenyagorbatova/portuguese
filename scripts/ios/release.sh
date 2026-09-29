@@ -87,7 +87,7 @@ case "$IOS_TEAM_ID" in
   *) bad_team=0 ;;
 esac
 if [ "$bad_team" = 1 ] || [ ${#IOS_TEAM_ID} -ne 10 ]; then
-  echo "✖ IOS_TEAM_ID «$IOS_TEAM_ID» — не Team ID (нужно 10 символов A–Z/0–9, напр. G2AA82378K)."
+  echo "✖ IOS_TEAM_ID «${IOS_TEAM_ID}» — не Team ID (нужно 10 символов A–Z/0–9, напр. G2AA82378K)."
   exit 2
 fi
 case "$ASC_KEY_ID" in
@@ -95,12 +95,12 @@ case "$ASC_KEY_ID" in
   *) bad_key=0 ;;
 esac
 if [ "$bad_key" = 1 ] || [ ${#ASC_KEY_ID} -ne 10 ]; then
-  echo "✖ ASC_KEY_ID «$ASC_KEY_ID» — не Key ID ключа API (10 символов A–Z/0–9)."
+  echo "✖ ASC_KEY_ID «${ASC_KEY_ID}» — не Key ID ключа API (10 символов A–Z/0–9)."
   exit 2
 fi
 case "$ASC_ISSUER_ID" in
   *[!0-9a-fA-F-]*)
-    echo "✖ ASC_ISSUER_ID «$ASC_ISSUER_ID» — не Issuer ID (UUID из App Store Connect)."
+    echo "✖ ASC_ISSUER_ID «${ASC_ISSUER_ID}» — не Issuer ID (UUID из App Store Connect)."
     exit 2
     ;;
 esac
